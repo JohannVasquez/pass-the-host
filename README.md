@@ -92,16 +92,40 @@ Edita `config.json`:
 python main.py
 ```
 
-### Generar ejecutable con PyInstaller
-```bash
-pyinstaller --name="MinecraftServerLauncher" ^
-    --windowed ^
-    --onefile ^
-    --add-data "config.json;." ^
-    --add-data "rclone;rclone" ^
-    --add-data "java_runtime;java_runtime" ^
-    main.py
+## 📦 Generar Ejecutable
+
+### Método 1: Script automático (Recomendado)
+```powershell
+.\build.ps1
 ```
+
+Este script:
+- ✅ Verifica el entorno virtual
+- ✅ Instala PyInstaller si no está
+- ✅ Limpia builds anteriores
+- ✅ Compila la aplicación
+- ✅ Muestra información del ejecutable generado
+
+### Método 2: Manual con PyInstaller
+```powershell
+pyinstaller build_exe.spec
+```
+
+### Resultado
+El ejecutable se genera en `dist\PassTheHost.exe`
+
+**⚠️ Importante:**
+- El ejecutable **NO incluye** `java_runtime/`, `rclone/` ni `server/`
+- `rclone` se descarga automáticamente al primer uso
+- `java_runtime` debe estar en la misma carpeta que el .exe
+- `server/` se crea cuando configuras el servidor
+
+### Distribución
+Para distribuir tu aplicación:
+1. Copia `PassTheHost.exe` desde `dist/`
+2. Incluye `config.example.json`
+3. Incluye la carpeta `java_runtime/` (si quieres que esté preinstalada)
+4. Los usuarios necesitarán configurar R2 en el primer uso
 
 ## 📚 Componentes Principales
 
