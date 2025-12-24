@@ -1,0 +1,21 @@
+{
+  "r2": {
+    "endpoint": "https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com",
+    "access_key": "YOUR_R2_ACCESS_KEY",
+    "secret_key": "YOUR_R2_SECRET_KEY",
+    "bucket_name": "your-bucket-name",
+    "region": "auto"
+  },
+  "server": {
+    "server_path": "./server",
+    "java_path": "./java_runtime/bin/java.exe",
+    "server_jar": "server.jar",
+    "memory_min": "1G",
+    "memory_max": "4G",
+    "server_port": 25565
+  },
+  "app": {
+    "owner_name": "YourName",
+    "auto_sync_interval": 300
+  }
+}

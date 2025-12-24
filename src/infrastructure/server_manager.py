@@ -1,0 +1,217 @@
+"""
+Implementación del Server Manager
+Gestiona el proceso del servidor Minecraft
+"""
+import subprocess
+import threading
+import logging
+import psutil
+from pathlib import Path
+from typing import Optional, Callable
+import time
+
+from src.domain.interfaces.services import IServerManager
+from src.domain.entities.server_entities import ServerConfig
+
+logger = logging.getLogger(__name__)
+
+
+class MinecraftServerManager(IServerManager):
+    """Gestor del proceso del servidor Minecraft"""
+    
+    def __init__(self):
+        self._process: Optional[subprocess.Popen] = None
+        self._output_callback: Optional[Callable[[str], None]] = None
+        self._output_thread: Optional[threading.Thread] = None
+        self._running = False
+    
+    def start_server(self, config: ServerConfig) -> bool:
+        """Inicia el servidor Minecraft"""
+        if self.is_running():
+            logger.warning("El servidor ya está en ejecución")
+            return False
+        
+        # Verificar y limpiar procesos huérfanos
+        self._kill_orphaned_servers(config.server_path)
+        
+        try:
+            # Cambiar al directorio del servidor
+            server_path = Path(config.server_path).resolve()  # Ruta absoluta
+            if not server_path.exists():
+                logger.error(f"Ruta del servidor no existe: {server_path}")
+                return False
+            
+            # Resolver path de Java a absoluto
+            java_path = Path(config.java_path)
+            if not java_path.is_absolute():
+                java_path = java_path.resolve()
+            
+            if not java_path.exists():
+                logger.error(f"Java no encontrado en: {java_path}")
+                return False
+            
+            # Preparar comando con path absoluto de Java
+            command = [
+                str(java_path),
+                f"-Xms{config.memory_min}",
+                f"-Xmx{config.memory_max}",
+                "-jar",
+                config.server_jar,  # Este es relativo al cwd
+                "nogui"
+            ]
+            
+            logger.info(f"Iniciando servidor con comando: {' '.join(command)}")
+            logger.info(f"Working directory: {server_path}")
+            
+            # Iniciar proceso
+            self._process = subprocess.Popen(
+                command,
+                cwd=str(server_path),
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+            )
+            
+            # Verificar que el proceso realmente inició
+            time.sleep(0.5)
+            if self._process.poll() is not None:
+                # El proceso terminó inmediatamente, probablemente error
+                logger.error(f"El servidor terminó inmediatamente con código {self._process.returncode}")
+                return False
+            
+            self._running = True
+            
+            # Iniciar thread para leer output
+            self._output_thread = threading.Thread(
+                target=self._read_output,
+                daemon=True
+            )
+            self._output_thread.start()
+            
+            logger.info("Servidor iniciado exitosamente")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error al iniciar servidor: {e}")
+            return False
+    
+    def stop_server(self) -> bool:
+        """Detiene el servidor de forma limpia"""
+        if not self.is_running():
+            logger.warning("El servidor no está en ejecución")
+            return False
+        
+        try:
+            # Enviar comando stop
+            self.send_command("stop")
+            
+            # Esperar a que termine (máximo 30 segundos)
+            logger.info("Esperando a que el servidor se detenga...")
+            self._process.wait(timeout=30)
+            
+            self._running = False
+            self._process = None
+            
+            logger.info("Servidor detenido exitosamente")
+            return True
+            
+        except subprocess.TimeoutExpired:
+            logger.warning("Timeout al detener servidor, forzando cierre...")
+            self._process.terminate()
+            time.sleep(2)
+            if self._process.poll() is None:
+                self._process.kill()
+            self._running = False
+            self._process = None
+            return True
+        except Exception as e:
+            logger.error(f"Error al detener servidor: {e}")
+            return False
+    
+    def is_running(self) -> bool:
+        """Verifica si el servidor está en ejecución"""
+        if self._process is None:
+            return False
+        return self._process.poll() is None and self._running
+    
+    def send_command(self, command: str) -> bool:
+        """Envía un comando al servidor"""
+        if not self.is_running():
+            logger.warning("No se puede enviar comando, el servidor no está en ejecución")
+            return False
+        
+        try:
+            self._process.stdin.write(f"{command}\n")
+            self._process.stdin.flush()
+            logger.debug(f"Comando enviado: {command}")
+            return True
+        except Exception as e:
+            logger.error(f"Error al enviar comando: {e}")
+            return False
+    
+    def get_output_stream(self) -> Optional[Callable[[str], None]]:
+        """Obtiene el callback actual"""
+        return self._output_callback
+    
+    def set_output_callback(self, callback: Callable[[str], None]) -> None:
+        """Establece un callback para recibir el output del servidor"""
+        self._output_callback = callback
+    
+    def _read_output(self):
+        """Lee el output del servidor en un thread separado"""
+        try:
+            while self.is_running() and self._process:
+                line = self._process.stdout.readline()
+                if not line:
+                    break
+                
+                line = line.strip()
+                if line:
+                    logger.debug(f"Server: {line}")
+                    if self._output_callback:
+                        try:
+                            self._output_callback(line)
+                        except Exception as e:
+                            logger.error(f"Error en callback de output: {e}")
+        except Exception as e:
+            logger.error(f"Error al leer output del servidor: {e}")
+        finally:
+            self._running = False
+    
+    def _kill_orphaned_servers(self, server_path: str):
+        """
+        Mata procesos Java huérfanos que puedan estar corriendo el servidor
+        """
+        try:
+            server_path_resolved = str(Path(server_path).resolve())
+            killed_count = 0
+            
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'cwd']):
+                try:
+                    # Buscar procesos Java
+                    if proc.info['name'] and 'java' in proc.info['name'].lower():
+                        cmdline = proc.info['cmdline']
+                        cwd = proc.info['cwd']
+                        
+                        # Verificar si está corriendo desde nuestro directorio de servidor
+                        if cmdline and cwd:
+                            # Buscar "server.jar" en la línea de comandos
+                            if any('server.jar' in str(arg) for arg in cmdline):
+                                # Verificar que el cwd sea nuestro servidor
+                                if server_path_resolved in str(cwd):
+                                    logger.warning(f"Encontrado proceso huérfano Java (PID {proc.info['pid']}), terminando...")
+                                    proc.terminate()
+                                    proc.wait(timeout=5)
+                                    killed_count += 1
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
+                    continue
+            
+            if killed_count > 0:
+                logger.info(f"Terminados {killed_count} procesos huérfanos")
+                time.sleep(2)  # Esperar a que los archivos se liberen
+                
+        except Exception as e:
+            logger.warning(f"Error al verificar procesos huérfanos: {e}")
