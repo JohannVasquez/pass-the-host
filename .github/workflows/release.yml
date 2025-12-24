@@ -33,6 +33,11 @@ jobs:
       run: |
         pyinstaller build_exe.spec
     
+    - name: List dist contents
+      run: |
+        Write-Host "=== Listing dist directory ==="
+        Get-ChildItem -Path ./dist -Recurse | ForEach-Object { Write-Host $_.FullName }
+    
     - name: Calculate version
       id: version
       run: |
@@ -81,4 +86,4 @@ jobs:
         draft: false
         prerelease: false
         files: |
-          ./dist/Pass the host!.exe
+          dist/*.exe
