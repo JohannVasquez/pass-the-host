@@ -153,7 +153,18 @@ pyinstaller --name="MinecraftServerLauncher" ^
 ✅ **Logs en Vivo**: Visualización del output del servidor  
 ✅ **No Bloqueante**: Toda la lógica pesada corre en threads separados  
 
-## 📝 Licencia
+## � Resolución de Problemas
+
+Si encuentras errores al iniciar el servidor, consulta la [Guía de Resolución de Problemas](TROUBLESHOOTING.md).
+
+**Problemas comunes:**
+- Error `NoSuchFileException: server.properties` - Normal en primera ejecución
+- El servidor no inicia - Revisa EULA y configuración de Java
+- Problemas de sincronización - Verifica credenciales de R2
+
+Para más detalles, ver [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+
+## �📝 Licencia
 
 MIT
 

@@ -17,8 +17,11 @@ class ServerPropertiesManager(IServerPropertiesManager):
         """Actualiza la IP del servidor en server.properties"""
         try:
             if not properties_path.exists():
-                logger.error(f"Archivo server.properties no encontrado: {properties_path}")
-                return False
+                logger.info(f"Archivo server.properties no encontrado: {properties_path}")
+                logger.info("Esto es NORMAL en la primera ejecución - el servidor lo creará automáticamente")
+                logger.info("El servidor Minecraft generará server.properties con valores por defecto")
+                # No es un error, el servidor creará el archivo en la primera ejecución
+                return True
             
             # Leer archivo
             with open(properties_path, 'r', encoding='utf-8') as f:

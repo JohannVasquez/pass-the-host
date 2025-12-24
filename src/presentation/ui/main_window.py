@@ -15,6 +15,7 @@ from pathlib import Path
 from src.presentation.di.container import DependencyContainer
 from src.presentation.ui.config_dialog import ConfigDialog
 from src.presentation.ui.release_lock_dialog import ReleaseLockDialog
+from src.presentation.ui.create_server_dialog import CreateServerDialog
 from src.presentation.workers.server_workers import (
     StartServerWorker,
     StopServerWorker,
@@ -85,6 +86,9 @@ class MainWindow(QMainWindow):
         
         status_group.setLayout(status_layout)
         main_layout.addWidget(status_group)
+        
+        # === Verificar si existe servidor ===
+        self._check_server_exists()
         
         # === Botón de Configuración ===
         config_button_layout = QHBoxLayout()
@@ -362,6 +366,84 @@ class MainWindow(QMainWindow):
         
         # No mostrar todavía, solo cuando se minimice
         # self.tray_icon.show()
+    
+    def _check_server_exists(self):
+        """Verifica si existe un servidor (local o en R2)"""
+        from pathlib import Path
+        import asyncio
+        
+        # Verificar servidor local
+        server_jar = Path("./server/server.jar")
+        has_local_server = server_jar.exists()
+        
+        # Si no hay servidor local y hay config, verificar R2
+        has_remote_server = False
+        if not has_local_server and self._config_exists:
+            try:
+                # Verificar si hay archivos en R2 (ejecutar corutina correctamente)
+                sync_service = self.container.get_sync_service()
+                loop = asyncio.get_event_loop()
+                has_remote_server = loop.run_until_complete(
+                    sync_service.check_remote_exists("cloudflare:server")
+                )
+            except Exception as e:
+                logger.warning(f"No se pudo verificar servidor remoto: {e}")
+        
+        # Si no hay servidor en ningún lado, mostrar botón de crear
+        if not has_local_server and not has_remote_server:
+            self._show_create_server_option()
+    
+    def _show_create_server_option(self):
+        """Muestra la opción de crear un servidor nuevo"""
+        # Buscar el status_group y agregar botón
+        create_info = QLabel(
+            "⚠️ No se detectó ningún servidor.\n"
+            "Puedes crear uno nuevo o descargar uno existente desde R2."
+        )
+        create_info.setStyleSheet("""
+            QLabel {
+                background-color: #fff3cd;
+                color: #856404;
+                padding: 15px;
+                border-radius: 5px;
+                font-weight: bold;
+            }
+        """)
+        create_info.setWordWrap(True)
+        
+        create_button = QPushButton("🎮 Crear Nuevo Servidor")
+        create_button.setMinimumHeight(50)
+        create_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+        create_button.clicked.connect(self._open_create_server_dialog)
+        
+        # Insertar después del status group
+        layout = self.centralWidget().layout()
+        layout.insertWidget(2, create_info)
+        layout.insertWidget(3, create_button)
+    
+    def _open_create_server_dialog(self):
+        """Abre el diálogo para crear un nuevo servidor"""
+        dialog = CreateServerDialog(self)
+        if dialog.exec():
+            # Servidor creado, recargar UI
+            self._log("✅ Servidor creado exitosamente")
+            QMessageBox.information(
+                self,
+                "Reinicio necesario",
+                "El servidor ha sido creado. Por favor reinicia la aplicación."
+            )
+            self._quit_application()
     
     def _load_network_interfaces(self):
         """Carga las interfaces de red disponibles"""

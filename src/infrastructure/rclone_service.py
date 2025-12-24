@@ -107,7 +107,8 @@ acl = private
         return await self._sync(
             source=remote_path,
             destination=str(local_path),
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
+            is_upload=False  # No excluir nada en downloads
         )
     
     async def sync_upload(
@@ -122,14 +123,16 @@ acl = private
         return await self._sync(
             source=str(local_path),
             destination=remote_path,
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
+            is_upload=True  # Excluir archivos bloqueados en uploads
         )
     
     async def _sync(
         self,
         source: str,
         destination: str,
-        progress_callback: Optional[Callable[[SyncProgress], None]] = None
+        progress_callback: Optional[Callable[[SyncProgress], None]] = None,
+        is_upload: bool = False
     ) -> bool:
         """
         Ejecuta el comando de sincronización
@@ -137,6 +140,7 @@ acl = private
             source: Origen (puede ser local o remoto)
             destination: Destino (puede ser local o remoto)
             progress_callback: Callback para reportar progreso
+            is_upload: Si True, es una subida (excluir archivos en uso). Si False, es descarga
         """
         if not self.is_rclone_available():
             logger.error(f"Rclone binary no encontrado en {self.rclone_path}")
@@ -158,6 +162,16 @@ acl = private
                 "--max-backlog", "100000",  # Aumentar backlog para archivos bloqueados
                 "-v"  # Verbose
             ]
+            
+            # Si es upload, excluir archivos que pueden estar bloqueados
+            if is_upload:
+                command.extend([
+                    "--exclude", "logs/**",  # Excluir logs (siempre están en uso)
+                    "--exclude", "*.log",
+                    "--exclude", "*.log.gz",
+                    "--exclude", "*.lck",  # Archivos de lock
+                    "--exclude", "session.lock"
+                ])
             
             logger.info(f"Ejecutando: {' '.join(command)}")
             

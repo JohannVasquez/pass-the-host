@@ -105,12 +105,22 @@ class MinecraftServerManager(IServerManager):
             return False
         
         try:
-            # Enviar comando stop
-            self.send_command("stop")
+            # Intentar enviar comando stop
+            command_sent = self.send_command("stop")
             
-            # Esperar a que termine (máximo 30 segundos)
-            logger.info("Esperando a que el servidor se detenga...")
-            self._process.wait(timeout=30)
+            if command_sent:
+                # Esperar a que termine (máximo 30 segundos)
+                logger.info("Esperando a que el servidor se detenga...")
+                self._process.wait(timeout=30)
+            else:
+                # Si no se pudo enviar el comando, forzar cierre
+                logger.warning("No se pudo enviar comando stop, terminando proceso...")
+                self._process.terminate()
+                time.sleep(2)
+                if self._process.poll() is None:
+                    logger.warning("Proceso no respondió a terminate, usando kill...")
+                    self._process.kill()
+                    self._process.wait(timeout=5)
             
             self._running = False
             self._process = None
@@ -120,15 +130,24 @@ class MinecraftServerManager(IServerManager):
             
         except subprocess.TimeoutExpired:
             logger.warning("Timeout al detener servidor, forzando cierre...")
-            self._process.terminate()
-            time.sleep(2)
-            if self._process.poll() is None:
-                self._process.kill()
+            if self._process:
+                self._process.terminate()
+                time.sleep(2)
+                if self._process.poll() is None:
+                    self._process.kill()
             self._running = False
             self._process = None
             return True
         except Exception as e:
             logger.error(f"Error al detener servidor: {e}")
+            # Intentar cleanup de todas formas
+            if self._process:
+                try:
+                    self._process.kill()
+                except:
+                    pass
+            self._running = False
+            self._process = None
             return False
     
     def is_running(self) -> bool:
@@ -144,12 +163,19 @@ class MinecraftServerManager(IServerManager):
             return False
         
         try:
-            self._process.stdin.write(f"{command}\n")
-            self._process.stdin.flush()
-            logger.debug(f"Comando enviado: {command}")
-            return True
+            if self._process.stdin and not self._process.stdin.closed:
+                self._process.stdin.write(f"{command}\n")
+                self._process.stdin.flush()
+                logger.debug(f"Comando enviado: {command}")
+                return True
+            else:
+                logger.warning("stdin del proceso está cerrado, no se puede enviar comando")
+                return False
+        except (BrokenPipeError, ValueError, OSError) as e:
+            logger.warning(f"Pipe cerrado al enviar comando: {e}")
+            return False
         except Exception as e:
-            logger.error(f"Error al enviar comando: {e}")
+            logger.error(f"Error inesperado al enviar comando: {e}")
             return False
     
     def get_output_stream(self) -> Optional[Callable[[str], None]]:
@@ -163,22 +189,28 @@ class MinecraftServerManager(IServerManager):
     def _read_output(self):
         """Lee el output del servidor en un thread separado"""
         try:
-            while self.is_running() and self._process:
-                line = self._process.stdout.readline()
-                if not line:
+            while self.is_running() and self._process and self._process.poll() is None:
+                try:
+                    line = self._process.stdout.readline()
+                    if not line:
+                        break
+                    
+                    line = line.strip()
+                    if line:
+                        logger.debug(f"Server: {line}")
+                        if self._output_callback:
+                            try:
+                                self._output_callback(line)
+                            except Exception as e:
+                                logger.error(f"Error en callback de output: {e}")
+                except (ValueError, OSError) as e:
+                    # El stream fue cerrado
+                    logger.debug(f"Stream cerrado: {e}")
                     break
-                
-                line = line.strip()
-                if line:
-                    logger.debug(f"Server: {line}")
-                    if self._output_callback:
-                        try:
-                            self._output_callback(line)
-                        except Exception as e:
-                            logger.error(f"Error en callback de output: {e}")
         except Exception as e:
             logger.error(f"Error al leer output del servidor: {e}")
         finally:
+            logger.debug("Thread de lectura de output terminado")
             self._running = False
     
     def _kill_orphaned_servers(self, server_path: str):

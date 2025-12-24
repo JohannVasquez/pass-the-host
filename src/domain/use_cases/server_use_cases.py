@@ -1,6 +1,8 @@
 """
 Casos de Uso - Lógica de Negocio de la Aplicación
 """
+import logging
+import asyncio
 from pathlib import Path
 from typing import Optional, Callable
 
@@ -18,6 +20,8 @@ from src.domain.entities.server_entities import (
     NetworkInterface,
     SyncProgress
 )
+
+logger = logging.getLogger(__name__)
 
 
 class StartServerUseCase:
@@ -128,13 +132,55 @@ class StartServerUseCase:
                 await self.lock_service.release_lock()
                 return False, f"No se encontró {server_config.server_jar} después de sincronizar. Verifica los archivos."
             
-            # Paso 4: Actualizar server.properties con la IP
+            # Paso 4: Verificar si es primera ejecución (no existe server.properties)
             properties_path = local_path / "server.properties"
+            is_first_run = not properties_path.exists()
+            
+            # Log de archivos importantes después de sync
+            eula_path = local_path / "eula.txt"
+            logger.info(f"Estado después de sync - server.jar: {server_jar.exists()}, server.properties: {properties_path.exists()}, eula.txt: {eula_path.exists()}")
+            
+            if is_first_run:
+                if progress_callback:
+                    progress_callback("Primera ejecución: generando archivos del servidor...", SyncProgress())
+                
+                # Primera ejecución: iniciar servidor para que genere archivos
+                logger.info("Primera ejecución detectada, iniciando servidor para generar archivos...")
+                
+                if not self.server_manager.start_server(server_config):
+                    await self.lock_service.release_lock()
+                    return False, "Error al iniciar el servidor por primera vez"
+                
+                # Esperar a que el servidor genere los archivos
+                logger.info("Esperando 20 segundos para que el servidor genere archivos...")
+                await asyncio.sleep(20)
+                
+                # Detener el servidor
+                if progress_callback:
+                    progress_callback("Deteniendo servidor temporal...", SyncProgress())
+                
+                logger.info("Deteniendo servidor después de generación inicial...")
+                stop_result = self.server_manager.stop_server()
+                if not stop_result:
+                    logger.warning("No se pudo detener el servidor limpiamente, pero continuando...")
+                
+                # Esperar a que termine completamente
+                logger.info("Esperando 3 segundos para asegurar cierre completo...")
+                await asyncio.sleep(3)
+                
+                # Ahora debería existir server.properties
+                if not properties_path.exists():
+                    await self.lock_service.release_lock()
+                    return False, "El servidor no generó server.properties. Revisa los logs."
+                
+                logger.info("Primera ejecución completada exitosamente, archivos generados")
+            
+            # Paso 5: Actualizar server.properties con la IP
             if not self.properties_manager.update_server_ip(properties_path, selected_ip):
                 await self.lock_service.release_lock()
                 return False, "Error al actualizar server.properties"
             
-            # Paso 5: Iniciar servidor
+            # Paso 6: Iniciar servidor normalmente
             if progress_callback:
                 progress_callback("Iniciando servidor...", SyncProgress())
             
