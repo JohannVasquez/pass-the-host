@@ -37,7 +37,7 @@ class MainWindow(QMainWindow):
         self.status_check_worker = None  # Worker para verificación de estado
         
         # Configurar ventana
-        self.setWindowTitle("Minecraft Distributed Server Launcher")
+        self.setWindowTitle("Pass the host!")
         self.setMinimumSize(800, 600)
         
         # Verificar si existe configuración
