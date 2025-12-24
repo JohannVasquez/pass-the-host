@@ -1,0 +1,89 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Build executable
+      run: |
+        pyinstaller build_exe.spec
+    
+    - name: Calculate version
+      id: version
+      run: |
+        # Obtener todos los commits
+        $commits = git log --oneline --all
+        
+        # Contar features (feat:)
+        $featCount = ($commits | Select-String -Pattern "^[a-f0-9]+ feat[\(:)]" | Measure-Object).Count
+        
+        # Contar fixes, chores, docs, etc (todo lo que no sea feat)
+        $patchCount = ($commits | Select-String -Pattern "^[a-f0-9]+ (fix|chore|docs|style|refactor|perf|test|build|ci)[\(:)]" | Measure-Object).Count
+        
+        # Si no hay conventional commits, usar run_number
+        if ($featCount -eq 0) { $featCount = 1 }
+        if ($patchCount -eq 0) { $patchCount = ${{ github.run_number }} }
+        
+        $version = "v1.$featCount.$patchCount"
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        echo "Generated version: $version"
+    
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.version.outputs.VERSION }}
+        release_name: Pass the host! ${{ steps.version.outputs.VERSION }}
+        body: |
+          🎮 **Pass the host!** - Gestor de servidores Minecraft con R2
+          
+          ## 📦 Instalación
+          1. Descarga `Pass.the.host.exe`
+          2. Ejecuta el programa
+          3. Configura tu R2 de Cloudflare
+          4. ¡Disfruta!
+          
+          ## ✨ Características
+          - ✅ Sincronización automática con Cloudflare R2
+          - ✅ Soporte para Vanilla, Fabric y Forge
+          - ✅ Instalación automática de Java y Rclone
+          - ✅ Editor de server.properties
+          - ✅ Sincronización de datos de jugadores
+          - ✅ Consola de comandos del servidor
+          - ✅ Subida de mundos en formato .zip
+          
+          ---
+          🤖 Generado automáticamente en commit: ${{ github.sha }}
+        draft: false
+        prerelease: false
+    
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./dist/Pass the host!.exe
+        asset_name: Pass.the.host.exe
+        asset_content_type: application/octet-stream
