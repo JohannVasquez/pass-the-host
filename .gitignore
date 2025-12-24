@@ -1,0 +1,41 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# PyInstaller
+*.spec
+!build_exe.spec
+
+# Virtual environment
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+app.log
+
+# Config (si contiene secrets)
+config.json
+config.json.backup
+
+# Rclone config generado
+rclone.conf
+
+# Archivos del servidor
+server/
+java_runtime/
+
+# Rclone
+rclone
