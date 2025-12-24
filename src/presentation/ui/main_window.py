@@ -2,12 +2,16 @@
 Ventana principal de la aplicación
 """
 import sys
+import os
+import shutil
+import tempfile
+import zipfile
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QComboBox, QProgressBar,
-    QTextEdit, QGroupBox, QSystemTrayIcon, QMenu, QMessageBox, QLineEdit
+    QTextEdit, QGroupBox, QSystemTrayIcon, QMenu, QMessageBox, QLineEdit, QFileDialog
 )
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QThread, Signal
 from PySide6.QtGui import QIcon, QAction
 import logging
 from pathlib import Path
@@ -286,6 +290,29 @@ class MainWindow(QMainWindow):
         self.edit_properties_btn.setEnabled(self._config_exists)
         edit_props_layout.addWidget(self.edit_properties_btn)
         
+        # Botón para subir mundo
+        self.upload_world_btn = QPushButton("🌍 Subir Nuevo Mundo")
+        self.upload_world_btn.setMinimumHeight(40)
+        self.upload_world_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF9800;
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #F57C00;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
+        """)
+        self.upload_world_btn.clicked.connect(self._upload_world)
+        self.upload_world_btn.setEnabled(self._config_exists)
+        edit_props_layout.addWidget(self.upload_world_btn)
+        
         main_layout.addLayout(edit_props_layout)
         
         # === Sección de Logs ===
@@ -295,6 +322,7 @@ class MainWindow(QMainWindow):
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setMaximumHeight(200)
+        self.log_text.document().setMaximumBlockCount(200)  # Limitar a 300 líneas
         logs_layout.addWidget(self.log_text)
         
         logs_group.setLayout(logs_layout)
@@ -1166,6 +1194,127 @@ class MainWindow(QMainWindow):
                 f"Error al cargar configuración:\n{str(e)}"
             )
     
+    def _upload_world(self):
+        """Permite seleccionar y subir un mundo en formato .rar o .zip"""
+        try:
+            # Verificar que el servidor no esté corriendo
+            server_manager = self.container.get_server_manager()
+            if server_manager.is_running():
+                QMessageBox.warning(
+                    self,
+                    "Servidor en ejecución",
+                    "Debe detener el servidor antes de subir un nuevo mundo."
+                )
+                return
+            
+            # Abrir diálogo para seleccionar archivo
+            file_path, _ = QFileDialog.getOpenFileName(
+                self,
+                "Seleccionar archivo de mundo",
+                "",
+                "Archivos ZIP (*.zip);;Todos los archivos (*.*)"
+            )
+            
+            if not file_path:
+                return  # Usuario canceló
+            
+            # Confirmar la acción
+            result = QMessageBox.question(
+                self,
+                "Confirmar subida de mundo",
+                f"¿Desea reemplazar el mundo actual con:\n{Path(file_path).name}?\n\n"
+                "ADVERTENCIA: El mundo actual será eliminado y no se puede recuperar.",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            
+            if result != QMessageBox.Yes:
+                return
+            
+            # Deshabilitar botones durante la operación
+            self.upload_world_btn.setEnabled(False)
+            self.edit_properties_btn.setEnabled(False)
+            self.start_button.setEnabled(False)
+            self.stop_button.setEnabled(False)
+            self.config_button.setEnabled(False)
+            
+            self._log("🌍 Iniciando subida de mundo...")
+            
+            # Limpiar worker anterior si existe
+            if hasattr(self, 'upload_world_worker') and self.upload_world_worker:
+                try:
+                    self.upload_world_worker.finished.disconnect()
+                    self.upload_world_worker.error.disconnect()
+                    self.upload_world_worker.progress.disconnect()
+                except:
+                    pass
+            
+            # Crear worker para subir el mundo
+            worker = UploadWorldWorker(file_path, self.container)
+            worker.progress.connect(lambda msg: self._log(f"   {msg}"))
+            worker.finished.connect(self._on_upload_world_finished)
+            worker.error.connect(self._on_upload_world_error)
+            
+            self.upload_world_worker = worker
+            worker.start()
+            
+        except Exception as e:
+            logger.error(f"Error al subir mundo: {e}")
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Error al subir mundo:\n{str(e)}"
+            )
+    
+    def _on_upload_world_finished(self):
+        """Callback cuando termina la subida del mundo"""
+        # Rehabilitar botones
+        self.upload_world_btn.setEnabled(True)
+        self.edit_properties_btn.setEnabled(True)
+        self.start_button.setEnabled(True)
+        self.stop_button.setEnabled(True)
+        self.config_button.setEnabled(True)
+        
+        self._log("✅ Mundo subido exitosamente a R2")
+        
+        # Limpiar worker correctamente
+        if self.upload_world_worker:
+            self.upload_world_worker.wait()  # Esperar a que el thread termine
+            self.upload_world_worker.deleteLater()
+            self.upload_world_worker = None
+        
+        QMessageBox.information(
+            self,
+            "Mundo subido",
+            "El mundo se ha subido exitosamente a R2.\n\n"
+            "El servidor está listo para iniciar con el nuevo mundo."
+        )
+    
+    def _on_upload_world_error(self, error: str):
+        """Callback cuando hay un error al subir el mundo"""
+        # Rehabilitar botones
+        self.upload_world_btn.setEnabled(True)
+        self.edit_properties_btn.setEnabled(True)
+        self.start_button.setEnabled(True)
+        self.stop_button.setEnabled(True)
+        self.config_button.setEnabled(True)
+        
+        self._log(f"❌ Error al subir mundo: {error}")
+        
+        # Limpiar worker correctamente
+        if self.upload_world_worker:
+            self.upload_world_worker.wait()  # Esperar a que el thread termine
+            self.upload_world_worker.deleteLater()
+            self.upload_world_worker = None
+        
+        QMessageBox.critical(
+            self,
+            "Error",
+            f"Error al subir el mundo:\n{error}"
+        )
+        self._log(f"❌ Error al subir mundo: {error}")
+        self.upload_world_worker = None
+    
     def closeEvent(self, event):
         """Override para manejar cierre"""
         if self.container.get_server_manager().is_running():
@@ -1174,3 +1323,121 @@ class MainWindow(QMainWindow):
             self.showMinimized()
         else:
             event.accept()
+
+
+class UploadWorldWorker(QThread):
+    """Worker para subir un mundo al servidor"""
+    progress = Signal(str)
+    finished = Signal()
+    error = Signal(str)
+    
+    def __init__(self, file_path: str, container: DependencyContainer):
+        super().__init__()
+        self.file_path = file_path
+        self.container = container
+    
+    def run(self):
+        """Ejecuta la subida del mundo"""
+        finished_emitted = False
+        try:
+            file_path = Path(self.file_path)
+            server_path = Path("./server")
+            world_path = server_path / "world"
+            
+            # 1. Extraer el archivo a un directorio temporal
+            self.progress.emit("Extrayendo archivo comprimido...")
+            temp_dir = Path(tempfile.mkdtemp())
+            
+            try:
+                if file_path.suffix.lower() != '.zip':
+                    self.error.emit(
+                        "Solo se soportan archivos .zip\n\n"
+                        "Por favor, comprime tu mundo en formato ZIP."
+                    )
+                    return
+                
+                # Extraer archivo ZIP
+                with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                    zip_ref.extractall(temp_dir)
+                
+                # 2. Buscar la carpeta 'world' en el archivo extraído
+                self.progress.emit("Buscando carpeta world...")
+                world_folder = None
+                
+                # Buscar recursivamente la carpeta world
+                for root, dirs, files in os.walk(temp_dir):
+                    if 'world' in dirs:
+                        world_folder = Path(root) / 'world'
+                        break
+                
+                # Si no se encontró una carpeta world, verificar si el contenido del zip ES el mundo
+                if not world_folder:
+                    # Verificar si hay archivos característicos de un mundo de Minecraft
+                    has_level_dat = (temp_dir / "level.dat").exists()
+                    has_region = (temp_dir / "region").exists()
+                    
+                    if has_level_dat and has_region:
+                        # El contenido del archivo ES el mundo directamente
+                        world_folder = temp_dir
+                    else:
+                        self.error.emit(
+                            "No se encontró una carpeta 'world' válida en el archivo.\n\n"
+                            "El archivo debe contener:\n"
+                            "- Una carpeta llamada 'world', o\n"
+                            "- Los archivos del mundo directamente (level.dat, region/, etc.)"
+                        )
+                        return
+                
+                # 3. Eliminar el mundo actual
+                self.progress.emit("Eliminando mundo actual...")
+                if world_path.exists():
+                    shutil.rmtree(world_path)
+                
+                # 4. Copiar el nuevo mundo
+                self.progress.emit("Copiando nuevo mundo...")
+                shutil.copytree(world_folder, world_path)
+                
+                # 5. Sincronizar con R2
+                self.progress.emit("Sincronizando con R2...")
+                config_repo = self.container.get_config_repository()
+                r2_config = config_repo.get_r2_config()
+                
+                if r2_config:
+                    sync_service = self.container.get_sync_service()
+                    
+                    # Construir remote_path usando la configuración R2
+                    remote_name = "cloudflare"  # Nombre del remote en rclone.conf
+                    remote_path = f"{remote_name}:{r2_config.bucket_name}/server_files"
+                    
+                    # sync_upload es async, ejecutarlo con asyncio sin progress_callback
+                    # (el callback puede causar deadlocks en threads)
+                    import asyncio
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    try:
+                        success = loop.run_until_complete(
+                            sync_service.sync_upload(
+                                local_path=server_path,
+                                remote_path=remote_path,
+                                progress_callback=None
+                            )
+                        )
+                        if not success:
+                            self.error.emit("Error al sincronizar con R2")
+                            return
+                    finally:
+                        loop.close()
+                
+                self.progress.emit("¡Completado!")
+                self.finished.emit()
+                finished_emitted = True
+                
+            finally:
+                # Limpiar directorio temporal
+                if temp_dir.exists():
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                
+        except Exception as e:
+            logger.error(f"Error en UploadWorldWorker: {e}", exc_info=True)
+            if not finished_emitted:
+                self.error.emit(str(e))
