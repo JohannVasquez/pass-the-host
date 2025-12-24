@@ -16,6 +16,7 @@ from src.presentation.di.container import DependencyContainer
 from src.presentation.ui.config_dialog import ConfigDialog
 from src.presentation.ui.release_lock_dialog import ReleaseLockDialog
 from src.presentation.ui.create_server_dialog import CreateServerDialog
+from src.presentation.ui.edit_properties_dialog import EditPropertiesDialog
 from src.presentation.workers.server_workers import (
     StartServerWorker,
     StopServerWorker,
@@ -259,6 +260,33 @@ class MainWindow(QMainWindow):
         controls_layout.addWidget(self.stop_button)
         
         main_layout.addLayout(controls_layout)
+        
+        # === Botón de Editar Propiedades ===
+        edit_props_layout = QHBoxLayout()
+        
+        self.edit_properties_btn = QPushButton("⚙️ Editar server.properties")
+        self.edit_properties_btn.setMinimumHeight(40)
+        self.edit_properties_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #0b7dda;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
+        """)
+        self.edit_properties_btn.clicked.connect(self._edit_properties)
+        self.edit_properties_btn.setEnabled(self._config_exists)
+        edit_props_layout.addWidget(self.edit_properties_btn)
+        
+        main_layout.addLayout(edit_props_layout)
         
         # === Sección de Logs ===
         logs_group = QGroupBox("Logs del Servidor")
@@ -744,6 +772,19 @@ class MainWindow(QMainWindow):
                 "Por favor reinicia la aplicación para aplicar los cambios."
             )
             self._quit_application()
+    
+    def _edit_properties(self):
+        """Abre el diálogo para editar server.properties"""
+        try:
+            dialog = EditPropertiesDialog(self.container, self)
+            dialog.exec()
+        except Exception as e:
+            logger.error(f"Error al abrir diálogo de propiedades: {e}")
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"No se pudo abrir el editor de propiedades:\n{str(e)}"
+            )
     
     def _release_lock_emergency(self):
         """Abre el diálogo de confirmación para liberar el lock de emergencia"""
