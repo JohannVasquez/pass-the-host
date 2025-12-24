@@ -50,15 +50,45 @@ class MinecraftServerManager(IServerManager):
                 logger.error(f"Java no encontrado en: {java_path}")
                 return False
             
-            # Preparar comando con path absoluto de Java
-            command = [
-                str(java_path),
-                f"-Xms{config.memory_min}",
-                f"-Xmx{config.memory_max}",
-                "-jar",
-                config.server_jar,  # Este es relativo al cwd
-                "nogui"
-            ]
+            # Verificar si server_jar es un batch file (para Forge moderno)
+            server_file = server_path / config.server_jar
+            is_batch_file = config.server_jar.endswith('.bat') or config.server_jar.endswith('.sh')
+            
+            if is_batch_file:
+                # Ejecutar run.bat directamente (Forge moderno)
+                if not server_file.exists():
+                    logger.error(f"Archivo de ejecución no encontrado: {server_file}")
+                    return False
+                
+                logger.info(f"Ejecutando Forge mediante script: {config.server_jar}")
+                
+                # Actualizar user_jvm_args.txt con la memoria configurada
+                self._update_forge_jvm_args(server_path, config.memory_min, config.memory_max)
+                
+                # En Windows, ejecutar .bat con cmd.exe
+                # En Unix, dar permisos de ejecución y ejecutar directamente
+                if config.server_jar.endswith('.bat'):
+                    command = ["cmd.exe", "/c", config.server_jar, "nogui"]
+                else:
+                    # Unix: dar permisos y ejecutar
+                    import os
+                    os.chmod(server_file, 0o755)
+                    command = [f"./{config.server_jar}", "nogui"]
+            else:
+                # Verificar que el JAR existe
+                if not server_file.exists():
+                    logger.error(f"Server JAR no encontrado: {server_file}")
+                    return False
+                
+                # Preparar comando con path absoluto de Java
+                command = [
+                    str(java_path),
+                    f"-Xms{config.memory_min}",
+                    f"-Xmx{config.memory_max}",
+                    "-jar",
+                    config.server_jar,  # Este es relativo al cwd
+                    "nogui"
+                ]
             
             logger.info(f"Iniciando servidor con comando: {' '.join(command)}")
             logger.info(f"Working directory: {server_path}")
@@ -212,6 +242,44 @@ class MinecraftServerManager(IServerManager):
         finally:
             logger.debug("Thread de lectura de output terminado")
             self._running = False
+    
+    def _update_forge_jvm_args(self, server_path: Path, memory_min: str, memory_max: str):
+        """
+        Actualiza el archivo user_jvm_args.txt de Forge con la memoria configurada
+        """
+        try:
+            jvm_args_file = server_path / "user_jvm_args.txt"
+            
+            # Leer contenido existente (si existe)
+            existing_args = []
+            if jvm_args_file.exists():
+                with open(jvm_args_file, 'r') as f:
+                    for line in f:
+                        # Mantener comentarios pero remover líneas de memoria antiguas
+                        if line.strip() and not line.strip().startswith('#'):
+                            if not line.strip().startswith('-Xms') and not line.strip().startswith('-Xmx'):
+                                existing_args.append(line.strip())
+            
+            # Crear nuevo contenido
+            content = [
+                "# Xmx and Xms set the maximum and minimum RAM usage, respectively.",
+                "# Configured automatically by Pass the host",
+                f"-Xms{memory_min}",
+                f"-Xmx{memory_max}"
+            ]
+            
+            # Agregar otros argumentos existentes
+            if existing_args:
+                content.extend(existing_args)
+            
+            # Escribir archivo
+            with open(jvm_args_file, 'w') as f:
+                f.write('\n'.join(content) + '\n')
+            
+            logger.info(f"Argumentos JVM de Forge actualizados: -Xms{memory_min} -Xmx{memory_max}")
+            
+        except Exception as e:
+            logger.error(f"Error actualizando user_jvm_args.txt: {e}")
     
     def _kill_orphaned_servers(self, server_path: str):
         """

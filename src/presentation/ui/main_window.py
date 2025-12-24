@@ -372,20 +372,48 @@ class MainWindow(QMainWindow):
         from pathlib import Path
         import asyncio
         
-        # Verificar servidor local
-        server_jar = Path("./server/server.jar")
-        has_local_server = server_jar.exists()
+        # Verificar servidor local - buscar cualquier tipo de servidor
+        server_dir = Path("./server")
+        has_local_server = False
+        
+        if server_dir.exists():
+            # Buscar archivos indicadores de servidor
+            server_files = [
+                server_dir / "server.jar",              # Vanilla
+                server_dir / "fabric-server-launch.jar", # Fabric
+                server_dir / "run.bat",                  # Forge moderno
+                server_dir / "run.sh",                   # Forge moderno (Unix)
+            ]
+            
+            # También buscar cualquier forge-*.jar
+            forge_jars = list(server_dir.glob("forge-*.jar"))
+            
+            has_local_server = any(f.exists() for f in server_files) or len(forge_jars) > 0
+            
+            if has_local_server:
+                logger.info("Servidor local detectado")
         
         # Si no hay servidor local y hay config, verificar R2
         has_remote_server = False
         if not has_local_server and self._config_exists:
             try:
-                # Verificar si hay archivos en R2 (ejecutar corutina correctamente)
-                sync_service = self.container.get_sync_service()
-                loop = asyncio.get_event_loop()
-                has_remote_server = loop.run_until_complete(
-                    sync_service.check_remote_exists("cloudflare:server")
-                )
+                # Obtener configuración de R2 para construir la ruta correcta
+                config_repo = self.container.get_config_repository()
+                r2_config = config_repo.get_r2_config()
+                
+                if r2_config:
+                    # Construir la ruta remota correcta
+                    remote_path = f"cloudflare:{r2_config.bucket_name}/server_files"
+                    
+                    # Verificar si hay archivos en R2 (ejecutar corutina correctamente)
+                    sync_service = self.container.get_sync_service()
+                    loop = asyncio.get_event_loop()
+                    has_remote_server = loop.run_until_complete(
+                        sync_service.check_remote_exists(remote_path)
+                    )
+                    
+                    if has_remote_server:
+                        logger.info("Servidor remoto detectado en R2")
             except Exception as e:
                 logger.warning(f"No se pudo verificar servidor remoto: {e}")
         

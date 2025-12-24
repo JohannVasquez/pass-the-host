@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 from src.domain.interfaces.services import IConfigRepository
-from src.domain.entities.server_entities import R2Config, ServerConfig
+from src.domain.entities.server_entities import R2Config, ServerConfig, ServerType
 
 logger = logging.getLogger(__name__)
 
@@ -100,13 +100,38 @@ class JsonConfigRepository(IConfigRepository):
             if not server_data:
                 return None
             
+            # Obtener tipo de servidor
+            server_type_str = server_data.get('server_type', 'vanilla')
+            server_type = ServerType.from_string(server_type_str)
+            
+            server_jar = server_data.get('server_jar', 'server.jar')
+            
+            # Auto-corrección para Forge: si el JAR está en libraries/, buscar run.bat
+            if server_type == ServerType.FORGE:
+                server_path = Path(server_data.get('server_path', './server'))
+                
+                # Si el server_jar apunta a libraries/, corregir a run.bat o run.sh
+                if 'libraries/' in server_jar or 'libraries\\' in server_jar:
+                    logger.warning(f"Forge JAR incorrecto detectado: {server_jar}")
+                    
+                    # Buscar run.bat (Windows) o run.sh (Unix)
+                    if (server_path / "run.bat").exists():
+                        server_jar = "run.bat"
+                        logger.info(f"Auto-corregido a: {server_jar}")
+                    elif (server_path / "run.sh").exists():
+                        server_jar = "run.sh"
+                        logger.info(f"Auto-corregido a: {server_jar}")
+                    else:
+                        logger.error("No se encontró run.bat o run.sh para Forge")
+            
             return ServerConfig(
                 server_path=server_data.get('server_path', './server'),
                 java_path=server_data.get('java_path', './java_runtime/bin/java.exe'),
-                server_jar=server_data.get('server_jar', 'server.jar'),
+                server_jar=server_jar,
                 memory_min=server_data.get('memory_min', '1G'),
                 memory_max=server_data.get('memory_max', '4G'),
-                server_port=server_data.get('server_port', 25565)
+                server_port=server_data.get('server_port', 25565),
+                server_type=server_type
             )
             
         except Exception as e:
@@ -127,6 +152,7 @@ class JsonConfigRepository(IConfigRepository):
                 "server_path": "./server",
                 "java_path": "./java_runtime/bin/java.exe",
                 "server_jar": "server.jar",
+                "server_type": "vanilla",
                 "memory_min": "1G",
                 "memory_max": "4G",
                 "server_port": 25565

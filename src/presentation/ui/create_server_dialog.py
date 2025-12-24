@@ -2,6 +2,7 @@
 Diálogo para crear un nuevo servidor de Minecraft
 """
 import logging
+from pathlib import Path
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
     QPushButton, QComboBox, QMessageBox, QProgressBar, QTextEdit
@@ -17,11 +18,12 @@ class DownloadWorker(QThread):
     progress = Signal(int, str)  # porcentaje, mensaje
     finished = Signal(bool, str)  # éxito, mensaje
     
-    def __init__(self, download_type: str, version: str, java_version: str = None):
+    def __init__(self, download_type: str, version: str, java_version: str = None, server_type: str = "vanilla"):
         super().__init__()
         self.download_type = download_type
         self.version = version
         self.java_version = java_version
+        self.server_type = server_type.lower()
         self.cancelled = False
     
     def run(self):
@@ -41,26 +43,44 @@ class DownloadWorker(QThread):
         from pathlib import Path
         import os
         
-        self.progress.emit(10, "Obteniendo información del servidor...")
+        self.progress.emit(10, f"Obteniendo información del servidor {self.server_type.capitalize()}...")
         
-        # Obtener URL del servidor según versión
-        server_url = self._get_minecraft_server_url(self.version)
+        # Obtener URL del servidor según versión y tipo
+        if self.server_type == "vanilla":
+            server_url = self._get_minecraft_server_url(self.version)
+            server_filename = "server.jar"
+        elif self.server_type == "fabric":
+            server_url = self._get_fabric_server_url(self.version)
+            server_filename = "fabric-server-launch.jar"
+        elif self.server_type == "forge":
+            server_url = self._get_forge_server_url(self.version)
+            server_filename = "forge-installer.jar"
+        else:
+            if emit_finished:
+                self.finished.emit(False, f"Tipo de servidor no soportado: {self.server_type}")
+            return False
+        
         if not server_url:
             if emit_finished:
-                self.finished.emit(False, f"No se encontró la versión {self.version}")
+                self.finished.emit(False, f"No se encontró {self.server_type} para la versión {self.version}")
             return False
         
         # Crear directorio server si no existe
         server_dir = Path("./server")
         server_dir.mkdir(exist_ok=True)
         
-        self.progress.emit(20, "Descargando servidor de Minecraft...")
+        self.progress.emit(20, f"Descargando servidor {self.server_type.capitalize()}...")
         
         # Descargar servidor
         response = requests.get(server_url, stream=True)
+        if response.status_code != 200:
+            if emit_finished:
+                self.finished.emit(False, f"Error al descargar servidor: HTTP {response.status_code}")
+            return False
+        
         total_size = int(response.headers.get('content-length', 0))
         
-        server_jar = server_dir / "server.jar"
+        server_jar = server_dir / server_filename
         downloaded = 0
         
         with open(server_jar, 'wb') as f:
@@ -70,8 +90,21 @@ class DownloadWorker(QThread):
                 f.write(chunk)
                 downloaded += len(chunk)
                 if total_size > 0:
-                    percent = int((downloaded / total_size) * 60) + 20
+                    percent = int((downloaded / total_size) * 50) + 20
                     self.progress.emit(percent, f"Descargando... {downloaded // 1024 // 1024}MB")
+        
+        # Si es Forge, ejecutar el instalador
+        if self.server_type == "forge":
+            self.progress.emit(70, "Instalando Forge (esto puede tardar)...")
+            if not self._install_forge(server_dir, server_jar):
+                if emit_finished:
+                    self.finished.emit(False, "Error al instalar Forge")
+                return False
+            server_filename = self._find_forge_server_jar(server_dir)
+            if not server_filename:
+                if emit_finished:
+                    self.finished.emit(False, "No se encontró el servidor Forge después de la instalación")
+                return False
         
         self.progress.emit(80, "Aceptando EULA...")
         
@@ -80,9 +113,12 @@ class DownloadWorker(QThread):
         with open(eula_file, 'w') as f:
             f.write("eula=true\n")
         
-        self.progress.emit(100, "Servidor descargado exitosamente")
+        # Guardar el tipo de servidor en config.json
+        self._update_config_with_server_type(server_filename)
+        
+        self.progress.emit(100, f"Servidor {self.server_type.capitalize()} descargado exitosamente")
         if emit_finished:
-            self.finished.emit(True, "Servidor de Minecraft instalado correctamente")
+            self.finished.emit(True, f"Servidor de Minecraft {self.server_type.capitalize()} instalado correctamente")
         return True
     
     def _download_java(self, emit_finished=True):
@@ -187,6 +223,218 @@ class DownloadWorker(QThread):
         
         return version_urls.get(version, "")
     
+    def _get_fabric_server_url(self, version: str) -> str:
+        """Obtiene la URL de descarga del servidor Fabric"""
+        # Fabric usa un instalador universal
+        # Descargar el Fabric Server Launcher más reciente
+        # https://meta.fabricmc.net/v2/versions/loader/{minecraft_version}
+        try:
+            # Obtener la versión del loader más reciente
+            loader_url = f"https://meta.fabricmc.net/v2/versions/loader/{version}"
+            response = requests.get(loader_url, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if data and len(data) > 0:
+                    loader_version = data[0]['loader']['version']
+                    installer_version = data[0]['installer']['version']
+                    
+                    # URL del servidor Fabric
+                    return f"https://meta.fabricmc.net/v2/versions/loader/{version}/{loader_version}/{installer_version}/server/jar"
+        except Exception as e:
+            logger.error(f"Error obteniendo versión de Fabric: {e}")
+        
+        return ""
+    
+    def _get_forge_server_url(self, version: str) -> str:
+        """Obtiene la URL de descarga del instalador de Forge"""
+        # Mapeo de versiones conocidas de Forge
+        # Formato: https://maven.minecraftforge.net/net/minecraftforge/forge/{mc_version}-{forge_version}/forge-{mc_version}-{forge_version}-installer.jar
+        forge_versions = {
+            "1.21.4": "1.21.4-54.0.25",
+            "1.21.3": "1.21.3-53.0.26",
+            "1.21.1": "1.21.1-52.0.35",
+            "1.21": "1.21-51.0.33",
+            "1.20.6": "1.20.6-50.1.15",
+            "1.20.4": "1.20.4-49.1.6",
+            "1.20.1": "1.20.1-47.3.12",
+            "1.19.4": "1.19.4-45.3.0",
+        }
+        
+        forge_version = forge_versions.get(version)
+        if forge_version:
+            return f"https://maven.minecraftforge.net/net/minecraftforge/forge/{forge_version}/forge-{forge_version}-installer.jar"
+        
+        return ""
+    
+    def _install_forge(self, server_dir: Path, installer_jar: Path) -> bool:
+        """Instala Forge ejecutando el instalador"""
+        import subprocess
+        try:
+            logger.info(f"Iniciando instalación de Forge en {server_dir}")
+            
+            # Ejecutar el instalador de Forge con --installServer
+            java_path = Path("./java_runtime/bin/java.exe")
+            if not java_path.exists():
+                logger.warning("Java runtime no encontrado, intentando usar Java del sistema")
+                java_path = Path("java")
+            else:
+                logger.info(f"Usando Java en {java_path}")
+            
+            # El instalador debe ejecutarse en el directorio padre del servidor
+            # porque crea la estructura de carpetas
+            command = [
+                str(java_path),
+                "-jar",
+                str(installer_jar.name),  # Solo el nombre del archivo
+                "--installServer"
+            ]
+            
+            logger.info(f"Ejecutando comando: {' '.join(command)}")
+            logger.info(f"Working directory: {server_dir}")
+            
+            result = subprocess.run(
+                command,
+                cwd=str(server_dir),
+                capture_output=True,
+                text=True,
+                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0,
+                timeout=600  # 10 minutos máximo (Forge puede tardar)
+            )
+            
+            # Logging detallado
+            if result.stdout:
+                logger.info(f"Forge stdout: {result.stdout}")
+            if result.stderr:
+                logger.warning(f"Forge stderr: {result.stderr}")
+            
+            if result.returncode == 0:
+                logger.info("Forge instalado exitosamente")
+                return True
+            else:
+                logger.error(f"Forge installer retornó código {result.returncode}")
+                # Mostrar salida de error al usuario
+                error_msg = result.stderr if result.stderr else result.stdout
+                logger.error(f"Detalles del error: {error_msg}")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            logger.error("Timeout: La instalación de Forge tardó demasiado (>10 min)")
+            return False
+        except FileNotFoundError as e:
+            logger.error(f"Java no encontrado: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Error inesperado instalando Forge: {e}", exc_info=True)
+            return False
+    
+    def _find_forge_server_jar(self, server_dir: Path) -> str:
+        """Encuentra el JAR del servidor Forge después de la instalación"""
+        logger.info(f"Buscando JAR de Forge en {server_dir}")
+        
+        # Listar todos los archivos JAR para debugging
+        all_jars = list(server_dir.glob("*.jar"))
+        logger.info(f"JARs encontrados: {[jar.name for jar in all_jars]}")
+        
+        # Buscar run.bat (Windows) - Forge moderno
+        run_bat = server_dir / "run.bat"
+        if run_bat.exists():
+            logger.info("Encontrado run.bat, parseando para obtener JAR")
+            try:
+                with open(run_bat, 'r') as f:
+                    content = f.read()
+                    # Buscar patrón "java ... -jar <archivo.jar>"
+                    import re
+                    match = re.search(r'-jar\s+"?([^"\s]+\.jar)"?', content)
+                    if match:
+                        jar_path = match.group(1).replace('\\', '/').replace('"', '')
+                        # Si es una ruta, extraer solo el nombre del archivo
+                        if '/' in jar_path:
+                            jar_name = jar_path.split('/')[-1]
+                        else:
+                            jar_name = jar_path
+                        logger.info(f"JAR encontrado en run.bat: {jar_name}")
+                        
+                        # Verificar si el JAR existe
+                        if (server_dir / jar_name).exists():
+                            return jar_name
+                        else:
+                            logger.warning(f"JAR {jar_name} no existe en {server_dir}")
+            except Exception as e:
+                logger.error(f"Error parseando run.bat: {e}")
+        
+        # Buscar @libraries/net/minecraftforge/forge/.../unix_args.txt
+        # Forge más nuevo usa este patrón
+        libraries_dir = server_dir / "libraries" / "net" / "minecraftforge" / "forge"
+        if libraries_dir.exists():
+            logger.info("Encontrado directorio libraries de Forge")
+            # Buscar la versión instalada
+            for version_dir in libraries_dir.iterdir():
+                if version_dir.is_dir():
+                    # Buscar el JAR en esa versión
+                    for jar in version_dir.glob("*.jar"):
+                        if "server" in jar.name.lower() or "forge" in jar.name.lower():
+                            logger.info(f"JAR encontrado en libraries: {jar.name}")
+                            # Copiar o retornar la ruta relativa
+                            return f"libraries/net/minecraftforge/forge/{version_dir.name}/{jar.name}"
+        
+        # Buscar forge-*-shim.jar (Forge 1.17+)
+        shim_jars = list(server_dir.glob("forge-*-shim.jar"))
+        if shim_jars:
+            logger.info(f"Encontrado shim JAR: {shim_jars[0].name}")
+            return shim_jars[0].name
+        
+        # Buscar forge-*-universal.jar (Forge antiguo)
+        universal_jars = list(server_dir.glob("forge-*-universal.jar"))
+        if universal_jars:
+            logger.info(f"Encontrado universal JAR: {universal_jars[0].name}")
+            return universal_jars[0].name
+        
+        # Buscar minecraft_server.*.jar (generado por Forge)
+        mc_server_jars = list(server_dir.glob("minecraft_server.*.jar"))
+        if mc_server_jars:
+            logger.info(f"Encontrado minecraft_server JAR: {mc_server_jars[0].name}")
+            return mc_server_jars[0].name
+        
+        # Último recurso: usar run.bat como comando
+        if run_bat.exists():
+            logger.warning("No se encontró JAR específico, usando run.bat")
+            return "run.bat"
+        
+        # Fallback: usar forge-installer.jar si existe (no recomendado)
+        if (server_dir / "forge-installer.jar").exists():
+            logger.warning("Usando forge-installer.jar como fallback")
+            return "forge-installer.jar"
+        
+        logger.error("No se pudo encontrar el JAR del servidor Forge")
+        return ""
+    
+    def _update_config_with_server_type(self, server_jar: str):
+        """Actualiza config.json con el tipo de servidor y el JAR correcto"""
+        import json
+        try:
+            config_path = Path("config.json")
+            config = {}
+            
+            # Cargar config existente si existe
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+            
+            # Actualizar configuración del servidor
+            if 'server' not in config:
+                config['server'] = {}
+            
+            config['server']['server_jar'] = server_jar
+            config['server']['server_type'] = self.server_type
+            
+            # Guardar
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"Config actualizado: server_jar={server_jar}, server_type={self.server_type}")
+        except Exception as e:
+            logger.error(f"Error actualizando config: {e}")
+    
     def cancel(self):
         """Cancela la descarga"""
         self.cancelled = True
@@ -257,6 +505,19 @@ class CreateServerDialog(QDialog):
         name_layout.addWidget(self.server_name_input)
         layout.addLayout(name_layout)
         
+        # Tipo de servidor
+        type_layout = QHBoxLayout()
+        type_layout.addWidget(QLabel("Tipo de servidor:"))
+        self.server_type_combo = QComboBox()
+        self.server_type_combo.addItems(["Vanilla", "Fabric", "Forge"])
+        self.server_type_combo.setToolTip(
+            "Vanilla: Servidor oficial sin mods\n"
+            "Fabric: Servidor modded ligero y moderno\n"
+            "Forge: Servidor modded tradicional con más mods disponibles"
+        )
+        type_layout.addWidget(self.server_type_combo)
+        layout.addLayout(type_layout)
+        
         # Versión de Minecraft
         version_layout = QHBoxLayout()
         version_layout.addWidget(QLabel("Versión de Minecraft:"))
@@ -302,6 +563,9 @@ class CreateServerDialog(QDialog):
         # Información
         info_label = QLabel(
             "Se descargará el servidor de Minecraft y Java JRE automáticamente.\n"
+            "• Vanilla: Servidor oficial de Minecraft\n"
+            "• Fabric: Incluye Fabric Loader para mods ligeros\n"
+            "• Forge: Incluye Forge Mod Loader para mods tradicionales\n"
             "Este proceso puede tardar varios minutos dependiendo de tu conexión."
         )
         info_label.setWordWrap(True)
@@ -442,6 +706,7 @@ class CreateServerDialog(QDialog):
         # Deshabilitar controles
         self.create_button.setEnabled(False)
         self.server_name_input.setEnabled(False)
+        self.server_type_combo.setEnabled(False)
         self.version_combo.setEnabled(False)
         
         # Mostrar progreso
@@ -449,6 +714,9 @@ class CreateServerDialog(QDialog):
         self.progress_bar.setValue(0)
         self.status_label.setVisible(True)
         self.log_text.setVisible(True)
+        
+        # Obtener tipo de servidor
+        server_type = self.server_type_combo.currentText()
         
         # Iniciar descarga
         minecraft_version = self.version_combo.currentText()
@@ -472,12 +740,13 @@ class CreateServerDialog(QDialog):
         
         download_type = "both" if need_java else "minecraft"
         
-        self.download_worker = DownloadWorker(download_type, minecraft_version, self.java_version)
+        self.download_worker = DownloadWorker(download_type, minecraft_version, self.java_version, server_type)
         self.download_worker.progress.connect(self._on_progress)
         self.download_worker.finished.connect(self._on_finished)
         self.download_worker.start()
         
         self._log(f"Iniciando creación del servidor '{server_name}'...")
+        self._log(f"Tipo de servidor: {server_type}")
         self._log(f"Versión de Minecraft: {minecraft_version}")
         self._log(f"Versión de Java requerida: {self.java_version}")
         if need_java:

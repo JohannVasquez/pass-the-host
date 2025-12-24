@@ -4,6 +4,27 @@ Entidades del Dominio
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
+from enum import Enum
+
+
+class ServerType(Enum):
+    """Tipos de servidor Minecraft soportados"""
+    VANILLA = "vanilla"
+    FABRIC = "fabric"
+    FORGE = "forge"
+    
+    @staticmethod
+    def from_string(value: str) -> 'ServerType':
+        """Convierte un string a ServerType"""
+        value_lower = value.lower()
+        if value_lower == "fabric":
+            return ServerType.FABRIC
+        elif value_lower == "forge":
+            return ServerType.FORGE
+        return ServerType.VANILLA
+    
+    def __str__(self) -> str:
+        return self.value.capitalize()
 
 
 @dataclass
@@ -27,6 +48,7 @@ class ServerConfig:
     memory_min: str = "1G"
     memory_max: str = "4G"
     server_port: int = 25565
+    server_type: ServerType = ServerType.VANILLA
     
     def get_java_command(self) -> list[str]:
         """Retorna el comando para ejecutar el servidor"""
@@ -38,6 +60,10 @@ class ServerConfig:
             self.server_jar,
             "nogui"
         ]
+    
+    def get_server_type_display(self) -> str:
+        """Retorna el nombre del tipo de servidor para mostrar"""
+        return str(self.server_type)
 
 
 @dataclass

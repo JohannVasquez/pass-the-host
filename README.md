@@ -149,9 +149,20 @@ pyinstaller --name="MinecraftServerLauncher" ^
 ✅ **Lock Distribuido**: Previene ejecución simultánea usando R2  
 ✅ **Sincronización Multihilo**: Descarga/sube archivos con progreso en tiempo real  
 ✅ **Selección de Red**: Dropdown para elegir IP (VPN, LAN, etc.)  
+✅ **Soporte para Mods**: Servidores Vanilla, Fabric y Forge  
 ✅ **System Tray**: Minimización a bandeja del sistema  
 ✅ **Logs en Vivo**: Visualización del output del servidor  
 ✅ **No Bloqueante**: Toda la lógica pesada corre en threads separados  
+
+## 🎮 Servidores con Mods
+
+La aplicación ahora soporta tres tipos de servidores:
+
+- **Vanilla**: Servidor oficial sin mods
+- **Fabric**: Servidor modded ligero y moderno
+- **Forge**: Servidor modded tradicional
+
+Para más información sobre cómo usar servidores con mods, consulta la [Guía de Servidores Modded](MODDED_SERVERS.md).  
 
 ## � Resolución de Problemas
 

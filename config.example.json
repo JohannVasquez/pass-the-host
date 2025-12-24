@@ -10,7 +10,8 @@
     "server_path": "./server",
     "java_path": "./java_runtime/bin/java.exe",
     "server_jar": "server.jar",
-    "memory_min": "1G",
+    "server_type": "vanilla",
+    "memory_min": "2G",
     "memory_max": "4G",
     "server_port": 25565
   },

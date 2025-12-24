@@ -71,6 +71,16 @@ class ConfigDialog(QDialog):
         self.owner_name_input.setPlaceholderText("Tu nombre")
         server_form.addRow("Nombre del dueño:", self.owner_name_input)
         
+        # Tipo de servidor
+        self.server_type_combo = QComboBox()
+        self.server_type_combo.addItems(["Vanilla", "Fabric", "Forge"])
+        self.server_type_combo.setToolTip(
+            "Vanilla: Servidor oficial de Minecraft sin mods\n"
+            "Fabric: Servidor modded con Fabric Loader\n"
+            "Forge: Servidor modded con Forge Mod Loader"
+        )
+        server_form.addRow("Tipo de servidor:", self.server_type_combo)
+        
         self.memory_min_input = QLineEdit()
         self.memory_min_input.setPlaceholderText("1G")
         self.memory_min_input.setText("1G")
@@ -120,6 +130,15 @@ class ConfigDialog(QDialog):
                 self.memory_min_input.setText(server_config.get('memory_min', '1G'))
                 self.memory_max_input.setText(server_config.get('memory_max', '4G'))
                 
+                # Cargar tipo de servidor
+                server_type = server_config.get('server_type', 'vanilla').lower()
+                if server_type == 'fabric':
+                    self.server_type_combo.setCurrentText('Fabric')
+                elif server_type == 'forge':
+                    self.server_type_combo.setCurrentText('Forge')
+                else:
+                    self.server_type_combo.setCurrentText('Vanilla')
+                
             except Exception as e:
                 logger.warning(f"Error al cargar configuración existente: {e}")
     
@@ -159,6 +178,7 @@ class ConfigDialog(QDialog):
                 "server_path": "./server",
                 "java_path": "./java_runtime/bin/java.exe",
                 "server_jar": "server.jar",
+                "server_type": self.server_type_combo.currentText().lower(),
                 "memory_min": self.memory_min_input.text().strip() or "1G",
                 "memory_max": self.memory_max_input.text().strip() or "4G",
                 "server_port": 25565
