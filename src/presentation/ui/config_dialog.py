@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QFormLayout, QLineEdit, 
-    QPushButton, QMessageBox, QLabel
+    QPushButton, QMessageBox, QLabel, QComboBox
 )
 from PySide6.QtCore import Qt
 
@@ -165,6 +165,15 @@ class ConfigDialog(QDialog):
             QMessageBox.warning(self, "Error", "El nombre del dueño es requerido")
             return
         
+        # Determinar server_jar según el tipo de servidor
+        server_type = self.server_type_combo.currentText().lower()
+        if server_type == "forge":
+            server_jar = "run.bat"  # Forge moderno usa run.bat
+        elif server_type == "fabric":
+            server_jar = "fabric-server-launch.jar"
+        else:  # vanilla
+            server_jar = "server.jar"
+        
         # Crear estructura de configuración
         config = {
             "r2": {
@@ -177,8 +186,8 @@ class ConfigDialog(QDialog):
             "server": {
                 "server_path": "./server",
                 "java_path": "./java_runtime/bin/java.exe",
-                "server_jar": "server.jar",
-                "server_type": self.server_type_combo.currentText().lower(),
+                "server_jar": server_jar,
+                "server_type": server_type,
                 "memory_min": self.memory_min_input.text().strip() or "1G",
                 "memory_max": self.memory_max_input.text().strip() or "4G",
                 "server_port": 25565

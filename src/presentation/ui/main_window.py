@@ -300,6 +300,91 @@ class MainWindow(QMainWindow):
         logs_group.setLayout(logs_layout)
         main_layout.addWidget(logs_group)
         
+        # === Sección de Consola de Comandos ===
+        console_group = QGroupBox("Consola del Servidor")
+        console_layout = QVBoxLayout()
+        
+        # Input de comando
+        command_input_layout = QHBoxLayout()
+        
+        self.command_input = QLineEdit()
+        self.command_input.setPlaceholderText("Escribe un comando del servidor (ej: say Hola, list, stop, help)...")
+        self.command_input.setEnabled(False)  # Deshabilitado hasta que el servidor inicie
+        self.command_input.returnPressed.connect(self._send_server_command)
+        command_input_layout.addWidget(self.command_input)
+        
+        self.send_command_btn = QPushButton("📤 Enviar")
+        self.send_command_btn.setEnabled(False)
+        self.send_command_btn.setMinimumHeight(35)
+        self.send_command_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                font-weight: bold;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #0b7dda;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
+        """)
+        self.send_command_btn.clicked.connect(self._send_server_command)
+        command_input_layout.addWidget(self.send_command_btn)
+        
+        console_layout.addLayout(command_input_layout)
+        
+        # Botones rápidos de comandos comunes
+        quick_commands_layout = QHBoxLayout()
+        quick_commands_label = QLabel("Comandos rápidos:")
+        quick_commands_label.setStyleSheet("font-weight: bold; color: #666;")
+        quick_commands_layout.addWidget(quick_commands_label)
+        
+        # Botones de comandos comunes
+        common_commands = [
+            ("👥 List", "list"),
+            ("💬 Say", "say "),
+            ("🌙 Time Night", "time set night"),
+            ("☀️ Time Day", "time set day"),
+            ("☀️ Weather Clear", "weather clear"),
+            ("🎮 Gamemode", "gamemode survival @a")
+        ]
+        
+        for label, command in common_commands:
+            btn = QPushButton(label)
+            btn.setEnabled(False)
+            btn.setProperty("command", command)
+            btn.clicked.connect(lambda checked, cmd=command: self._quick_command(cmd))
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #f0f0f0;
+                    border: 1px solid #ccc;
+                    border-radius: 3px;
+                    padding: 5px 10px;
+                }
+                QPushButton:hover {
+                    background-color: #e0e0e0;
+                }
+                QPushButton:disabled {
+                    background-color: #f9f9f9;
+                    color: #ccc;
+                }
+            """)
+            quick_commands_layout.addWidget(btn)
+            
+            # Guardar referencia para habilitar/deshabilitar
+            if not hasattr(self, 'quick_command_buttons'):
+                self.quick_command_buttons = []
+            self.quick_command_buttons.append(btn)
+        
+        quick_commands_layout.addStretch()
+        console_layout.addLayout(quick_commands_layout)
+        
+        console_group.setLayout(console_layout)
+        main_layout.addWidget(console_group)
+        
         # Conectar output del servidor
         self.container.get_server_manager().set_output_callback(self._on_server_output)
     
@@ -450,7 +535,7 @@ class MainWindow(QMainWindow):
             self._show_create_server_option()
     
     def _show_create_server_option(self):
-        """Muestra la opción de crear un servidor nuevo"""
+        """Muestra la opción de crear un servidor nuevo o descargar desde R2"""
         # Buscar el status_group y agregar botón
         create_info = QLabel(
             "⚠️ No se detectó ningún servidor.\n"
@@ -467,6 +552,9 @@ class MainWindow(QMainWindow):
         """)
         create_info.setWordWrap(True)
         
+        # Layout para botones
+        buttons_layout = QHBoxLayout()
+        
         create_button = QPushButton("🎮 Crear Nuevo Servidor")
         create_button.setMinimumHeight(50)
         create_button.setStyleSheet("""
@@ -480,16 +568,76 @@ class MainWindow(QMainWindow):
             QPushButton:hover {
                 background-color: #45a049;
             }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
         """)
         create_button.clicked.connect(self._open_create_server_dialog)
+        create_button.setEnabled(self._config_exists)  # Solo habilitado si hay config
+        buttons_layout.addWidget(create_button)
+        
+        download_button = QPushButton("☁️ Descargar desde R2")
+        download_button.setMinimumHeight(50)
+        download_button.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                font-size: 16px;
+                font-weight: bold;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #0b7dda;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
+        """)
+        download_button.clicked.connect(self._download_server_from_r2)
+        download_button.setEnabled(self._config_exists)  # Solo habilitado si hay config
+        buttons_layout.addWidget(download_button)
+        
+        # Crear widget contenedor para los botones
+        buttons_widget = QWidget()
+        buttons_widget.setLayout(buttons_layout)
+        
+        # Mensaje adicional si no hay config
+        if not self._config_exists:
+            config_hint = QLabel(
+                "💡 Configura R2 primero usando el botón '⚙️ Configurar R2' de arriba."
+            )
+            config_hint.setStyleSheet("""
+                QLabel {
+                    background-color: #e3f2fd;
+                    color: #1976d2;
+                    padding: 10px;
+                    border-radius: 5px;
+                    font-style: italic;
+                }
+            """)
+            config_hint.setWordWrap(True)
         
         # Insertar después del status group
         layout = self.centralWidget().layout()
         layout.insertWidget(2, create_info)
-        layout.insertWidget(3, create_button)
+        layout.insertWidget(3, buttons_widget)
+        
+        if not self._config_exists:
+            layout.insertWidget(4, config_hint)
     
     def _open_create_server_dialog(self):
         """Abre el diálogo para crear un nuevo servidor"""
+        if not self._config_exists:
+            QMessageBox.warning(
+                self,
+                "Configuración requerida",
+                "Debes configurar R2 primero antes de crear un servidor.\n\n"
+                "Haz clic en '⚙️ Configurar R2' para empezar."
+            )
+            return
+        
         dialog = CreateServerDialog(self)
         if dialog.exec():
             # Servidor creado, recargar UI
@@ -500,6 +648,130 @@ class MainWindow(QMainWindow):
                 "El servidor ha sido creado. Por favor reinicia la aplicación."
             )
             self._quit_application()
+    
+    def _download_server_from_r2(self):
+        """Descarga el servidor existente desde R2"""
+        if not self._config_exists:
+            QMessageBox.warning(
+                self,
+                "Configuración requerida",
+                "Debes configurar R2 primero.\n\n"
+                "Haz clic en '⚙️ Configurar R2' para empezar."
+            )
+            return
+        
+        try:
+            # Confirmar descarga
+            reply = QMessageBox.question(
+                self,
+                "Descargar desde R2",
+                "¿Deseas descargar el servidor existente desde R2?\n\n"
+                "Esto puede tardar varios minutos dependiendo del tamaño.\n"
+                "También se instalará Java automáticamente si es necesario.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+            
+            # Obtener configuración
+            config_repo = self.container.get_config_repository()
+            r2_config = config_repo.get_r2_config()
+            
+            if not r2_config or not r2_config.validate():
+                QMessageBox.warning(
+                    self,
+                    "Configuración inválida",
+                    "La configuración de R2 es inválida. Por favor reconfigura."
+                )
+                return
+            
+            # Crear directorio del servidor
+            from pathlib import Path
+            server_path = Path("./server")
+            server_path.mkdir(parents=True, exist_ok=True)
+            
+            # Mostrar progreso
+            from PySide6.QtWidgets import QProgressDialog
+            progress = QProgressDialog(
+                "Descargando servidor desde R2...",
+                "Cancelar",
+                0, 0,
+                self
+            )
+            progress.setWindowModality(Qt.WindowModality.WindowModal)
+            progress.setMinimumDuration(0)
+            progress.setCancelButton(None)
+            progress.show()
+            
+            # Descargar
+            import asyncio
+            sync_service = self.container.get_sync_service()
+            remote_path = f"cloudflare:{r2_config.bucket_name}/server_files"
+            
+            loop = asyncio.get_event_loop()
+            success = loop.run_until_complete(
+                sync_service.sync_download(
+                    remote_path,
+                    server_path,
+                    None  # Sin callback de progreso
+                )
+            )
+            
+            if not success:
+                progress.close()
+                QMessageBox.critical(
+                    self,
+                    "Error",
+                    "No se pudo descargar el servidor desde R2.\n"
+                    "Verifica la configuración y la conexión."
+                )
+                return
+            
+            progress.setLabelText("Verificando Java...")
+            
+            # Verificar e instalar Java si es necesario
+            from src.infrastructure.java_installer import JavaInstaller
+            java_installer = JavaInstaller()
+            
+            def java_progress(percentage, message):
+                progress.setLabelText(message)
+                from PySide6.QtWidgets import QApplication
+                QApplication.processEvents()
+            
+            java_success, java_message = java_installer.ensure_compatible_version(
+                server_path,
+                progress_callback=java_progress
+            )
+            
+            progress.close()
+            
+            if java_success:
+                QMessageBox.information(
+                    self,
+                    "Descarga completada",
+                    f"El servidor se descargó correctamente.\n\n"
+                    f"Java: {java_message}\n\n"
+                    f"Por favor reinicia la aplicación."
+                )
+                self._quit_application()
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Advertencia",
+                    f"El servidor se descargó pero hubo un problema con Java:\n{java_message}\n\n"
+                    f"Puedes instalar Java manualmente.\n\n"
+                    f"Reinicia la aplicación para continuar."
+                )
+                self._quit_application()
+                
+        except Exception as e:
+            logger.error(f"Error al descargar servidor: {e}")
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"Error al descargar servidor:\n{str(e)}"
+            )
     
     def _load_network_interfaces(self):
         """Carga las interfaces de red disponibles"""
@@ -657,6 +929,13 @@ class MainWindow(QMainWindow):
             self._log(f"✅ {message}")
             self.stop_button.setEnabled(True)
             self.start_button.setEnabled(False)
+            
+            # Habilitar consola de comandos
+            self.command_input.setEnabled(True)
+            self.send_command_btn.setEnabled(True)
+            if hasattr(self, 'quick_command_buttons'):
+                for btn in self.quick_command_buttons:
+                    btn.setEnabled(True)
         else:
             self._log(f"❌ {message}")
             self.start_button.setEnabled(True)
@@ -677,6 +956,14 @@ class MainWindow(QMainWindow):
         
         if success:
             self._log(f"✅ {message}")
+            
+            # Deshabilitar consola de comandos
+            self.command_input.setEnabled(False)
+            self.send_command_btn.setEnabled(False)
+            if hasattr(self, 'quick_command_buttons'):
+                for btn in self.quick_command_buttons:
+                    btn.setEnabled(False)
+            self._log(f"✅ {message}")
             self.start_button.setEnabled(True)
             self.stop_button.setEnabled(False)
             self.network_combo.setEnabled(True)
@@ -693,6 +980,35 @@ class MainWindow(QMainWindow):
     def _on_server_output(self, line: str):
         """Callback para output del servidor"""
         self.log_text.append(line)
+    
+    def _send_server_command(self):
+        """Envía un comando al servidor desde el input"""
+        command = self.command_input.text().strip()
+        
+        if not command:
+            return
+        
+        # Enviar comando
+        server_manager = self.container.get_server_manager()
+        if server_manager.send_command(command):
+            self._log(f">>> {command}")
+            self.command_input.clear()
+        else:
+            self._log(f"❌ No se pudo enviar el comando: {command}")
+    
+    def _quick_command(self, command: str):
+        """Ejecuta un comando rápido o lo pone en el input"""
+        if command.endswith(" "):
+            # Si el comando termina en espacio, ponerlo en el input para que el usuario complete
+            self.command_input.setText(command)
+            self.command_input.setFocus()
+        else:
+            # Si es un comando completo, ejecutarlo directamente
+            server_manager = self.container.get_server_manager()
+            if server_manager.send_command(command):
+                self._log(f">>> {command}")
+            else:
+                self._log(f"❌ No se pudo enviar el comando: {command}")
     
     def _log(self, message: str):
         """Agrega un mensaje al log"""

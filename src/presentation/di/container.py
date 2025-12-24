@@ -22,6 +22,7 @@ from src.domain.use_cases.server_use_cases import (
 from src.infrastructure.r2_lock_service import R2LockService
 from src.infrastructure.rclone_service import RcloneService
 from src.infrastructure.rclone_installer import RcloneInstaller
+from src.infrastructure.java_installer import JavaInstaller
 from src.infrastructure.server_manager import MinecraftServerManager
 from src.infrastructure.network_provider import NetworkProvider
 from src.data.config_repository import JsonConfigRepository
@@ -188,11 +189,24 @@ class DependencyContainer:
         # Verificar Java Runtime
         config = self._config_repository.load_config()
         java_path = Path(config.get('server', {}).get('java_path', './java_runtime/bin/java.exe'))
+        server_path = Path(config.get('server', {}).get('server_path', './server'))
         
-        if not java_path.parent.parent.exists():
-            errors.append("❌ Carpeta 'java_runtime' no encontrada junto al ejecutable")
-        elif not java_path.exists():
-            errors.append("❌ Ejecutable de Java no encontrado en java_runtime")
+        if not java_path.exists():
+            # Verificar si existe el servidor para instalar Java automáticamente
+            if server_path.exists():
+                logger.info("Java no encontrado, pero servidor existe. Intentando instalar Java automáticamente...")
+                try:
+                    java_installer = JavaInstaller()
+                    success, message = java_installer.ensure_compatible_version(server_path)
+                    
+                    if not success:
+                        errors.append(f"❌ Error al instalar Java: {message}")
+                    else:
+                        logger.info(f"✅ {message}")
+                except Exception as e:
+                    errors.append(f"❌ Error al instalar Java: {str(e)}")
+            else:
+                errors.append("❌ Ejecutable de Java no encontrado en java_runtime")
         
         # Verificar Rclone
         rclone_path = Path('./rclone/rclone.exe')
