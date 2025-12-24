@@ -21,6 +21,7 @@ from src.domain.use_cases.server_use_cases import (
 )
 from src.infrastructure.r2_lock_service import R2LockService
 from src.infrastructure.rclone_service import RcloneService
+from src.infrastructure.rclone_installer import RcloneInstaller
 from src.infrastructure.server_manager import MinecraftServerManager
 from src.infrastructure.network_provider import NetworkProvider
 from src.data.config_repository import JsonConfigRepository
@@ -35,6 +36,9 @@ class DependencyContainer:
     def __init__(self):
         # Inicializar logging
         self._setup_logging()
+        
+        # Verificar/instalar Rclone si no está disponible
+        self._ensure_rclone_installed()
         
         # Cargar configuración (puede no existir en primera ejecución)
         self._config_repository = JsonConfigRepository()
@@ -63,6 +67,22 @@ class DependencyContainer:
         self._stop_server_use_case = None
         self._check_status_use_case = None
         self._get_network_interfaces_use_case = None
+    
+    def _ensure_rclone_installed(self):
+        """Verifica e instala Rclone si no está disponible"""
+        try:
+            installer = RcloneInstaller()
+            if not installer.is_installed():
+                logger.info("Rclone no encontrado, descargando automáticamente...")
+                success, message = installer.install()
+                if success:
+                    logger.info("✅ Rclone instalado correctamente")
+                else:
+                    logger.error(f"❌ Error al instalar Rclone: {message}")
+            else:
+                logger.info("✅ Rclone ya está instalado")
+        except Exception as e:
+            logger.error(f"Error al verificar/instalar Rclone: {e}")
     
     def _setup_logging(self):
         """Configura el sistema de logging"""
@@ -177,7 +197,15 @@ class DependencyContainer:
         # Verificar Rclone
         rclone_path = Path('./rclone/rclone.exe')
         if not rclone_path.exists():
-            errors.append("❌ Binario de Rclone no encontrado")
+            # Intentar instalarlo automáticamente
+            logger.info("Rclone no encontrado, intentando instalar...")
+            try:
+                installer = RcloneInstaller()
+                success, message = installer.install()
+                if not success:
+                    errors.append(f"❌ Error al instalar Rclone: {message}")
+            except Exception as e:
+                errors.append(f"❌ Error al instalar Rclone: {str(e)}")
         
         # Verificar configuración R2
         r2_config = self._config_repository.get_r2_config()
