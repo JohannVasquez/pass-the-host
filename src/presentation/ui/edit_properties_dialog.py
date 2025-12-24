@@ -62,6 +62,7 @@ class EditPropertiesDialog(QDialog):
         self.container = container
         self.properties_path = None
         self.sync_worker = None
+        self.original_online_mode = None  # Para detectar cambios en online-mode
         
         self.setWindowTitle("Editar server.properties")
         self.setModal(True)
@@ -173,6 +174,7 @@ class EditPropertiesDialog(QDialog):
                 # Crear archivo con propiedades por defecto
                 default_content = self._get_default_properties()
                 self.text_edit.setPlainText(default_content)
+                self.original_online_mode = self._get_property_value(default_content, "online-mode")
                 QMessageBox.information(
                     self,
                     "Archivo no encontrado",
@@ -183,8 +185,10 @@ class EditPropertiesDialog(QDialog):
                 with open(self.properties_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                 self.text_edit.setPlainText(content)
+                self.original_online_mode = self._get_property_value(content, "online-mode")
                 
             logger.info(f"Propiedades cargadas desde: {self.properties_path}")
+            logger.info(f"Valor original de online-mode: {self.original_online_mode}")
             
         except Exception as e:
             logger.error(f"Error al cargar properties: {e}")
@@ -200,6 +204,20 @@ class EditPropertiesDialog(QDialog):
         try:
             # Guardar archivo localmente
             content = self.text_edit.toPlainText()
+            
+            # Verificar si cambió online-mode
+            new_online_mode = self._get_property_value(content, "online-mode")
+            online_mode_changed = (self.original_online_mode != new_online_mode)
+            
+            if online_mode_changed:
+                logger.info(f"Cambio detectado: online-mode {self.original_online_mode} -> {new_online_mode}")
+                
+                # Preguntar si desea sincronizar datos de jugadores
+                should_sync = self._ask_player_data_sync(self.original_online_mode, new_online_mode)
+                
+                if should_sync:
+                    # Realizar sincronización ANTES de guardar el archivo
+                    self._sync_player_data(self.original_online_mode == "true")
             
             # Asegurar que el directorio existe
             self.properties_path.parent.mkdir(parents=True, exist_ok=True)
@@ -306,6 +324,109 @@ class EditPropertiesDialog(QDialog):
             f"Propiedad: {property_name}",
             help_text.get(property_name, "Propiedad no encontrada")
         )
+    
+    def _get_property_value(self, content: str, property_name: str) -> str:
+        """Obtiene el valor de una propiedad del contenido"""
+        for line in content.split('\n'):
+            line = line.strip()
+            if line.startswith(property_name + '='):
+                return line.split('=', 1)[1].strip()
+        return ""
+    
+    def _ask_player_data_sync(self, old_value: str, new_value: str) -> bool:
+        """Pregunta al usuario si desea sincronizar datos de jugadores"""
+        mode_from = "Premium (Online)" if old_value == "true" else "No Premium (Offline)"
+        mode_to = "Premium (Online)" if new_value == "true" else "No Premium (Offline)"
+        
+        reply = QMessageBox.question(
+            self,
+            "Sincronizar Datos de Jugadores",
+            f"Has cambiado el modo de {mode_from} a {mode_to}.\n\n"
+            f"Los jugadores tienen diferentes IDs en cada modo.\n"
+            f"¿Deseas sincronizar los datos de los jugadores (inventario, estadísticas, logros)?\n\n"
+            f"⚠️ Esto copiará los datos existentes a los nuevos IDs.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes
+        )
+        
+        return reply == QMessageBox.StandardButton.Yes
+    
+    def _sync_player_data(self, from_online_to_offline: bool):
+        """Sincroniza datos de jugadores entre modos online/offline"""
+        try:
+            from src.infrastructure.player_data_sync import PlayerDataSyncService
+            
+            # Obtener ruta del servidor
+            config_repo = self.container.get_config_repository()
+            server_config = config_repo.get_server_config()
+            server_path = Path(server_config.server_path)
+            
+            # Crear servicio y sincronizar
+            sync_service = PlayerDataSyncService()
+            
+            # Mostrar mensaje de progreso
+            progress_msg = "Sincronizando datos de jugadores..."
+            if not from_online_to_offline:
+                progress_msg += "\n\nConsultando API de Mojang para obtener UUIDs premium..."
+            
+            progress = QMessageBox(self)
+            progress.setWindowTitle("Sincronizando")
+            progress.setText(progress_msg)
+            progress.setStandardButtons(QMessageBox.StandardButton.NoButton)
+            progress.show()
+            
+            # Procesar eventos para mostrar el diálogo
+            from PySide6.QtWidgets import QApplication
+            QApplication.processEvents()
+            
+            # Ejecutar sincronización (con consulta a Mojang si es offline->online)
+            stats = sync_service.sync_player_data(
+                server_path, 
+                from_online_to_offline,
+                fetch_online_uuids=not from_online_to_offline  # Solo consultar si vamos a online
+            )
+            
+            progress.close()
+            
+            # Mostrar resultados
+            message = f"Sincronización completada:\n\n"
+            message += f"✅ Jugadores procesados: {stats['total_players']}\n"
+            message += f"✅ Jugadores sincronizados: {stats['synced_players']}\n"
+            message += f"✅ Archivos copiados: {stats['files_copied']}\n"
+            
+            if stats.get('non_premium_players'):
+                message += f"\n⚠️ Jugadores sin cuenta premium ({len(stats['non_premium_players'])}):\n"
+                for player in stats['non_premium_players'][:5]:
+                    message += f"  • {player}\n"
+                if len(stats['non_premium_players']) > 5:
+                    message += f"  ... y {len(stats['non_premium_players']) - 5} más\n"
+                message += "\n⚠️ Estos jugadores NO PODRÁN entrar en modo online.\n"
+                message += "Deben comprar Minecraft premium o mantener el servidor en offline.\n"
+            
+            if stats['failed_players'] > 0:
+                message += f"\n⚠️ Errores: {stats['failed_players']}\n"
+            
+            if stats['errors']:
+                message += f"\nDetalles:\n"
+                for error in stats['errors'][:5]:  # Mostrar máximo 5 errores
+                    message += f"• {error}\n"
+            
+            QMessageBox.information(
+                self,
+                "Sincronización Completada",
+                message
+            )
+            
+            logger.info(f"Sincronización de jugadores completada: {stats}")
+            
+        except Exception as e:
+            logger.error(f"Error en sincronización de jugadores: {e}")
+            QMessageBox.warning(
+                self,
+                "Error",
+                f"Error al sincronizar datos de jugadores:\n{str(e)}\n\n"
+                f"Los cambios en server.properties se guardarán de todos modos."
+            )
     
     def _get_default_properties(self) -> str:
         """Retorna propiedades por defecto"""
