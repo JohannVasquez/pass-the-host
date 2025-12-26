@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, QThread, Signal
 from PySide6.QtGui import QIcon, QAction
 import logging
+import threading
 from pathlib import Path
 
 from src.presentation.di.container import DependencyContainer
@@ -39,6 +40,11 @@ class MainWindow(QMainWindow):
         self.container = container
         self.current_worker = None
         self.status_check_worker = None  # Worker para verificación de estado
+        
+        # Buffer para logs del servidor (prevenir crash por muchos mensajes)
+        self._log_buffer = []
+        self._log_buffer_lock = threading.Lock()
+        self._max_buffer_size = 50  # Máximo de mensajes en buffer
         
         # Configurar ventana
         self.setWindowTitle("Pass the host!")
@@ -66,10 +72,15 @@ class MainWindow(QMainWindow):
         if self._prerequisites_ok and self._config_exists:
             self._check_server_status()
         
-        # Timer para actualización periódica
+        # Timer para actualización periódica de estado
         self.status_timer = QTimer()
         self.status_timer.timeout.connect(self._check_server_status)
         self.status_timer.start(30000)  # Cada 30 segundos
+        
+        # Timer para procesar buffer de logs (prevenir crash por muchos mensajes)
+        self.log_buffer_timer = QTimer()
+        self.log_buffer_timer.timeout.connect(self._flush_log_buffer)
+        self.log_buffer_timer.start(100)  # Cada 100ms procesar buffer
     
     def _init_ui(self):
         """Inicializa la interfaz de usuario"""
@@ -322,7 +333,7 @@ class MainWindow(QMainWindow):
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setMaximumHeight(200)
-        self.log_text.document().setMaximumBlockCount(200)  # Limitar a 300 líneas
+        self.log_text.document().setMaximumBlockCount(500)  # Limitar a 500 líneas
         logs_layout.addWidget(self.log_text)
         
         logs_group.setLayout(logs_layout)
@@ -1006,8 +1017,13 @@ class MainWindow(QMainWindow):
         self._check_server_status()
     
     def _on_server_output(self, line: str):
-        """Callback para output del servidor"""
-        self.log_text.append(line)
+        """Callback para output del servidor (llamado desde thread del servidor)"""
+        # No actualizar UI directamente desde otro thread, usar buffer
+        with self._log_buffer_lock:
+            self._log_buffer.append(line)
+            # Si el buffer está muy lleno, eliminar mensajes antiguos
+            if len(self._log_buffer) > self._max_buffer_size:
+                self._log_buffer = self._log_buffer[-self._max_buffer_size:]
     
     def _send_server_command(self):
         """Envía un comando al servidor desde el input"""
@@ -1042,6 +1058,26 @@ class MainWindow(QMainWindow):
         """Agrega un mensaje al log"""
         self.log_text.append(message)
         logger.info(message)
+    
+    def _flush_log_buffer(self):
+        """Procesa el buffer de logs y actualiza la UI (llamado desde timer de UI)"""
+        with self._log_buffer_lock:
+            if not self._log_buffer:
+                return
+            
+            # Copiar y limpiar buffer
+            messages = self._log_buffer[:]
+            self._log_buffer.clear()
+        
+        # Actualizar UI con todos los mensajes en un solo batch
+        if messages:
+            # Usar setUpdatesEnabled para optimizar múltiples actualizaciones
+            self.log_text.setUpdatesEnabled(False)
+            try:
+                for message in messages:
+                    self.log_text.append(message)
+            finally:
+                self.log_text.setUpdatesEnabled(True)
     
     def _show_prerequisite_errors(self, errors: list[str]):
         """Muestra errores de prerequisitos"""
