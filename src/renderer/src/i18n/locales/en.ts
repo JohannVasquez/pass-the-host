@@ -1,7 +1,7 @@
 export const en = {
   translation: {
     r2Configuration: {
-      title: "Cloudflare R2 Configuration",
+      title: "Cloudflare R2",
       accountId: "Account ID",
       accessKeyId: "Access Key ID",
       secretAccessKey: "Secret Access Key",
@@ -23,7 +23,7 @@ export const en = {
       selectedIp: "Selected IP",
     },
     ram: {
-      title: "RAM Configuration",
+      title: "RAM",
       min: "Minimum RAM",
       max: "Maximum RAM",
     },
