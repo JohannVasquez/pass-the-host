@@ -5,3 +5,6 @@ out
 .eslintcache
 *.log*
 build
+
+# Configuration files with sensitive data
+src/renderer/config.json

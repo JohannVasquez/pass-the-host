@@ -59,6 +59,59 @@ function App(): React.JSX.Element {
     },
   ]);
 
+  // Load configuration from config.json on mount
+  React.useEffect(() => {
+    const loadConfig = async (): Promise<void> => {
+      try {
+        const response = await fetch("/config.json");
+        const config = await response.json();
+
+        // Extract account ID from endpoint
+        const accountIdMatch = config.r2.endpoint.match(
+          /https:\/\/(.+?)\.r2\.cloudflarestorage\.com/
+        );
+        const accountId = accountIdMatch ? accountIdMatch[1] : "";
+
+        // Parse memory values (e.g., "2G" -> 2)
+        const memMin = parseInt(config.server.memory_min.replace(/[^0-9]/g, ""), 10);
+        const memMax = parseInt(config.server.memory_max.replace(/[^0-9]/g, ""), 10);
+
+        setR2Config({
+          accountId: accountId,
+          accessKeyId: config.r2.access_key,
+          secretAccessKey: config.r2.secret_key,
+          bucketName: config.r2.bucket_name,
+        });
+
+        setRamConfig({
+          min: memMin,
+          max: memMax,
+        });
+
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Configuration loaded successfully",
+            type: "info",
+          },
+        ]);
+      } catch (error) {
+        console.error("Error loading config:", error);
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Error loading configuration file",
+            type: "error",
+          },
+        ]);
+      }
+    };
+
+    loadConfig();
+  }, []);
+
   // Simulated handlers (interface only)
   const handleSaveR2Config = (config: R2Config): void => {
     setR2Config(config);
