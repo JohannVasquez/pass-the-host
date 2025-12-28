@@ -9,6 +9,7 @@ import {
   Paper,
   Stack,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { NetworkInterface } from "../../domain/entities/ServerConfig";
 
 interface NetworkConfigurationProps {
@@ -22,17 +23,19 @@ export const NetworkConfiguration: React.FC<NetworkConfigurationProps> = ({
   selectedIp,
   onSelectIp,
 }): React.JSX.Element => {
+  const { t } = useTranslation();
+
   return (
     <Paper elevation={2} sx={{ p: 2 }}>
       <Typography variant="h6" gutterBottom>
-        Configuración de Red
+        {t("network.title")}
       </Typography>
       <Stack spacing={2}>
         <FormControl fullWidth size="small">
-          <InputLabel>IP del Servidor</InputLabel>
+          <InputLabel>{t("network.selectIp")}</InputLabel>
           <Select
             value={selectedIp || ""}
-            label="IP del Servidor"
+            label={t("network.selectIp")}
             onChange={(e) => onSelectIp(e.target.value)}
           >
             {availableIps.map((iface) => (
@@ -45,7 +48,7 @@ export const NetworkConfiguration: React.FC<NetworkConfigurationProps> = ({
         {selectedIp && (
           <Box sx={{ bgcolor: "action.hover", p: 1.5, borderRadius: 1 }}>
             <Typography variant="caption" color="text.secondary">
-              IP Seleccionada:
+              {t("network.selectedIp")}:
             </Typography>
             <Typography variant="body2" fontWeight="medium">
               {selectedIp}

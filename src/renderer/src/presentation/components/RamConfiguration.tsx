@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Typography, Paper, Stack, Slider } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { RamConfig } from "../../domain/entities/ServerConfig";
 
 interface RamConfigurationProps {
@@ -11,6 +12,8 @@ export const RamConfiguration: React.FC<RamConfigurationProps> = ({
   ramConfig,
   onChange,
 }): React.JSX.Element => {
+  const { t } = useTranslation();
+
   const handleMinChange = (_event: Event, value: number | number[]): void => {
     const newMin = value as number;
     onChange({ ...ramConfig, min: newMin });
@@ -24,12 +27,12 @@ export const RamConfiguration: React.FC<RamConfigurationProps> = ({
   return (
     <Paper elevation={2} sx={{ p: 2 }}>
       <Typography variant="h6" gutterBottom>
-        Configuración de RAM
+        {t("ram.title")}
       </Typography>
       <Stack spacing={3}>
         <Box>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            RAM Mínima: {ramConfig.min} GB
+            {t("ram.min")}: {ramConfig.min} GB
           </Typography>
           <Slider
             value={ramConfig.min}
@@ -44,7 +47,7 @@ export const RamConfiguration: React.FC<RamConfigurationProps> = ({
         </Box>
         <Box>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            RAM Máxima: {ramConfig.max} GB
+            {t("ram.max")}: {ramConfig.max} GB
           </Typography>
           <Slider
             value={ramConfig.max}

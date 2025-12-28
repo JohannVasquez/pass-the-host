@@ -1,6 +1,6 @@
 export enum ServerStatus {
-  STOPPED = "detenido",
-  STARTING = "iniciando",
-  RUNNING = "corriendo",
-  STOPPING = "deteniendo",
+  STOPPED = "stopped",
+  STARTING = "starting",
+  RUNNING = "running",
+  STOPPING = "stopping",
 }

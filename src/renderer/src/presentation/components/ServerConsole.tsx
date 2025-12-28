@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Paper, Typography, List, ListItem, ListItemText } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { LogEntry } from "../../domain/entities/LogEntry";
 
 interface ServerConsoleProps {
@@ -7,6 +8,7 @@ interface ServerConsoleProps {
 }
 
 export const ServerConsole: React.FC<ServerConsoleProps> = ({ logs }): React.JSX.Element => {
+  const { t } = useTranslation();
   const consoleRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -28,9 +30,12 @@ export const ServerConsole: React.FC<ServerConsoleProps> = ({ logs }): React.JSX
   };
 
   return (
-    <Paper elevation={2} sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+    <Paper
+      elevation={2}
+      sx={{ height: "100%", width: "100%", display: "flex", flexDirection: "column" }}
+    >
       <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
-        <Typography variant="h6">Consola del Servidor</Typography>
+        <Typography variant="h6">{t("console.title")}</Typography>
       </Box>
       <Box
         ref={consoleRef}

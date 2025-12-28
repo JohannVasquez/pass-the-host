@@ -1,23 +1,24 @@
 import React from "react";
 import { Box, TextField, Button, Paper, Stack, Chip, Typography } from "@mui/material";
 import { Send as SendIcon } from "@mui/icons-material";
-
+import { useTranslation } from "react-i18next";
 interface CommandInputProps {
   onExecuteCommand: (command: string) => void;
 }
 
-const PRESET_COMMANDS = [
-  { label: "List Players", command: "list" },
-  { label: "Say Message", command: "say " },
-  { label: "Night", command: "time set night" },
-  { label: "Day", command: "time set day" },
-  { label: "Clear Weather", command: "weather clear" },
-];
-
 export const CommandInput: React.FC<CommandInputProps> = ({
   onExecuteCommand,
 }): React.JSX.Element => {
+  const { t } = useTranslation();
   const [command, setCommand] = React.useState("");
+
+  const PRESET_COMMANDS = [
+    { label: t("commands.presets.listPlayers"), command: "list" },
+    { label: t("commands.presets.sayMessage"), command: "say " },
+    { label: t("commands.presets.night"), command: "time set night" },
+    { label: t("commands.presets.day"), command: "time set day" },
+    { label: t("commands.presets.clearWeather"), command: "weather clear" },
+  ];
 
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
@@ -36,14 +37,14 @@ export const CommandInput: React.FC<CommandInputProps> = ({
   };
 
   return (
-    <Paper elevation={2} sx={{ p: 2 }}>
+    <Paper elevation={2} sx={{ p: 2, width: "100%" }}>
       <Typography variant="h6" gutterBottom>
-        Comandos
+        {t("commands.title")}
       </Typography>
 
       <Box sx={{ mb: 2 }}>
         <Typography variant="body2" color="text.secondary" gutterBottom>
-          Comandos Rápidos:
+          {t("commands.quickCommands")}:
         </Typography>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           {PRESET_COMMANDS.map((preset) => (
@@ -64,7 +65,7 @@ export const CommandInput: React.FC<CommandInputProps> = ({
           <TextField
             value={command}
             onChange={(e) => setCommand(e.target.value)}
-            placeholder="Ingresa un comando..."
+            placeholder={t("commands.placeholder")}
             fullWidth
             size="small"
             autoComplete="off"
@@ -75,7 +76,7 @@ export const CommandInput: React.FC<CommandInputProps> = ({
             endIcon={<SendIcon />}
             disabled={!command.trim()}
           >
-            Enviar
+            {t("commands.send")}
           </Button>
         </Stack>
       </form>

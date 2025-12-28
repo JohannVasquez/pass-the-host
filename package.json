@@ -27,7 +27,9 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.3.9",
+    "i18next": "^25.7.3",
+    "react-i18next": "^16.5.0"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

@@ -7,6 +7,7 @@ import {
   CloudSync as CloudSyncIcon,
   Edit as EditIcon,
 } from "@mui/icons-material";
+import { useTranslation } from "react-i18next";
 import { ServerStatus } from "../../domain/entities/ServerStatus";
 
 interface ServerControlPanelProps {
@@ -24,6 +25,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   onSyncToR2,
   onEditProperties,
 }): React.JSX.Element => {
+  const { t } = useTranslation();
   const isRunning = status === ServerStatus.RUNNING;
   const isTransitioning = status === ServerStatus.STARTING || status === ServerStatus.STOPPING;
 
@@ -44,14 +46,18 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   return (
     <Paper elevation={2} sx={{ p: 2 }}>
       <Typography variant="h6" gutterBottom>
-        Control del Servidor
+        {t("serverControl.title")}
       </Typography>
 
       <Box sx={{ mb: 2 }}>
         <Typography variant="body2" color="text.secondary" gutterBottom>
-          Estado:
+          {t("serverControl.status")}:
         </Typography>
-        <Chip label={status} color={getStatusColor()} sx={{ textTransform: "capitalize" }} />
+        <Chip
+          label={t(`serverStatus.${status}`)}
+          color={getStatusColor()}
+          sx={{ textTransform: "capitalize" }}
+        />
       </Box>
 
       <Stack spacing={1.5}>
@@ -63,19 +69,19 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           disabled={isTransitioning}
           fullWidth
         >
-          {isRunning ? "Detener Servidor" : "Iniciar Servidor"}
+          {isRunning ? t("serverControl.stop") : t("serverControl.start")}
         </Button>
 
         <Button variant="outlined" startIcon={<LockOpenIcon />} onClick={onReleaseLock} fullWidth>
-          Liberar Lock
+          {t("serverControl.releaseLock")}
         </Button>
 
         <Button variant="outlined" startIcon={<CloudSyncIcon />} onClick={onSyncToR2} fullWidth>
-          Sincronizar a R2
+          {t("serverControl.syncToR2")}
         </Button>
 
         <Button variant="outlined" startIcon={<EditIcon />} onClick={onEditProperties} fullWidth>
-          Editar server.properties
+          {t("serverControl.editProperties")}
         </Button>
       </Stack>
     </Paper>
