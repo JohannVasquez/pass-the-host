@@ -3,6 +3,13 @@
   "include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*"],
   "compilerOptions": {
     "composite": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "types": ["electron-vite/node"]
   }
 }

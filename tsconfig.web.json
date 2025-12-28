@@ -9,10 +9,15 @@
   "compilerOptions": {
     "composite": true,
     "jsx": "react-jsx",
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "paths": {
-      "@renderer/*": [
-        "./src/renderer/src/*"
-      ]
+      "@renderer/*": ["./src/renderer/src/*"]
     }
   }
 }
