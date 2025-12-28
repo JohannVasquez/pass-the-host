@@ -2,10 +2,10 @@ export const en = {
   translation: {
     r2Configuration: {
       title: "Cloudflare R2",
-      accountId: "Account ID",
-      accessKeyId: "Access Key ID",
-      secretAccessKey: "Secret Access Key",
-      bucketName: "Bucket Name",
+      endpoint: "Endpoint",
+      access_key: "Access Key",
+      secret_key: "Secret Key",
+      bucket_name: "Bucket Name",
       save: "Save Configuration",
     },
     serverControl: {
@@ -16,6 +16,7 @@ export const en = {
       releaseLock: "Release Lock",
       syncToR2: "Sync to R2",
       editProperties: "Edit server.properties",
+      r2NotConfigured: "Please configure R2 settings before using server controls",
     },
     network: {
       title: "Network Configuration",

@@ -1,8 +1,8 @@
 export interface R2Config {
-  accountId: string;
-  accessKeyId: string;
-  secretAccessKey: string;
-  bucketName: string;
+  endpoint: string;
+  access_key: string;
+  secret_key: string;
+  bucket_name: string;
 }
 
 export interface RamConfig {

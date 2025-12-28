@@ -15,9 +15,22 @@ export const R2Configuration: React.FC<R2ConfigurationProps> = ({
 }): React.JSX.Element => {
   const { t } = useTranslation();
   const [localConfig, setLocalConfig] = React.useState<R2Config>(config);
+  const [saveStatus, setSaveStatus] = React.useState<"idle" | "success" | "error">("idle");
 
   const handleChange = (field: keyof R2Config, value: string): void => {
     setLocalConfig({ ...localConfig, [field]: value });
+  };
+
+  const handleSave = async () => {
+    try {
+      // @ts-ignore
+      const ok = await window.configAPI.saveR2Config(localConfig);
+      setSaveStatus(ok ? "success" : "error");
+      if (ok) onSave(localConfig);
+    } catch {
+      setSaveStatus("error");
+    }
+    setTimeout(() => setSaveStatus("idle"), 2000);
   };
 
   return (
@@ -27,42 +40,47 @@ export const R2Configuration: React.FC<R2ConfigurationProps> = ({
       </Typography>
       <Stack spacing={2}>
         <TextField
-          label={t("r2Configuration.accountId")}
-          value={localConfig.accountId}
-          onChange={(e) => handleChange("accountId", e.target.value)}
+          label={t("r2Configuration.endpoint")}
+          value={localConfig.endpoint}
+          onChange={(e) => handleChange("endpoint", e.target.value)}
           fullWidth
           size="small"
         />
         <TextField
-          label={t("r2Configuration.accessKeyId")}
-          value={localConfig.accessKeyId}
-          onChange={(e) => handleChange("accessKeyId", e.target.value)}
+          label={t("r2Configuration.access_key")}
+          value={localConfig.access_key}
+          onChange={(e) => handleChange("access_key", e.target.value)}
           fullWidth
           size="small"
         />
         <TextField
-          label={t("r2Configuration.secretAccessKey")}
+          label={t("r2Configuration.secret_key")}
           type="password"
-          value={localConfig.secretAccessKey}
-          onChange={(e) => handleChange("secretAccessKey", e.target.value)}
+          value={localConfig.secret_key}
+          onChange={(e) => handleChange("secret_key", e.target.value)}
           fullWidth
           size="small"
         />
         <TextField
-          label={t("r2Configuration.bucketName")}
-          value={localConfig.bucketName}
-          onChange={(e) => handleChange("bucketName", e.target.value)}
+          label={t("r2Configuration.bucket_name")}
+          value={localConfig.bucket_name}
+          onChange={(e) => handleChange("bucket_name", e.target.value)}
           fullWidth
           size="small"
         />
-        <Button
-          variant="contained"
-          startIcon={<SaveIcon />}
-          onClick={() => onSave(localConfig)}
-          fullWidth
-        >
+        <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSave} fullWidth>
           {t("r2Configuration.save")}
         </Button>
+        {saveStatus === "success" && (
+          <Typography color="success.main" variant="body2">
+            {t("r2Configuration.save") + " OK"}
+          </Typography>
+        )}
+        {saveStatus === "error" && (
+          <Typography color="error.main" variant="body2">
+            {t("r2Configuration.save") + " ERROR"}
+          </Typography>
+        )}
       </Stack>
     </Paper>
   );

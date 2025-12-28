@@ -2,6 +2,8 @@ import { app, shell, BrowserWindow, ipcMain } from "electron";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
+import { checkRcloneInstallation, installRclone, testR2Connection } from "./rclone";
+import { saveR2Config } from "./config";
 
 function createWindow(): void {
   // Create the browser window.
@@ -51,6 +53,24 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on("ping", () => console.log("pong"));
+
+  // Config IPC handlers
+  ipcMain.handle("config:save-r2", async (_, r2Config) => {
+    return saveR2Config(r2Config);
+  });
+
+  // Rclone IPC handlers
+  ipcMain.handle("rclone:check-installation", async () => {
+    return await checkRcloneInstallation();
+  });
+
+  ipcMain.handle("rclone:install", async () => {
+    return await installRclone();
+  });
+
+  ipcMain.handle("rclone:test-r2-connection", async (_, config) => {
+    return await testR2Connection(config);
+  });
 
   createWindow();
 

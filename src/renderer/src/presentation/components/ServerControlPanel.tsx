@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Button, Stack, Paper, Typography, Chip } from "@mui/material";
+import { Box, Button, Stack, Paper, Typography, Chip, Alert } from "@mui/material";
 import {
   PlayArrow as PlayIcon,
   Stop as StopIcon,
@@ -16,6 +16,7 @@ interface ServerControlPanelProps {
   onReleaseLock: () => void;
   onSyncToR2: () => void;
   onEditProperties: () => void;
+  disabled?: boolean;
 }
 
 export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
@@ -24,6 +25,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   onReleaseLock,
   onSyncToR2,
   onEditProperties,
+  disabled = false,
 }): React.JSX.Element => {
   const { t } = useTranslation();
   const isRunning = status === ServerStatus.RUNNING;
@@ -49,6 +51,12 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
         {t("serverControl.title")}
       </Typography>
 
+      {disabled && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          {t("serverControl.r2NotConfigured")}
+        </Alert>
+      )}
+
       <Box sx={{ mb: 2 }}>
         <Typography variant="body2" color="text.secondary" gutterBottom>
           {t("serverControl.status")}:
@@ -66,21 +74,39 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           color={isRunning ? "error" : "success"}
           startIcon={isRunning ? <StopIcon /> : <PlayIcon />}
           onClick={onStartStop}
-          disabled={isTransitioning}
+          disabled={disabled || isTransitioning}
           fullWidth
         >
           {isRunning ? t("serverControl.stop") : t("serverControl.start")}
         </Button>
 
-        <Button variant="outlined" startIcon={<LockOpenIcon />} onClick={onReleaseLock} fullWidth>
+        <Button
+          variant="outlined"
+          startIcon={<LockOpenIcon />}
+          onClick={onReleaseLock}
+          disabled={disabled}
+          fullWidth
+        >
           {t("serverControl.releaseLock")}
         </Button>
 
-        <Button variant="outlined" startIcon={<CloudSyncIcon />} onClick={onSyncToR2} fullWidth>
+        <Button
+          variant="outlined"
+          startIcon={<CloudSyncIcon />}
+          onClick={onSyncToR2}
+          disabled={disabled}
+          fullWidth
+        >
           {t("serverControl.syncToR2")}
         </Button>
 
-        <Button variant="outlined" startIcon={<EditIcon />} onClick={onEditProperties} fullWidth>
+        <Button
+          variant="outlined"
+          startIcon={<EditIcon />}
+          onClick={onEditProperties}
+          disabled={disabled}
+          fullWidth
+        >
           {t("serverControl.editProperties")}
         </Button>
       </Stack>

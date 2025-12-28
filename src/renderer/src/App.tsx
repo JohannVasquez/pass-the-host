@@ -30,11 +30,14 @@ const darkTheme = createTheme({
 function App(): React.JSX.Element {
   // Estados simulados para la interfaz
   const [serverStatus, setServerStatus] = React.useState<ServerStatus>(ServerStatus.STOPPED);
+  const [isR2Configured, setIsR2Configured] = React.useState<boolean>(false);
+  const [isRcloneReady, setIsRcloneReady] = React.useState<boolean>(false);
+  const [rcloneCheckCompleted, setRcloneCheckCompleted] = React.useState<boolean>(false);
   const [r2Config, setR2Config] = React.useState<R2Config>({
-    accountId: "",
-    accessKeyId: "",
-    secretAccessKey: "",
-    bucketName: "",
+    endpoint: "",
+    access_key: "",
+    secret_key: "",
+    bucket_name: "",
   });
   const [ramConfig, setRamConfig] = React.useState<RamConfig>({
     min: 2,
@@ -66,21 +69,15 @@ function App(): React.JSX.Element {
         const response = await fetch("/config.json");
         const config = await response.json();
 
-        // Extract account ID from endpoint
-        const accountIdMatch = config.r2.endpoint.match(
-          /https:\/\/(.+?)\.r2\.cloudflarestorage\.com/
-        );
-        const accountId = accountIdMatch ? accountIdMatch[1] : "";
-
         // Parse memory values (e.g., "2G" -> 2)
         const memMin = parseInt(config.server.memory_min.replace(/[^0-9]/g, ""), 10);
         const memMax = parseInt(config.server.memory_max.replace(/[^0-9]/g, ""), 10);
 
         setR2Config({
-          accountId: accountId,
-          accessKeyId: config.r2.access_key,
-          secretAccessKey: config.r2.secret_key,
-          bucketName: config.r2.bucket_name,
+          endpoint: config.r2.endpoint || "",
+          access_key: config.r2.access_key || "",
+          secret_key: config.r2.secret_key || "",
+          bucket_name: config.r2.bucket_name || "",
         });
 
         setRamConfig({
@@ -111,6 +108,197 @@ function App(): React.JSX.Element {
 
     loadConfig();
   }, []);
+
+  // Validate R2 configuration
+  const validateR2Config = (config: R2Config): boolean => {
+    return !!(
+      config.endpoint &&
+      config.access_key &&
+      config.secret_key &&
+      config.bucket_name &&
+      config.endpoint !== "" &&
+      config.access_key !== "" &&
+      config.secret_key !== "" &&
+      config.bucket_name !== ""
+    );
+  };
+
+  // Check if rclone is installed and verify R2 connection
+  React.useEffect(() => {
+    // Prevent multiple executions
+    if (rcloneCheckCompleted) {
+      return;
+    }
+
+    const checkRcloneAndR2 = async (): Promise<void> => {
+      try {
+        // Check if rclone exists
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Checking rclone installation...",
+            type: "info",
+          },
+        ]);
+
+        const rcloneExists = await window.rclone.checkInstallation();
+
+        if (!rcloneExists) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Rclone not found. Installing...",
+              type: "warning",
+            },
+          ]);
+
+          const installSuccess = await window.rclone.installRclone();
+
+          if (!installSuccess) {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Failed to install rclone. Please install manually.",
+                type: "error",
+              },
+            ]);
+            setIsRcloneReady(false);
+            return;
+          }
+
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Rclone installed successfully",
+              type: "info",
+            },
+          ]);
+        } else {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Rclone is already installed",
+              type: "info",
+            },
+          ]);
+        }
+
+        // If R2 is configured, test the connection
+
+        if (validateR2Config(r2Config)) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Testing R2 connection...",
+              type: "info",
+            },
+          ]);
+
+          const connectionSuccess = await window.rclone.testR2Connection({
+            endpoint: r2Config.endpoint,
+            access_key: r2Config.access_key,
+            secret_key: r2Config.secret_key,
+            bucket_name: r2Config.bucket_name,
+          });
+
+          if (connectionSuccess) {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "R2 connection successful",
+                type: "info",
+              },
+            ]);
+            setIsRcloneReady(true);
+          } else {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Failed to connect to R2. Please check your configuration.",
+                type: "error",
+              },
+            ]);
+            setIsRcloneReady(false);
+          }
+        } else {
+          setIsRcloneReady(true); // Rclone is ready but R2 not configured yet
+        }
+      } catch (error) {
+        console.error("Error checking rclone:", error);
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            type: "error",
+          },
+        ]);
+        setIsRcloneReady(false);
+      } finally {
+        setRcloneCheckCompleted(true);
+      }
+    };
+
+    checkRcloneAndR2();
+  }, [rcloneCheckCompleted]);
+
+  // Validate R2 configuration when it changes
+  React.useEffect(() => {
+    const isValid = validateR2Config(r2Config);
+    setIsR2Configured(isValid);
+
+    if (isValid && isRcloneReady) {
+      // Re-test R2 connection when config changes
+      const testConnection = async (): Promise<void> => {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "R2 configuration changed. Testing connection...",
+            type: "info",
+          },
+        ]);
+
+        const connectionSuccess = await window.rclone.testR2Connection({
+          endpoint: r2Config.endpoint,
+          access_key: r2Config.access_key,
+          secret_key: r2Config.secret_key,
+          bucket_name: r2Config.bucket_name,
+        });
+
+        if (connectionSuccess) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "R2 connection successful",
+              type: "info",
+            },
+          ]);
+        } else {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Failed to connect to R2. Please check your configuration.",
+              type: "error",
+            },
+          ]);
+          setIsRcloneReady(false);
+        }
+      };
+
+      testConnection();
+    }
+  }, [r2Config, isRcloneReady]);
 
   // Simulated handlers (interface only)
   const handleSaveR2Config = (config: R2Config): void => {
@@ -219,6 +407,7 @@ function App(): React.JSX.Element {
               onReleaseLock={handleReleaseLock}
               onSyncToR2={handleSyncToR2}
               onEditProperties={handleEditProperties}
+              disabled={!isR2Configured || !isRcloneReady}
             />
 
             <R2Configuration config={r2Config} onSave={handleSaveR2Config} />
