@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
 import { checkRcloneInstallation, installRclone, testR2Connection } from "./rclone";
 import { saveR2Config, loadConfig } from "./config";
+import os from "os";
 
 function createWindow(): void {
   // Create the browser window.
@@ -74,6 +75,13 @@ app.whenReady().then(() => {
 
   ipcMain.handle("rclone:test-r2-connection", async (_, config) => {
     return await testR2Connection(config);
+  });
+
+  // System IPC handlers
+  ipcMain.handle("system:get-total-memory", async () => {
+    const totalMemoryBytes = os.totalmem();
+    const totalMemoryGB = Math.floor(totalMemoryBytes / 1024 ** 3);
+    return totalMemoryGB;
   });
 
   createWindow();

@@ -17,6 +17,10 @@ const configAPI = {
   saveR2Config: (r2Config: any): Promise<boolean> => ipcRenderer.invoke("config:save-r2", r2Config),
 };
 
+const systemAPI = {
+  getTotalMemoryGB: (): Promise<number> => ipcRenderer.invoke("system:get-total-memory"),
+};
+
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
@@ -26,6 +30,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("api", api);
     contextBridge.exposeInMainWorld("rclone", rcloneAPI);
     contextBridge.exposeInMainWorld("configAPI", configAPI);
+    contextBridge.exposeInMainWorld("systemAPI", systemAPI);
   } catch (error) {
     console.error(error);
   }
@@ -34,4 +39,5 @@ if (process.contextIsolated) {
   (window as any).api = api;
   (window as any).rclone = rcloneAPI;
   (window as any).configAPI = configAPI;
+  (window as any).systemAPI = systemAPI;
 }

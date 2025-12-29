@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Typography, Paper, Stack, Slider } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { RamConfig } from "../../domain/entities/ServerConfig";
@@ -15,6 +15,22 @@ export const RamConfiguration: React.FC<RamConfigurationProps> = ({
   disabled = false,
 }): React.JSX.Element => {
   const { t } = useTranslation();
+  const [maxSystemMemory, setMaxSystemMemory] = useState<number>(32);
+
+  useEffect(() => {
+    const fetchSystemMemory = async (): Promise<void> => {
+      try {
+        const totalMemory = await window.systemAPI.getTotalMemoryGB();
+        setMaxSystemMemory(totalMemory);
+      } catch (error) {
+        console.error("Error fetching system memory:", error);
+        // Fallback to 32GB if there's an error
+        setMaxSystemMemory(32);
+      }
+    };
+
+    fetchSystemMemory();
+  }, []);
 
   const handleMinChange = (_event: Event, value: number | number[]): void => {
     const newMin = value as number;
@@ -66,7 +82,7 @@ export const RamConfiguration: React.FC<RamConfigurationProps> = ({
             value={ramConfig.max}
             onChange={handleMaxChange}
             min={ramConfig.min}
-            max={32}
+            max={maxSystemMemory}
             step={1}
             marks
             valueLabelDisplay="auto"

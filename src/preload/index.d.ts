@@ -21,12 +21,17 @@ interface ConfigAPI {
   }) => Promise<boolean>;
 }
 
+interface SystemAPI {
+  getTotalMemoryGB: () => Promise<number>;
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI;
     api: unknown;
     rclone: RcloneAPI;
     configAPI: ConfigAPI;
+    systemAPI: SystemAPI;
   }
 }
 
