@@ -18,12 +18,22 @@ export const RamConfiguration: React.FC<RamConfigurationProps> = ({
 
   const handleMinChange = (_event: Event, value: number | number[]): void => {
     const newMin = value as number;
-    onChange({ ...ramConfig, min: newMin });
+    // Evitar que min sea mayor que max
+    if (newMin > ramConfig.max) {
+      onChange({ ...ramConfig, min: ramConfig.max });
+    } else {
+      onChange({ ...ramConfig, min: newMin });
+    }
   };
 
   const handleMaxChange = (_event: Event, value: number | number[]): void => {
     const newMax = value as number;
-    onChange({ ...ramConfig, max: newMax });
+    // Evitar que max sea menor que min
+    if (newMax < ramConfig.min) {
+      onChange({ ...ramConfig, max: ramConfig.min });
+    } else {
+      onChange({ ...ramConfig, max: newMax });
+    }
   };
 
   return (
@@ -40,7 +50,7 @@ export const RamConfiguration: React.FC<RamConfigurationProps> = ({
             value={ramConfig.min}
             onChange={handleMinChange}
             min={1}
-            max={32}
+            max={ramConfig.max}
             step={1}
             marks
             valueLabelDisplay="auto"
@@ -55,7 +65,7 @@ export const RamConfiguration: React.FC<RamConfigurationProps> = ({
           <Slider
             value={ramConfig.max}
             onChange={handleMaxChange}
-            min={1}
+            min={ramConfig.min}
             max={32}
             step={1}
             marks
