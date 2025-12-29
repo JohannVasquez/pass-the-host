@@ -70,7 +70,9 @@ export const R2Configuration: React.FC<R2ConfigurationProps> = ({
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             {t("r2Configuration.title")}
           </Typography>
-          <Tooltip title={effectivelyLocked ? t("r2Configuration.unlock") : t("r2Configuration.lock")}>
+          <Tooltip
+            title={effectivelyLocked ? t("r2Configuration.unlock") : t("r2Configuration.lock")}
+          >
             <IconButton
               size="small"
               onClick={(e) => {
