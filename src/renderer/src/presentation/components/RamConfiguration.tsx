@@ -6,11 +6,13 @@ import { RamConfig } from "../../domain/entities/ServerConfig";
 interface RamConfigurationProps {
   ramConfig: RamConfig;
   onChange: (config: RamConfig) => void;
+  disabled?: boolean;
 }
 
 export const RamConfiguration: React.FC<RamConfigurationProps> = ({
   ramConfig,
   onChange,
+  disabled = false,
 }): React.JSX.Element => {
   const { t } = useTranslation();
 
@@ -43,6 +45,7 @@ export const RamConfiguration: React.FC<RamConfigurationProps> = ({
             marks
             valueLabelDisplay="auto"
             valueLabelFormat={(value) => `${value} GB`}
+            disabled={disabled}
           />
         </Box>
         <Box>
@@ -58,6 +61,7 @@ export const RamConfiguration: React.FC<RamConfigurationProps> = ({
             marks
             valueLabelDisplay="auto"
             valueLabelFormat={(value) => `${value} GB`}
+            disabled={disabled}
           />
         </Box>
       </Stack>

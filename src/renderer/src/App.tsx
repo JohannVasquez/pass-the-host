@@ -421,15 +421,24 @@ function App(): React.JSX.Element {
               disabled={!isR2Configured || !isRcloneReady}
             />
 
-            <R2Configuration config={r2Config} onSave={handleSaveR2Config} />
+            <R2Configuration
+              config={r2Config}
+              onSave={handleSaveR2Config}
+              disabled={serverStatus !== ServerStatus.STOPPED}
+            />
 
             <NetworkConfiguration
               availableIps={availableIps}
               selectedIp={selectedIp}
               onSelectIp={setSelectedIp}
+              disabled={serverStatus !== ServerStatus.STOPPED}
             />
 
-            <RamConfiguration ramConfig={ramConfig} onChange={setRamConfig} />
+            <RamConfiguration
+              ramConfig={ramConfig}
+              onChange={setRamConfig}
+              disabled={serverStatus !== ServerStatus.STOPPED}
+            />
           </Box>
 
           {/* Panel Derecho - Consola y Comandos */}

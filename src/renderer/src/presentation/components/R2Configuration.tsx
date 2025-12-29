@@ -23,11 +23,13 @@ import { R2Config } from "../../domain/entities/ServerConfig";
 interface R2ConfigurationProps {
   config: R2Config;
   onSave: (config: R2Config) => void;
+  disabled?: boolean;
 }
 
 export const R2Configuration: React.FC<R2ConfigurationProps> = ({
   config,
   onSave,
+  disabled = false,
 }): React.JSX.Element => {
   const { t } = useTranslation();
   const [localConfig, setLocalConfig] = React.useState<R2Config>(config);
@@ -35,13 +37,16 @@ export const R2Configuration: React.FC<R2ConfigurationProps> = ({
   const [isLocked, setIsLocked] = React.useState<boolean>(false);
   const [isExpanded, setIsExpanded] = React.useState<boolean>(true);
 
+  // Lock automatically when disabled from parent
+  const effectivelyLocked = isLocked || disabled;
+
   // Update localConfig when config prop changes
   React.useEffect(() => {
     setLocalConfig(config);
   }, [config]);
 
   const handleChange = (field: keyof R2Config, value: string): void => {
-    if (!isLocked) {
+    if (!effectivelyLocked) {
       setLocalConfig({ ...localConfig, [field]: value });
     }
   };
@@ -65,16 +70,17 @@ export const R2Configuration: React.FC<R2ConfigurationProps> = ({
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             {t("r2Configuration.title")}
           </Typography>
-          <Tooltip title={isLocked ? t("r2Configuration.unlock") : t("r2Configuration.lock")}>
+          <Tooltip title={effectivelyLocked ? t("r2Configuration.unlock") : t("r2Configuration.lock")}>
             <IconButton
               size="small"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsLocked(!isLocked);
               }}
-              color={isLocked ? "error" : "default"}
+              color={effectivelyLocked ? "error" : "default"}
+              disabled={disabled}
             >
-              {isLocked ? <LockIcon /> : <LockOpenIcon />}
+              {effectivelyLocked ? <LockIcon /> : <LockOpenIcon />}
             </IconButton>
           </Tooltip>
         </Box>
@@ -87,7 +93,7 @@ export const R2Configuration: React.FC<R2ConfigurationProps> = ({
             onChange={(e) => handleChange("endpoint", e.target.value)}
             fullWidth
             size="small"
-            disabled={isLocked}
+            disabled={effectivelyLocked}
           />
           <TextField
             label={t("r2Configuration.access_key")}
@@ -95,7 +101,7 @@ export const R2Configuration: React.FC<R2ConfigurationProps> = ({
             onChange={(e) => handleChange("access_key", e.target.value)}
             fullWidth
             size="small"
-            disabled={isLocked}
+            disabled={effectivelyLocked}
           />
           <TextField
             label={t("r2Configuration.secret_key")}
@@ -104,7 +110,7 @@ export const R2Configuration: React.FC<R2ConfigurationProps> = ({
             onChange={(e) => handleChange("secret_key", e.target.value)}
             fullWidth
             size="small"
-            disabled={isLocked}
+            disabled={effectivelyLocked}
           />
           <TextField
             label={t("r2Configuration.bucket_name")}
@@ -112,14 +118,14 @@ export const R2Configuration: React.FC<R2ConfigurationProps> = ({
             onChange={(e) => handleChange("bucket_name", e.target.value)}
             fullWidth
             size="small"
-            disabled={isLocked}
+            disabled={effectivelyLocked}
           />
           <Button
             variant="contained"
             startIcon={<SaveIcon />}
             onClick={handleSave}
             fullWidth
-            disabled={isLocked}
+            disabled={effectivelyLocked}
           >
             {t("r2Configuration.save")}
           </Button>

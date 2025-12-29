@@ -16,12 +16,14 @@ interface NetworkConfigurationProps {
   availableIps: NetworkInterface[];
   selectedIp: string | null;
   onSelectIp: (ip: string) => void;
+  disabled?: boolean;
 }
 
 export const NetworkConfiguration: React.FC<NetworkConfigurationProps> = ({
   availableIps,
   selectedIp,
   onSelectIp,
+  disabled = false,
 }): React.JSX.Element => {
   const { t } = useTranslation();
 
@@ -37,6 +39,7 @@ export const NetworkConfiguration: React.FC<NetworkConfigurationProps> = ({
             value={selectedIp || ""}
             label={t("network.selectIp")}
             onChange={(e) => onSelectIp(e.target.value)}
+            disabled={disabled}
           >
             {availableIps.map((iface) => (
               <MenuItem key={iface.ip} value={iface.ip}>
