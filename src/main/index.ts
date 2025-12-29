@@ -3,7 +3,7 @@ import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
 import { checkRcloneInstallation, installRclone, testR2Connection } from "./rclone";
-import { saveR2Config } from "./config";
+import { saveR2Config, loadConfig } from "./config";
 
 function createWindow(): void {
   // Create the browser window.
@@ -55,6 +55,10 @@ app.whenReady().then(() => {
   ipcMain.on("ping", () => console.log("pong"));
 
   // Config IPC handlers
+  ipcMain.handle("config:load", async () => {
+    return loadConfig();
+  });
+
   ipcMain.handle("config:save-r2", async (_, r2Config) => {
     return saveR2Config(r2Config);
   });

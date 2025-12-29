@@ -7,6 +7,41 @@ export function getConfigPath(): string {
   return path.join(app.getPath("userData"), "config.json");
 }
 
+export function loadConfig(): any {
+  const configPath = getConfigPath();
+  try {
+    if (fs.existsSync(configPath)) {
+      return JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    } else {
+      // Return default config if file doesn't exist yet
+      return {
+        r2: {
+          endpoint: "",
+          access_key: "",
+          secret_key: "",
+          bucket_name: "",
+          region: "auto",
+        },
+        server: {
+          server_path: "./server_files",
+          java_path: "./java_runtime/bin/java.exe",
+          server_jar: "server.jar",
+          server_type: "vanilla",
+          memory_min: "2G",
+          memory_max: "4G",
+          server_port: 25565,
+        },
+        app: {
+          owner_name: "YourName",
+        },
+      };
+    }
+  } catch (e) {
+    console.error("Failed to load config:", e);
+    return null;
+  }
+}
+
 export function saveR2Config(r2Config: any): boolean {
   const configPath = getConfigPath();
   try {

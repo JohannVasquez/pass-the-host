@@ -12,6 +12,7 @@ interface RcloneAPI {
 }
 
 interface ConfigAPI {
+  loadConfig: () => Promise<any>;
   saveR2Config: (r2Config: {
     endpoint: string;
     access_key: string;

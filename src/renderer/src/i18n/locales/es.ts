@@ -7,6 +7,8 @@ export const es = {
       secret_key: "Secret Key",
       bucket_name: "Nombre del Bucket",
       save: "Guardar Configuración",
+      lock: "Bloquear configuración",
+      unlock: "Desbloquear configuración",
     },
     serverControl: {
       title: "Control del Servidor",

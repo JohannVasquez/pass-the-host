@@ -33,6 +33,7 @@ function App(): React.JSX.Element {
   const [isR2Configured, setIsR2Configured] = React.useState<boolean>(false);
   const [isRcloneReady, setIsRcloneReady] = React.useState<boolean>(false);
   const [rcloneCheckCompleted, setRcloneCheckCompleted] = React.useState<boolean>(false);
+  const [configLoaded, setConfigLoaded] = React.useState<boolean>(false);
   const [r2Config, setR2Config] = React.useState<R2Config>({
     endpoint: "",
     access_key: "",
@@ -66,8 +67,11 @@ function App(): React.JSX.Element {
   React.useEffect(() => {
     const loadConfig = async (): Promise<void> => {
       try {
-        const response = await fetch("/config.json");
-        const config = await response.json();
+        const config = await window.configAPI.loadConfig();
+
+        if (!config) {
+          throw new Error("Failed to load config");
+        }
 
         // Parse memory values (e.g., "2G" -> 2)
         const memMin = parseInt(config.server.memory_min.replace(/[^0-9]/g, ""), 10);
@@ -103,6 +107,8 @@ function App(): React.JSX.Element {
             type: "error",
           },
         ]);
+      } finally {
+        setConfigLoaded(true);
       }
     };
 
@@ -125,6 +131,11 @@ function App(): React.JSX.Element {
 
   // Check if rclone is installed and verify R2 connection
   React.useEffect(() => {
+    // Wait for config to load first
+    if (!configLoaded) {
+      return;
+    }
+
     // Prevent multiple executions
     if (rcloneCheckCompleted) {
       return;
@@ -248,7 +259,7 @@ function App(): React.JSX.Element {
     };
 
     checkRcloneAndR2();
-  }, [rcloneCheckCompleted]);
+  }, [configLoaded, rcloneCheckCompleted]);
 
   // Validate R2 configuration when it changes
   React.useEffect(() => {
