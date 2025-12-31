@@ -9,6 +9,10 @@ import {
   listR2Servers,
   downloadServerFromR2,
   uploadServerToR2,
+  createServerLock,
+  uploadServerLock,
+  deleteServerLock,
+  deleteLocalServerLock,
 } from "./rclone";
 import { saveR2Config, loadConfig, saveUsername } from "./config";
 import os from "os";
@@ -98,6 +102,22 @@ app.whenReady().then(() => {
 
   ipcMain.handle("rclone:upload-server", async (_, config, serverId) => {
     return await uploadServerToR2(config, serverId);
+  });
+
+  ipcMain.handle("server:create-lock", async (_, serverId, username) => {
+    return createServerLock(serverId, username);
+  });
+
+  ipcMain.handle("server:upload-lock", async (_, config, serverId) => {
+    return await uploadServerLock(config, serverId);
+  });
+
+  ipcMain.handle("server:delete-lock", async (_, config, serverId) => {
+    return await deleteServerLock(config, serverId);
+  });
+
+  ipcMain.handle("server:delete-local-lock", async (_, serverId) => {
+    return deleteLocalServerLock(serverId);
   });
 
   // System IPC handlers

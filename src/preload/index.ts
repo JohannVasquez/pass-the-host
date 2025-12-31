@@ -33,6 +33,17 @@ const systemAPI = {
     ipcRenderer.invoke("system:get-network-interfaces"),
 };
 
+const serverAPI = {
+  createLock: (serverId: string, username: string): Promise<boolean> =>
+    ipcRenderer.invoke("server:create-lock", serverId, username),
+  uploadLock: (config: any, serverId: string): Promise<boolean> =>
+    ipcRenderer.invoke("server:upload-lock", config, serverId),
+  deleteLock: (config: any, serverId: string): Promise<boolean> =>
+    ipcRenderer.invoke("server:delete-lock", config, serverId),
+  deleteLocalLock: (serverId: string): Promise<boolean> =>
+    ipcRenderer.invoke("server:delete-local-lock", serverId),
+};
+
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
@@ -43,6 +54,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("rclone", rcloneAPI);
     contextBridge.exposeInMainWorld("configAPI", configAPI);
     contextBridge.exposeInMainWorld("systemAPI", systemAPI);
+    contextBridge.exposeInMainWorld("serverAPI", serverAPI);
   } catch (error) {
     console.error(error);
   }
@@ -52,4 +64,5 @@ if (process.contextIsolated) {
   (window as any).rclone = rcloneAPI;
   (window as any).configAPI = configAPI;
   (window as any).systemAPI = systemAPI;
+  (window as any).serverAPI = serverAPI;
 }

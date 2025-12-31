@@ -51,6 +51,29 @@ interface SystemAPI {
   getNetworkInterfaces: () => Promise<Array<{ name: string; ip: string }>>;
 }
 
+interface ServerAPI {
+  createLock: (serverId: string, username: string) => Promise<boolean>;
+  uploadLock: (
+    config: {
+      endpoint: string;
+      access_key: string;
+      secret_key: string;
+      bucket_name: string;
+    },
+    serverId: string
+  ) => Promise<boolean>;
+  deleteLock: (
+    config: {
+      endpoint: string;
+      access_key: string;
+      secret_key: string;
+      bucket_name: string;
+    },
+    serverId: string
+  ) => Promise<boolean>;
+  deleteLocalLock: (serverId: string) => Promise<boolean>;
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI;
@@ -58,6 +81,7 @@ declare global {
     rclone: RcloneAPI;
     configAPI: ConfigAPI;
     systemAPI: SystemAPI;
+    serverAPI: ServerAPI;
   }
 }
 

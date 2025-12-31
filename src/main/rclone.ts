@@ -429,6 +429,156 @@ export function getLocalServerPath(serverId: string): string {
 }
 
 /**
+ * Creates a server.lock file with username and timestamp
+ */
+export function createServerLock(serverId: string, username: string): boolean {
+  try {
+    const serverPath = getLocalServerPath(serverId);
+    const lockFilePath = path.join(serverPath, "server.lock");
+
+    // Check if server directory exists
+    if (!fs.existsSync(serverPath)) {
+      console.error(`Server directory not found: ${serverPath}`);
+      return false;
+    }
+
+    // Create lock content
+    const lockContent = {
+      username: username,
+      startedAt: new Date().toISOString(),
+      timestamp: Date.now(),
+    };
+
+    // Write lock file
+    fs.writeFileSync(lockFilePath, JSON.stringify(lockContent, null, 2), "utf-8");
+
+    console.log(`Server lock created for ${serverId} by ${username}`);
+    return true;
+  } catch (error) {
+    console.error(`Error creating server lock for ${serverId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Uploads the server.lock file to R2
+ */
+export async function uploadServerLock(
+  config: {
+    endpoint: string;
+    access_key: string;
+    secret_key: string;
+    bucket_name: string;
+  },
+  serverId: string
+): Promise<boolean> {
+  try {
+    const configName = "pass-the-host-r2";
+    const endpoint = config.endpoint;
+
+    // Ensure rclone is configured
+    const configCommand = `"${RCLONE_PATH}" config create ${configName} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${endpoint} acl=private --non-interactive`;
+
+    try {
+      await execAsync(configCommand);
+    } catch (error) {
+      // Config might already exist, continue
+    }
+
+    // Define paths
+    const serverPath = getLocalServerPath(serverId);
+    const lockFilePath = path.join(serverPath, "server.lock");
+    const r2LockPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/server.lock`;
+
+    // Check if lock file exists
+    if (!fs.existsSync(lockFilePath)) {
+      console.error(`Lock file not found: ${lockFilePath}`);
+      return false;
+    }
+
+    console.log(`Uploading server.lock for ${serverId} to R2...`);
+
+    // Copy the lock file to R2
+    const copyCommand = `"${RCLONE_PATH}" copyto "${lockFilePath}" ${r2LockPath}`;
+
+    await execAsync(copyCommand, { maxBuffer: 1024 * 1024 });
+
+    console.log(`Server lock uploaded successfully for ${serverId}`);
+    return true;
+  } catch (error) {
+    console.error(`Error uploading server lock for ${serverId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Deletes the server.lock file from local storage
+ */
+export function deleteLocalServerLock(serverId: string): boolean {
+  try {
+    const serverPath = getLocalServerPath(serverId);
+    const lockFilePath = path.join(serverPath, "server.lock");
+
+    // Check if lock file exists
+    if (!fs.existsSync(lockFilePath)) {
+      console.log(`Lock file not found: ${lockFilePath}`);
+      return true; // Not an error if file doesn't exist
+    }
+
+    // Delete the lock file
+    fs.unlinkSync(lockFilePath);
+
+    console.log(`Local server lock deleted for ${serverId}`);
+    return true;
+  } catch (error) {
+    console.error(`Error deleting local server lock for ${serverId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Deletes the server.lock file from R2
+ */
+export async function deleteServerLock(
+  config: {
+    endpoint: string;
+    access_key: string;
+    secret_key: string;
+    bucket_name: string;
+  },
+  serverId: string
+): Promise<boolean> {
+  try {
+    const configName = "pass-the-host-r2";
+    const endpoint = config.endpoint;
+
+    // Ensure rclone is configured
+    const configCommand = `"${RCLONE_PATH}" config create ${configName} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${endpoint} acl=private --non-interactive`;
+
+    try {
+      await execAsync(configCommand);
+    } catch (error) {
+      // Config might already exist, continue
+    }
+
+    const r2LockPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/server.lock`;
+
+    console.log(`Deleting server.lock for ${serverId} from R2...`);
+
+    // Delete the lock file from R2
+    const deleteCommand = `"${RCLONE_PATH}" deletefile ${r2LockPath}`;
+
+    await execAsync(deleteCommand, { maxBuffer: 1024 * 1024 });
+
+    console.log(`Server lock deleted successfully for ${serverId}`);
+    return true;
+  } catch (error) {
+    console.error(`Error deleting server lock for ${serverId}:`, error);
+    return false;
+  }
+}
+
+/**
  * Uploads/syncs a server from local storage to R2
  */
 export async function uploadServerToR2(

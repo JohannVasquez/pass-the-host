@@ -494,6 +494,73 @@ function App(): React.JSX.Element {
           },
         ]);
 
+        // Create server lock file
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Creating server lock...",
+            type: "info",
+          },
+        ]);
+
+        const lockSuccess = await window.serverAPI.createLock(
+          selectedServer,
+          username || "Unknown"
+        );
+
+        if (lockSuccess) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: `Server locked by: ${username || "Unknown"}`,
+              type: "info",
+            },
+          ]);
+
+          // Upload lock to R2
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Uploading lock to R2...",
+              type: "info",
+            },
+          ]);
+
+          const uploadLockSuccess = await window.serverAPI.uploadLock(r2Config, selectedServer);
+
+          if (uploadLockSuccess) {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Lock uploaded to R2",
+                type: "info",
+              },
+            ]);
+          } else {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Warning: Failed to upload lock to R2",
+                type: "warning",
+              },
+            ]);
+          }
+        } else {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Warning: Failed to create server lock",
+              type: "warning",
+            },
+          ]);
+        }
+
         // Simulate server start
         setTimeout(() => {
           setServerStatus(ServerStatus.RUNNING);
@@ -531,6 +598,61 @@ function App(): React.JSX.Element {
       // Upload server files to R2 before stopping
       setTimeout(async () => {
         if (selectedServer) {
+          // Delete lock from R2
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Deleting lock from R2...",
+              type: "info",
+            },
+          ]);
+
+          const deleteLockSuccess = await window.serverAPI.deleteLock(r2Config, selectedServer);
+
+          if (deleteLockSuccess) {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Lock deleted from R2",
+                type: "info",
+              },
+            ]);
+          } else {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Warning: Failed to delete lock from R2",
+                type: "warning",
+              },
+            ]);
+          }
+
+          // Delete local lock file
+          const deleteLocalLockSuccess = await window.serverAPI.deleteLocalLock(selectedServer);
+
+          if (deleteLocalLockSuccess) {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Local lock deleted",
+                type: "info",
+              },
+            ]);
+          } else {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Warning: Failed to delete local lock",
+                type: "warning",
+              },
+            ]);
+          }
+
           setLogs((prev) => [
             ...prev,
             {
