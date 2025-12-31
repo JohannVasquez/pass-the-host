@@ -1,17 +1,42 @@
 import React from "react";
-import { Box, Button, Stack, Paper, Typography, Chip, Alert } from "@mui/material";
+import {
+  Box,
+  Button,
+  Stack,
+  Paper,
+  Typography,
+  Chip,
+  Alert,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  IconButton,
+  Tooltip,
+} from "@mui/material";
 import {
   PlayArrow as PlayIcon,
   Stop as StopIcon,
   LockOpen as LockOpenIcon,
   CloudSync as CloudSyncIcon,
   Edit as EditIcon,
+  Add as AddIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 import { ServerStatus } from "../../domain/entities/ServerStatus";
 
+interface Server {
+  id: string;
+  name: string;
+  version: string;
+}
+
 interface ServerControlPanelProps {
   status: ServerStatus;
+  selectedServer: string | null;
+  servers: Server[];
+  onSelectServer: (serverId: string) => void;
+  onCreateServer: () => void;
   onStartStop: () => void;
   onReleaseLock: () => void;
   onSyncToR2: () => void;
@@ -21,6 +46,10 @@ interface ServerControlPanelProps {
 
 export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   status,
+  selectedServer,
+  servers,
+  onSelectServer,
+  onCreateServer,
   onStartStop,
   onReleaseLock,
   onSyncToR2,
@@ -56,6 +85,34 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           {t("serverControl.r2NotConfigured")}
         </Alert>
       )}
+
+      <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+        <FormControl fullWidth size="small">
+          <InputLabel>{t("serverControl.selectServer")}</InputLabel>
+          <Select
+            value={selectedServer || ""}
+            label={t("serverControl.selectServer")}
+            onChange={(e) => onSelectServer(e.target.value)}
+            disabled={disabled || isRunning || isTransitioning}
+          >
+            {servers.map((server) => (
+              <MenuItem key={server.id} value={server.id}>
+                {server.name} ({server.version})
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Tooltip title={t("serverControl.createNewServer")}>
+          <IconButton
+            color="primary"
+            onClick={onCreateServer}
+            disabled={disabled || isRunning || isTransitioning}
+            sx={{ flexShrink: 0 }}
+          >
+            <AddIcon />
+          </IconButton>
+        </Tooltip>
+      </Box>
 
       <Box sx={{ mb: 2 }}>
         <Typography variant="body2" color="text.secondary" gutterBottom>

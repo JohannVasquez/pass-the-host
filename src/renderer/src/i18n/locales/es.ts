@@ -13,6 +13,8 @@ export const es = {
     serverControl: {
       title: "Control del Servidor",
       status: "Estado",
+      selectServer: "Seleccionar Servidor",
+      createNewServer: "Crear Nuevo Servidor",
       start: "Iniciar Servidor",
       stop: "Detener Servidor",
       releaseLock: "Liberar Lock",

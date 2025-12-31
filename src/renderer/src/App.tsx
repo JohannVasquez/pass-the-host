@@ -27,9 +27,21 @@ const darkTheme = createTheme({
   },
 });
 
+interface Server {
+  id: string;
+  name: string;
+  version: string;
+}
+
 function App(): React.JSX.Element {
   // Estados simulados para la interfaz
   const [serverStatus, setServerStatus] = React.useState<ServerStatus>(ServerStatus.STOPPED);
+  const [servers] = React.useState<Server[]>([
+    { id: "vanilla-1.21", name: "Vanilla Server", version: "1.21" },
+    { id: "paper-1.20.4", name: "Paper Server", version: "1.20.4" },
+    { id: "forge-1.20.1", name: "Forge Modded", version: "1.20.1" },
+  ]);
+  const [selectedServer, setSelectedServer] = React.useState<string | null>(null);
   const [isR2Configured, setIsR2Configured] = React.useState<boolean>(false);
   const [isRcloneReady, setIsRcloneReady] = React.useState<boolean>(false);
   const [rcloneCheckCompleted, setRcloneCheckCompleted] = React.useState<boolean>(false);
@@ -385,6 +397,10 @@ function App(): React.JSX.Element {
     console.log("Command executed:", command);
   };
 
+  const handleCreateServer = (): void => {
+    console.log("Creating new server...");
+  };
+
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
@@ -450,6 +466,10 @@ function App(): React.JSX.Element {
           >
             <ServerControlPanel
               status={serverStatus}
+              selectedServer={selectedServer}
+              servers={servers}
+              onSelectServer={setSelectedServer}
+              onCreateServer={handleCreateServer}
               onStartStop={handleStartStop}
               onReleaseLock={handleReleaseLock}
               onSyncToR2={handleSyncToR2}

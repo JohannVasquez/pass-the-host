@@ -13,6 +13,8 @@ export const en = {
     serverControl: {
       title: "Server Control",
       status: "Status",
+      selectServer: "Select Server",
+      createNewServer: "Create New Server",
       start: "Start Server",
       stop: "Stop Server",
       releaseLock: "Release Lock",
