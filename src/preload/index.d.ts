@@ -15,6 +15,7 @@ interface RcloneAPI {
     secret_key: string;
     bucket_name: string;
   }) => Promise<Array<{ id: string; name: string; version: string; type: string }>>;
+  onProgress: (callback: (message: string) => void) => () => void;
   downloadServer: (
     config: {
       endpoint: string;

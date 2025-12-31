@@ -85,8 +85,11 @@ app.whenReady().then(() => {
     return await checkRcloneInstallation();
   });
 
-  ipcMain.handle("rclone:install", async () => {
-    return await installRclone();
+  ipcMain.handle("rclone:install", async (event) => {
+    const progressCallback = (message: string): void => {
+      event.sender.send("rclone:progress", message);
+    };
+    return await installRclone(progressCallback);
   });
 
   ipcMain.handle("rclone:test-r2-connection", async (_, config) => {

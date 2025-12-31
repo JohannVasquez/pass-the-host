@@ -18,13 +18,14 @@ import { CommandInput } from "./presentation/components/CommandInput";
 import { LanguageSwitcher } from "./presentation/components/LanguageSwitcher";
 import { UsernameInput } from "./presentation/components/UsernameInput";
 import { ReleaseLockModal } from "./presentation/components/ReleaseLockModal";
-import { JavaDownloadModal } from "./presentation/components/JavaDownloadModal";
+import { DownloadProgressModal } from "./presentation/components/DownloadProgressModal";
 import { ServerStatus } from "./domain/entities/ServerStatus";
 import { R2Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
 import { Server } from "./domain/entities/Server";
 import { R2ServerRepository } from "./infrastructure/repositories/R2ServerRepository";
 import { R2Service } from "./infrastructure/services/R2Service";
+import { useTranslation } from "react-i18next";
 import "./i18n/config";
 
 const darkTheme = createTheme({
@@ -34,6 +35,8 @@ const darkTheme = createTheme({
 });
 
 function App(): React.JSX.Element {
+  const { t } = useTranslation();
+
   // Estados simulados para la interfaz
   const [serverStatus, setServerStatus] = React.useState<ServerStatus>(ServerStatus.STOPPED);
   const [servers, setServers] = React.useState<Server[]>([]);
@@ -58,6 +61,8 @@ function App(): React.JSX.Element {
   const [isReleaseLockModalOpen, setIsReleaseLockModalOpen] = React.useState<boolean>(false);
   const [isJavaDownloading, setIsJavaDownloading] = React.useState<boolean>(false);
   const [javaProgressMessage, setJavaProgressMessage] = React.useState<string>("");
+  const [isRcloneDownloading, setIsRcloneDownloading] = React.useState<boolean>(false);
+  const [rcloneProgressMessage, setRcloneProgressMessage] = React.useState<string>("");
   const [logs, setLogs] = React.useState<LogEntry[]>([
     {
       timestamp: new Date(),
@@ -130,6 +135,17 @@ function App(): React.JSX.Element {
   React.useEffect(() => {
     const unsubscribe = window.javaAPI.onProgress((message: string) => {
       setJavaProgressMessage(message);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  // Listen to Rclone download progress
+  React.useEffect(() => {
+    const unsubscribe = window.rclone.onProgress((message: string) => {
+      setRcloneProgressMessage(message);
     });
 
     return () => {
@@ -227,7 +243,15 @@ function App(): React.JSX.Element {
             },
           ]);
 
+          // Show rclone download modal
+          setIsRcloneDownloading(true);
+          setRcloneProgressMessage("Preparing to download rclone...");
+
           const installSuccess = await window.rclone.installRclone();
+
+          // Hide rclone download modal
+          setIsRcloneDownloading(false);
+          setRcloneProgressMessage("");
 
           if (!installSuccess) {
             setLogs((prev) => [
@@ -1149,8 +1173,19 @@ function App(): React.JSX.Element {
           onConfirm={handleConfirmReleaseLock}
         />
 
+        {/* Rclone Download Modal */}
+        <DownloadProgressModal
+          open={isRcloneDownloading}
+          title={t("rclone.modalTitle")}
+          message={rcloneProgressMessage}
+        />
+
         {/* Java Download Modal */}
-        <JavaDownloadModal open={isJavaDownloading} message={javaProgressMessage} />
+        <DownloadProgressModal
+          open={isJavaDownloading}
+          title={t("java.modalTitle")}
+          message={javaProgressMessage}
+        />
       </Box>
     </ThemeProvider>
   );

@@ -72,6 +72,19 @@ export const en = {
       en: "English",
       es: "Spanish",
     },
+    rclone: {
+      modalTitle: "Setting up Rclone",
+      preparing: "Preparing to download rclone...",
+      downloading: "Downloading rclone...",
+      extracting: "Extracting rclone...",
+      finalizing: "Finalizing installation...",
+      installed: "Rclone installed successfully",
+      failed: "Failed to install rclone",
+    },
+    common: {
+      preparing: "Preparing...",
+      doNotClose: "Please wait, do not close the application",
+    },
     username: {
       title: "Username",
       placeholder: "Enter your nickname",

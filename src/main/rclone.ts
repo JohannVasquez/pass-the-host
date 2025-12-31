@@ -96,10 +96,11 @@ export async function checkRcloneInstallation(): Promise<boolean> {
   }
 }
 
-export async function installRclone(): Promise<boolean> {
+export async function installRclone(onProgress?: (message: string) => void): Promise<boolean> {
   // Prevent concurrent installations
   if (isInstalling) {
     console.log("Rclone installation already in progress...");
+    onProgress?.("Rclone installation already in progress...");
     // Wait for current installation to complete
     let attempts = 0;
     while (isInstalling && attempts < 60) {
@@ -112,6 +113,8 @@ export async function installRclone(): Promise<boolean> {
   isInstalling = true;
 
   try {
+    onProgress?.("Preparing to download rclone...");
+
     // Create rclone directory if it doesn't exist
     if (!fs.existsSync(RCLONE_DIR)) {
       fs.mkdirSync(RCLONE_DIR, { recursive: true });
@@ -121,11 +124,13 @@ export async function installRclone(): Promise<boolean> {
     const zipPath = path.join(RCLONE_DIR, "rclone.zip");
 
     console.log("Downloading rclone from:", downloadUrl);
+    onProgress?.("Downloading rclone...");
 
     // Download rclone
     await downloadFile(downloadUrl, zipPath);
 
     console.log("Extracting rclone...");
+    onProgress?.("Extracting rclone...");
 
     // Extract zip
     await extractZip(zipPath, RCLONE_DIR);
@@ -152,6 +157,7 @@ export async function installRclone(): Promise<boolean> {
 
     // Move the executable to the rclone directory
     if (fs.existsSync(extractedExecutable)) {
+      onProgress?.("Finalizing installation...");
       fs.copyFileSync(extractedExecutable, RCLONE_PATH);
 
       // Make executable on Unix-based systems
@@ -164,12 +170,14 @@ export async function installRclone(): Promise<boolean> {
       fs.rmSync(extractedDir, { recursive: true, force: true });
 
       console.log("Rclone installed successfully at:", RCLONE_PATH);
+      onProgress?.("Rclone installed successfully");
       return true;
     } else {
       throw new Error("Rclone executable not found in extracted files");
     }
   } catch (error) {
     console.error("Error installing rclone:", error);
+    onProgress?.("Failed to install rclone");
     return false;
   } finally {
     isInstalling = false;

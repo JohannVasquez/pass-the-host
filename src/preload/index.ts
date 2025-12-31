@@ -18,6 +18,11 @@ const rcloneAPI = {
     ipcRenderer.invoke("rclone:download-server", config, serverId),
   uploadServer: (config: any, serverId: string): Promise<boolean> =>
     ipcRenderer.invoke("rclone:upload-server", config, serverId),
+  onProgress: (callback: (message: string) => void): (() => void) => {
+    const listener = (_event: any, message: string): void => callback(message);
+    ipcRenderer.on("rclone:progress", listener);
+    return () => ipcRenderer.removeListener("rclone:progress", listener);
+  },
 };
 
 const configAPI = {
