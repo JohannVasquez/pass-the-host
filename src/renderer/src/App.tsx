@@ -16,6 +16,7 @@ import { RamConfiguration } from "./presentation/components/RamConfiguration";
 import { ServerConsole } from "./presentation/components/ServerConsole";
 import { CommandInput } from "./presentation/components/CommandInput";
 import { LanguageSwitcher } from "./presentation/components/LanguageSwitcher";
+import { UsernameInput } from "./presentation/components/UsernameInput";
 import { ServerStatus } from "./domain/entities/ServerStatus";
 import { R2Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
@@ -51,6 +52,7 @@ function App(): React.JSX.Element {
   });
   const [availableIps, setAvailableIps] = React.useState<NetworkInterface[]>([]);
   const [selectedIp, setSelectedIp] = React.useState<string | null>(null);
+  const [username, setUsername] = React.useState<string>("");
   const [logs, setLogs] = React.useState<LogEntry[]>([
     {
       timestamp: new Date(),
@@ -89,6 +91,9 @@ function App(): React.JSX.Element {
           min: memMin,
           max: memMax,
         });
+
+        // Load username
+        setUsername(config.app?.owner_name || "");
 
         setLogs((prev) => [
           ...prev,
@@ -403,6 +408,30 @@ function App(): React.JSX.Element {
     console.log("R2 Config saved:", config);
   };
 
+  const handleSaveUsername = async (newUsername: string): Promise<void> => {
+    const success = await window.configAPI.saveUsername(newUsername);
+    if (success) {
+      setUsername(newUsername);
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: `Username updated to: ${newUsername}`,
+          type: "info",
+        },
+      ]);
+    } else {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Failed to save username",
+          type: "error",
+        },
+      ]);
+    }
+  };
+
   const handleStartStop = async (): Promise<void> => {
     if (serverStatus === ServerStatus.STOPPED) {
       // Check if a server is selected
@@ -690,6 +719,12 @@ function App(): React.JSX.Element {
               onSyncToR2={handleSyncToR2}
               onEditProperties={handleEditProperties}
               disabled={!isR2Configured || !isRcloneReady}
+            />
+
+            <UsernameInput
+              username={username}
+              onSave={handleSaveUsername}
+              disabled={serverStatus !== ServerStatus.STOPPED}
             />
 
             <R2Configuration

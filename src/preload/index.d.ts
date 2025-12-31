@@ -43,6 +43,7 @@ interface ConfigAPI {
     secret_key: string;
     bucket_name: string;
   }) => Promise<boolean>;
+  saveUsername: (username: string) => Promise<boolean>;
 }
 
 interface SystemAPI {

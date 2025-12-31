@@ -23,6 +23,8 @@ const rcloneAPI = {
 const configAPI = {
   loadConfig: (): Promise<any> => ipcRenderer.invoke("config:load"),
   saveR2Config: (r2Config: any): Promise<boolean> => ipcRenderer.invoke("config:save-r2", r2Config),
+  saveUsername: (username: string): Promise<boolean> =>
+    ipcRenderer.invoke("config:save-username", username),
 };
 
 const systemAPI = {

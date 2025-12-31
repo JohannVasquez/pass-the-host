@@ -10,7 +10,7 @@ import {
   downloadServerFromR2,
   uploadServerToR2,
 } from "./rclone";
-import { saveR2Config, loadConfig } from "./config";
+import { saveR2Config, loadConfig, saveUsername } from "./config";
 import os from "os";
 
 function createWindow(): void {
@@ -69,6 +69,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle("config:save-r2", async (_, r2Config) => {
     return saveR2Config(r2Config);
+  });
+
+  ipcMain.handle("config:save-username", async (_, username) => {
+    return saveUsername(username);
   });
 
   // Rclone IPC handlers

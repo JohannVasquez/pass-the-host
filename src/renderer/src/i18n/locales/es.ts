@@ -60,5 +60,10 @@ export const es = {
       en: "Inglés",
       es: "Español",
     },
+    username: {
+      title: "Nombre de Usuario",
+      placeholder: "Ingresa tu apodo",
+      notSet: "No configurado",
+    },
   },
 };

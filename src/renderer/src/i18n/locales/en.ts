@@ -59,5 +59,10 @@ export const en = {
       en: "English",
       es: "Spanish",
     },
+    username: {
+      title: "Username",
+      placeholder: "Enter your nickname",
+      notSet: "Not set",
+    },
   },
 };
