@@ -539,8 +539,50 @@ function App(): React.JSX.Element {
     console.log("Lock released");
   };
 
-  const handleSyncToR2 = (): void => {
-    console.log("Syncing to R2...");
+  const handleSyncToR2 = async (): Promise<void> => {
+    if (!selectedServer) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Please select a server first",
+          type: "error",
+        },
+      ]);
+      return;
+    }
+
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: `Syncing ${selectedServer} to R2...`,
+        type: "info",
+      },
+    ]);
+
+    const r2Service = new R2Service(r2Config);
+    const uploadSuccess = await r2Service.uploadServer(selectedServer);
+
+    if (uploadSuccess) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Server files synchronized successfully",
+          type: "info",
+        },
+      ]);
+    } else {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Failed to sync server files to R2",
+          type: "error",
+        },
+      ]);
+    }
   };
 
   const handleEditProperties = (): void => {
