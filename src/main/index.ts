@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from "electron";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
-import { checkRcloneInstallation, installRclone, testR2Connection } from "./rclone";
+import { checkRcloneInstallation, installRclone, testR2Connection, listR2Servers } from "./rclone";
 import { saveR2Config, loadConfig } from "./config";
 import os from "os";
 
@@ -75,6 +75,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle("rclone:test-r2-connection", async (_, config) => {
     return await testR2Connection(config);
+  });
+
+  ipcMain.handle("rclone:list-servers", async (_, config) => {
+    return await listR2Servers(config);
   });
 
   // System IPC handlers

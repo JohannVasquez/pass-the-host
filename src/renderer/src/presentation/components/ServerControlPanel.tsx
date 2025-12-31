@@ -24,12 +24,7 @@ import {
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 import { ServerStatus } from "../../domain/entities/ServerStatus";
-
-interface Server {
-  id: string;
-  name: string;
-  version: string;
-}
+import { Server } from "../../domain/entities/Server";
 
 interface ServerControlPanelProps {
   status: ServerStatus;
@@ -97,7 +92,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           >
             {servers.map((server) => (
               <MenuItem key={server.id} value={server.id}>
-                {server.name} ({server.version})
+                {server.name} - {server.type.toUpperCase()} ({server.version})
               </MenuItem>
             ))}
           </Select>

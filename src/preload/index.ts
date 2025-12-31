@@ -10,6 +10,10 @@ const rcloneAPI = {
   installRclone: (): Promise<boolean> => ipcRenderer.invoke("rclone:install"),
   testR2Connection: (config: any): Promise<boolean> =>
     ipcRenderer.invoke("rclone:test-r2-connection", config),
+  listServers: (
+    config: any
+  ): Promise<Array<{ id: string; name: string; version: string; type: string }>> =>
+    ipcRenderer.invoke("rclone:list-servers", config),
 };
 
 const configAPI = {

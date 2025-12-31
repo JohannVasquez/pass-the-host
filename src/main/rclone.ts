@@ -203,3 +203,157 @@ export async function testR2Connection(config: {
     return false;
   }
 }
+
+/**
+ * Lists all server directories in the pass_the_host folder from R2
+ */
+export async function listR2Servers(config: {
+  endpoint: string;
+  access_key: string;
+  secret_key: string;
+  bucket_name: string;
+}): Promise<Array<{ id: string; name: string; version: string; type: string }>> {
+  try {
+    const configName = "pass-the-host-r2";
+    const endpoint = config.endpoint;
+
+    // Ensure rclone is configured
+    const configCommand = `"${RCLONE_PATH}" config create ${configName} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${endpoint} acl=private --non-interactive`;
+
+    try {
+      await execAsync(configCommand);
+    } catch (error) {
+      // Config might already exist, continue
+    }
+
+    // List directories in pass_the_host folder
+    const listCommand = `"${RCLONE_PATH}" lsf ${configName}:${config.bucket_name}/pass_the_host --dirs-only`;
+    const { stdout } = await execAsync(listCommand);
+
+    const serverDirs = stdout
+      .trim()
+      .split("\n")
+      .filter((line) => line.trim() !== "")
+      .map((line) => line.replace(/\/$/, "")); // Remove trailing slash
+
+    // For each server directory, try to detect version and type
+    const servers = await Promise.all(
+      serverDirs.map(async (serverName) => {
+        const serverPath = `${configName}:${config.bucket_name}/pass_the_host/${serverName}`;
+
+        // Try to detect server type and version
+        const { version, type } = await detectServerVersionAndType(serverPath, serverName);
+
+        return {
+          id: serverName,
+          name: serverName,
+          version: version,
+          type: type,
+        };
+      })
+    );
+
+    return servers;
+  } catch (error) {
+    console.error("Error listing R2 servers:", error);
+    return [];
+  }
+}
+
+/**
+ * Detects server version and type by examining files
+ */
+async function detectServerVersionAndType(
+  serverPath: string,
+  serverName: string
+): Promise<{ version: string; type: string }> {
+  try {
+    // List all files in the server directory
+    const listCommand = `"${RCLONE_PATH}" lsf ${serverPath}`;
+    console.debug(serverPath, listCommand);
+    const { stdout } = await execAsync(listCommand);
+
+    const files = stdout
+      .trim()
+      .split("\n")
+      .filter((line) => line.trim() !== "");
+
+    // Check for Forge by looking in libraries/net/minecraftforge/forge/ directory
+    console.debug(serverName, files);
+    const hasLibrariesFolder = files.some((file) => file.startsWith("libraries/"));
+
+    if (hasLibrariesFolder) {
+      try {
+        // List the forge version directories
+        const forgePathCommand = `"${RCLONE_PATH}" lsf ${serverPath}/libraries/net/minecraftforge/forge/ --dirs-only`;
+        const { stdout: forgeStdout } = await execAsync(forgePathCommand);
+
+        const forgeVersionDirs = forgeStdout
+          .trim()
+          .split("\n")
+          .filter((line) => line.trim() !== "")
+          .map((line) => line.replace(/\/$/, "")); // Remove trailing slash
+
+        if (forgeVersionDirs.length > 0) {
+          // Get the first version directory (e.g., "1.20.1-47.3.12")
+          const versionDir = forgeVersionDirs[0];
+          // Extract just the minecraft version (first part before dash)
+          const versionMatch = versionDir.match(/^(\d+\.\d+(?:\.\d+)?)/);
+          if (versionMatch) {
+            return { version: versionMatch[1], type: "forge" };
+          }
+          return { version: versionDir, type: "forge" };
+        }
+      } catch (error) {
+        console.error("Error checking forge version:", error);
+        // Fallback to checking for forge jar
+      }
+    }
+
+    // Fallback: Check for Forge jar file
+    const forgeJar = files.find((file) => file.includes("forge") && file.endsWith(".jar"));
+    if (forgeJar) {
+      const versionMatch = forgeJar.match(/forge[.-](\d+\.\d+(?:\.\d+)?)/);
+      if (versionMatch) {
+        return { version: versionMatch[1], type: "forge" };
+      }
+      return { version: "Unknown", type: "forge" };
+    }
+
+    // Check for vanilla server by looking in versions/ directory
+    const hasVersionsFolder = files.some((file) => file.startsWith("versions/"));
+
+    if (hasVersionsFolder) {
+      try {
+        // List the version directories
+        const versionPathCommand = `"${RCLONE_PATH}" lsf ${serverPath}/versions/ --dirs-only`;
+        const { stdout: versionStdout } = await execAsync(versionPathCommand);
+
+        const versionDirs = versionStdout
+          .trim()
+          .split("\n")
+          .filter((line) => line.trim() !== "")
+          .map((line) => line.replace(/\/$/, "")); // Remove trailing slash
+
+        if (versionDirs.length > 0) {
+          // Get the first version directory (e.g., "1.21.8")
+          const version = versionDirs[0];
+          return { version: version, type: "vanilla" };
+        }
+      } catch (error) {
+        console.error("Error checking vanilla version:", error);
+      }
+    }
+
+    // Fallback: Check for server.jar
+    const hasServerJar = files.some((file) => file === "server.jar");
+    if (hasServerJar) {
+      return { version: "Unknown", type: "vanilla" };
+    }
+
+    return { version: "Unknown", type: "unknown" };
+  } catch (error) {
+    console.error(`Error detecting version for ${serverName}:`, error);
+    return { version: "Unknown", type: "unknown" };
+  }
+}

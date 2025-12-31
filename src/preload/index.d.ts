@@ -9,6 +9,12 @@ interface RcloneAPI {
     secret_key: string;
     bucket_name: string;
   }) => Promise<boolean>;
+  listServers: (config: {
+    endpoint: string;
+    access_key: string;
+    secret_key: string;
+    bucket_name: string;
+  }) => Promise<Array<{ id: string; name: string; version: string; type: string }>>;
 }
 
 interface ConfigAPI {

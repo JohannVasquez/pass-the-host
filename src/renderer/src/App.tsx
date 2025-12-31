@@ -19,6 +19,8 @@ import { LanguageSwitcher } from "./presentation/components/LanguageSwitcher";
 import { ServerStatus } from "./domain/entities/ServerStatus";
 import { R2Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
+import { Server } from "./domain/entities/Server";
+import { R2ServerRepository } from "./infrastructure/repositories/R2ServerRepository";
 import "./i18n/config";
 
 const darkTheme = createTheme({
@@ -27,20 +29,10 @@ const darkTheme = createTheme({
   },
 });
 
-interface Server {
-  id: string;
-  name: string;
-  version: string;
-}
-
 function App(): React.JSX.Element {
   // Estados simulados para la interfaz
   const [serverStatus, setServerStatus] = React.useState<ServerStatus>(ServerStatus.STOPPED);
-  const [servers] = React.useState<Server[]>([
-    { id: "vanilla-1.21", name: "Vanilla Server", version: "1.21" },
-    { id: "paper-1.20.4", name: "Paper Server", version: "1.20.4" },
-    { id: "forge-1.20.1", name: "Forge Modded", version: "1.20.1" },
-  ]);
+  const [servers, setServers] = React.useState<Server[]>([]);
   const [selectedServer, setSelectedServer] = React.useState<string | null>(null);
   const [isR2Configured, setIsR2Configured] = React.useState<boolean>(false);
   const [isRcloneReady, setIsRcloneReady] = React.useState<boolean>(false);
@@ -276,6 +268,9 @@ function App(): React.JSX.Element {
               },
             ]);
             setIsRcloneReady(true);
+
+            // Load servers from R2
+            loadServersFromR2();
           } else {
             setLogs((prev) => [
               ...prev,
@@ -358,6 +353,48 @@ function App(): React.JSX.Element {
       testConnection();
     }
   }, [r2Config, isRcloneReady]);
+
+  // Load servers from R2
+  const loadServersFromR2 = async (): Promise<void> => {
+    if (!validateR2Config(r2Config)) {
+      return;
+    }
+
+    try {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Loading servers from R2...",
+          type: "info",
+        },
+      ]);
+
+      const repository = new R2ServerRepository(r2Config);
+      const serverList = await repository.getServers();
+
+      setServers(serverList);
+
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: `Found ${serverList.length} server(s) in R2`,
+          type: "info",
+        },
+      ]);
+    } catch (error) {
+      console.error("Error loading servers from R2:", error);
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Error loading servers from R2",
+          type: "error",
+        },
+      ]);
+    }
+  };
 
   // Simulated handlers (interface only)
   const handleSaveR2Config = (config: R2Config): void => {
