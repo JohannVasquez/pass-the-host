@@ -19,6 +19,7 @@ export const en = {
       stop: "Stop Server",
       releaseLock: "Release Lock",
       syncToR2: "Sync to R2",
+      openServerFolder: "Open server folder",
       editProperties: "Edit server.properties",
       r2NotConfigured: "Please configure R2 settings before using server controls",
     },

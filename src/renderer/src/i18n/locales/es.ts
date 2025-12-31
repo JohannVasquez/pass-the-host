@@ -19,6 +19,7 @@ export const es = {
       stop: "Detener Servidor",
       releaseLock: "Liberar Lock",
       syncToR2: "Sincronizar a R2",
+      openServerFolder: "Abrir carpeta del servidor",
       editProperties: "Editar server.properties",
       r2NotConfigured:
         "Por favor configure los ajustes de R2 antes de usar los controles del servidor",

@@ -78,6 +78,7 @@ const serverAPI = {
     ipcRenderer.on("server:stdout", listener);
     return () => ipcRenderer.removeListener("server:stdout", listener);
   },
+  openServerFolder: (serverId: string) => ipcRenderer.invoke("server:openFolder", serverId),
 };
 
 const javaAPI = {

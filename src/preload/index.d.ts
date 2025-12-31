@@ -88,6 +88,7 @@ interface ServerAPI {
   killServerProcess: (serverId: string) => Promise<void>;
   editForgeJvmArgs: (serverId: string, minRam: number, maxRam: number) => Promise<void>;
   onStdout: (callback: (data: string) => void) => () => void;
+  openServerFolder: (serverId: string) => Promise<boolean>;
 }
 
 interface JavaAPI {

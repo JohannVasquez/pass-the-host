@@ -124,6 +124,29 @@ ipcMain.handle("server:edit-forge-jvm-args", async (_event, serverId, minRam, ma
   }
 });
 
+ipcMain.handle("server:openFolder", async (_event, serverId: string) => {
+  try {
+    const serverPath = path.join(app.getPath("userData"), "servers", serverId);
+
+    if (!fs.existsSync(serverPath)) {
+      console.error(`La carpeta del servidor no existe: ${serverPath}`);
+      return false;
+    }
+
+    const errorMessage = await shell.openPath(serverPath);
+
+    if (errorMessage) {
+      console.error("Error al abrir la carpeta:", errorMessage);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Excepción al abrir carpeta:", error);
+    return false;
+  }
+});
+
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;

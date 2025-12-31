@@ -21,6 +21,7 @@ import {
   CloudSync as CloudSyncIcon,
   Edit as EditIcon,
   Add as AddIcon,
+  FolderOpen as FolderOpenIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 import { ServerStatus } from "../../domain/entities/ServerStatus";
@@ -36,6 +37,7 @@ interface ServerControlPanelProps {
   onReleaseLock: () => void;
   onSyncToR2: () => void;
   onEditProperties: () => void;
+  onOpenServerFolder: () => void;
   disabled?: boolean;
 }
 
@@ -49,6 +51,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   onReleaseLock,
   onSyncToR2,
   onEditProperties,
+  onOpenServerFolder,
   disabled = false,
 }): React.JSX.Element => {
   const { t } = useTranslation();
@@ -150,6 +153,16 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           fullWidth
         >
           {t("serverControl.syncToR2")}
+        </Button>
+        <Button
+          variant="contained"
+          color="warning" // Esto le da el color naranja
+          startIcon={<FolderOpenIcon />}
+          onClick={onOpenServerFolder}
+          disabled={disabled || !selectedServer} // Desactivar si no hay server seleccionado
+          fullWidth
+        >
+          {t("serverControl.openServerFolder")}
         </Button>
 
         <Button

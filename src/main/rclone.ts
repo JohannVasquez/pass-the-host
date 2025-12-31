@@ -382,101 +382,68 @@ export async function downloadServerFromR2(
 ): Promise<boolean> {
   try {
     const configName = "pass-the-host-r2";
-    const endpoint = config.endpoint;
-
-    // Ensure rclone is configured
-    const configCommand = `"${RCLONE_PATH}" config create ${configName} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${endpoint} acl=private --non-interactive`;
-
+    const configCommand = `"${RCLONE_PATH}" config create ${configName} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${config.endpoint} acl=private --non-interactive`;
     try {
       await execAsync(configCommand);
-    } catch (error) {
-      // Config might already exist, continue
-    }
+    } catch (error) {}
 
-    // Define paths
     const localServersDir = path.join(app.getPath("userData"), "servers");
     const localServerPath = path.join(localServersDir, serverId);
     const r2ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
 
-    // Create servers directory if it doesn't exist
-    if (!fs.existsSync(localServersDir)) {
-      fs.mkdirSync(localServersDir, { recursive: true });
-    }
-
-    // Delete existing server directory to avoid outdated files
-    if (fs.existsSync(localServerPath)) {
-      console.log(`Deleting existing server files at: ${localServerPath}`);
+    if (!fs.existsSync(localServersDir)) fs.mkdirSync(localServersDir, { recursive: true });
+    if (fs.existsSync(localServerPath))
       fs.rmSync(localServerPath, { recursive: true, force: true });
-    }
-
-    // Create fresh server directory
     fs.mkdirSync(localServerPath, { recursive: true });
-
-    console.log(`Downloading server ${serverId} from R2...`);
-    console.log(`Source: ${r2ServerPath}`);
-    console.log(`Destination: ${localServerPath}`);
 
     onProgress?.(0, "0", "0");
 
-    // Use spawn to capture progress in real-time
     return new Promise<boolean>((resolve, reject) => {
       const rcloneProcess = spawn(
         RCLONE_PATH,
         ["sync", r2ServerPath, localServerPath, "--progress", "--stats", "1s", "--transfers", "8"],
-        {
-          shell: true,
-        }
+        { shell: true }
       );
 
       let lastProgress = "";
+      let outputBuffer = ""; // Buffer para acumular texto fragmentado
 
       rcloneProcess.stderr.on("data", (data: Buffer) => {
-        const output = data.toString();
+        outputBuffer += data.toString();
 
-        // 1. Dividimos todo el bloque de texto en líneas (usando saltos de línea o retornos de carro)
-        const lines = output.split(/[\r\n]+/);
+        // Dividir por saltos de línea (incluyendo retornos de carro de rclone)
+        const lines = outputBuffer.split(/[\r\n]+/);
 
-        // 2. Buscamos la ÚLTIMA línea que contenga información de progreso válida
-        let lastValidMatch = null;
+        // El último elemento puede ser una línea incompleta, guardarla en el buffer para después
+        outputBuffer = lines.pop() || "";
 
         for (const line of lines) {
-          // Regex ajustada para ser más flexible con los espacios y formatos
-          const match = line.match(/Transferred:\s+([\d.]+\s+\w+)\s+\/\s+([\d.]+\s+\w+),\s+(\d+)%/);
+          // Regex más robusto: busca "Transferred:", luego algo hasta el /, luego algo hasta la coma
+          const match = line.match(/Transferred:\s*([^\/]+)\s*\/\s*([^,]+),\s*(\d+)%/);
+
           if (match) {
-            lastValidMatch = match;
-          }
-        }
+            const transferred = match[1].trim();
+            const total = match[2].trim();
+            const percent = parseInt(match[3]);
 
-        // 3. Si encontramos una actualización reciente en este bloque, la enviamos
-        if (lastValidMatch) {
-          const transferred = lastValidMatch[1].trim();
-          const total = lastValidMatch[2].trim();
-          const percent = parseInt(lastValidMatch[3]);
-
-          // Solo notificamos si hubo un cambio real para no saturar el frontend
-          const currentProgress = JSON.stringify({ transferred, percent });
-          if (currentProgress !== lastProgress) {
-            lastProgress = currentProgress;
-            onProgress?.(percent, transferred, total);
+            const currentProgress = JSON.stringify({ transferred, percent });
+            if (currentProgress !== lastProgress) {
+              lastProgress = currentProgress;
+              onProgress?.(percent, transferred, total);
+            }
           }
         }
       });
 
       rcloneProcess.on("close", (code) => {
         if (code === 0) {
-          console.log(`Server ${serverId} downloaded successfully`);
           onProgress?.(100, "Complete", "Complete");
           resolve(true);
         } else {
-          console.error(`Rclone process exited with code ${code}`);
           reject(new Error(`Download failed with code ${code}`));
         }
       });
-
-      rcloneProcess.on("error", (error) => {
-        console.error(`Error spawning rclone:`, error);
-        reject(error);
-      });
+      rcloneProcess.on("error", (error) => reject(error));
     });
   } catch (error) {
     console.error(`Error downloading server ${serverId} from R2:`, error);
@@ -667,93 +634,65 @@ export async function uploadServerToR2(
 ): Promise<boolean> {
   try {
     const configName = "pass-the-host-r2";
-    const endpoint = config.endpoint;
-
-    // Ensure rclone is configured
-    const configCommand = `"${RCLONE_PATH}" config create ${configName} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${endpoint} acl=private --non-interactive`;
-
+    const configCommand = `"${RCLONE_PATH}" config create ${configName} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${config.endpoint} acl=private --non-interactive`;
     try {
       await execAsync(configCommand);
-    } catch (error) {
-      // Config might already exist, continue
-    }
+    } catch (error) {}
 
-    // Define paths
     const localServersDir = path.join(app.getPath("userData"), "servers");
     const localServerPath = path.join(localServersDir, serverId);
     const r2ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
 
-    // Check if local server directory exists
-    if (!fs.existsSync(localServerPath)) {
-      console.error(`Local server directory not found: ${localServerPath}`);
-      return false;
-    }
-
-    console.log(`Uploading server ${serverId} to R2...`);
-    console.log(`Source: ${localServerPath}`);
-    console.log(`Destination: ${r2ServerPath}`);
+    if (!fs.existsSync(localServerPath)) return false;
 
     onProgress?.(0, "0", "0");
 
-    // Use spawn to capture progress in real-time
     return new Promise<boolean>((resolve, reject) => {
       const rcloneProcess = spawn(
         RCLONE_PATH,
         ["sync", localServerPath, r2ServerPath, "--progress", "--stats", "1s", "--transfers", "8"],
-        {
-          shell: true,
-        }
+        { shell: true }
       );
 
       let lastProgress = "";
+      let outputBuffer = ""; // Buffer para acumular texto fragmentado
 
       rcloneProcess.stderr.on("data", (data: Buffer) => {
-        const output = data.toString();
+        outputBuffer += data.toString();
 
-        // 1. Dividimos todo el bloque de texto en líneas (usando saltos de línea o retornos de carro)
-        const lines = output.split(/[\r\n]+/);
+        // Dividir por saltos de línea y retornos de carro (rclone usa \r para actualizar línea)
+        const lines = outputBuffer.split(/[\r\n]+/);
 
-        // 2. Buscamos la ÚLTIMA línea que contenga información de progreso válida
-        let lastValidMatch = null;
+        // Guardar remanente
+        outputBuffer = lines.pop() || "";
 
         for (const line of lines) {
-          // Regex ajustada para ser más flexible con los espacios y formatos
-          const match = line.match(/Transferred:\s+([\d.]+\s+\w+)\s+\/\s+([\d.]+\s+\w+),\s+(\d+)%/);
+          // Regex robusto igual que en download
+          const match = line.match(/Transferred:\s*([^\/]+)\s*\/\s*([^,]+),\s*(\d+)%/);
+
           if (match) {
-            lastValidMatch = match;
-          }
-        }
+            const transferred = match[1].trim();
+            const total = match[2].trim();
+            const percent = parseInt(match[3]);
 
-        // 3. Si encontramos una actualización reciente en este bloque, la enviamos
-        if (lastValidMatch) {
-          const transferred = lastValidMatch[1].trim();
-          const total = lastValidMatch[2].trim();
-          const percent = parseInt(lastValidMatch[3]);
-
-          // Solo notificamos si hubo un cambio real para no saturar el frontend
-          const currentProgress = JSON.stringify({ transferred, percent });
-          if (currentProgress !== lastProgress) {
-            lastProgress = currentProgress;
-            onProgress?.(percent, transferred, total);
+            const currentProgress = JSON.stringify({ transferred, percent });
+            if (currentProgress !== lastProgress) {
+              lastProgress = currentProgress;
+              onProgress?.(percent, transferred, total);
+            }
           }
         }
       });
 
       rcloneProcess.on("close", (code) => {
         if (code === 0) {
-          console.log(`Server ${serverId} uploaded successfully`);
           onProgress?.(100, "Complete", "Complete");
           resolve(true);
         } else {
-          console.error(`Rclone process exited with code ${code}`);
           reject(new Error(`Upload failed with code ${code}`));
         }
       });
-
-      rcloneProcess.on("error", (error) => {
-        console.error(`Error spawning rclone:`, error);
-        reject(error);
-      });
+      rcloneProcess.on("error", (error) => reject(error));
     });
   } catch (error) {
     console.error(`Error uploading server ${serverId} to R2:`, error);

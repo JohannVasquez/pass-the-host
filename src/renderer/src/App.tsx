@@ -1131,6 +1131,35 @@ function App(): React.JSX.Element {
     console.log("Opening server.properties editor");
   };
 
+  const handleOpenServerFolder = async (): Promise<void> => {
+    if (!selectedServer) return;
+
+    try {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: `Opening folder for server: ${selectedServer}`,
+          type: "info",
+        },
+      ]);
+
+      // Asumiendo que tienes un método en tu API para esto.
+      // Si no existe, deberás crearlo en tu main process (Electron).
+      await window.serverAPI.openServerFolder(selectedServer);
+    } catch (error) {
+      console.error("Error opening folder:", error);
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Failed to open server folder",
+          type: "error",
+        },
+      ]);
+    }
+  };
+
   const handleExecuteCommand = (command: string): void => {
     const newLog: LogEntry = {
       timestamp: new Date(),
@@ -1218,6 +1247,7 @@ function App(): React.JSX.Element {
               onReleaseLock={handleReleaseLock}
               onSyncToR2={handleSyncToR2}
               onEditProperties={handleEditProperties}
+              onOpenServerFolder={handleOpenServerFolder}
               disabled={!isR2Configured || !isRcloneReady}
             />
 
