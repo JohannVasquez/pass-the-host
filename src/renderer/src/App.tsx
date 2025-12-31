@@ -19,6 +19,7 @@ import { LanguageSwitcher } from "./presentation/components/LanguageSwitcher";
 import { UsernameInput } from "./presentation/components/UsernameInput";
 import { ReleaseLockModal } from "./presentation/components/ReleaseLockModal";
 import { DownloadProgressModal } from "./presentation/components/DownloadProgressModal";
+import { TransferProgressModal } from "./presentation/components/TransferProgressModal";
 import { ServerStatus } from "./domain/entities/ServerStatus";
 import { R2Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
@@ -63,6 +64,11 @@ function App(): React.JSX.Element {
   const [javaProgressMessage, setJavaProgressMessage] = React.useState<string>("");
   const [isRcloneDownloading, setIsRcloneDownloading] = React.useState<boolean>(false);
   const [rcloneProgressMessage, setRcloneProgressMessage] = React.useState<string>("");
+  const [isTransferring, setIsTransferring] = React.useState<boolean>(false);
+  const [transferType, setTransferType] = React.useState<"download" | "upload">("download");
+  const [transferPercent, setTransferPercent] = React.useState<number>(0);
+  const [transferTransferred, setTransferTransferred] = React.useState<string>("0");
+  const [transferTotal, setTransferTotal] = React.useState<string>("0");
   const [logs, setLogs] = React.useState<LogEntry[]>([
     {
       timestamp: new Date(),
@@ -146,6 +152,19 @@ function App(): React.JSX.Element {
   React.useEffect(() => {
     const unsubscribe = window.rclone.onProgress((message: string) => {
       setRcloneProgressMessage(message);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  // Listen to Rclone transfer progress (upload/download)
+  React.useEffect(() => {
+    const unsubscribe = window.rclone.onTransferProgress((progress) => {
+      setTransferPercent(progress.percent);
+      setTransferTransferred(progress.transferred);
+      setTransferTotal(progress.total);
     });
 
     return () => {
@@ -521,8 +540,16 @@ function App(): React.JSX.Element {
         },
       ]);
 
+      setIsTransferring(true);
+      setTransferType("download");
+      setTransferPercent(0);
+      setTransferTransferred("0");
+      setTransferTotal("0");
+
       const r2Service = new R2Service(r2Config);
       const downloadSuccess = await r2Service.downloadServer(selectedServer);
+
+      setIsTransferring(false);
 
       if (downloadSuccess) {
         setLogs((prev) => [
@@ -774,8 +801,16 @@ function App(): React.JSX.Element {
             },
           ]);
 
+          setIsTransferring(true);
+          setTransferType("upload");
+          setTransferPercent(0);
+          setTransferTransferred("0");
+          setTransferTotal("0");
+
           const r2Service = new R2Service(r2Config);
           const uploadSuccess = await r2Service.uploadServer(selectedServer);
+
+          setIsTransferring(false);
 
           if (uploadSuccess) {
             setLogs((prev) => [
@@ -986,8 +1021,16 @@ function App(): React.JSX.Element {
       },
     ]);
 
+    setIsTransferring(true);
+    setTransferType("upload");
+    setTransferPercent(0);
+    setTransferTransferred("0");
+    setTransferTotal("0");
+
     const r2Service = new R2Service(r2Config);
     const uploadSuccess = await r2Service.uploadServer(selectedServer);
+
+    setIsTransferring(false);
 
     if (uploadSuccess) {
       setLogs((prev) => [
@@ -1185,6 +1228,15 @@ function App(): React.JSX.Element {
           open={isJavaDownloading}
           title={t("java.modalTitle")}
           message={javaProgressMessage}
+        />
+
+        {/* Transfer Progress Modal */}
+        <TransferProgressModal
+          open={isTransferring}
+          type={transferType}
+          percent={transferPercent}
+          transferred={transferTransferred}
+          total={transferTotal}
         />
       </Box>
     </ThemeProvider>

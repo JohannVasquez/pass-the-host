@@ -85,6 +85,11 @@ export const en = {
       preparing: "Preparing...",
       doNotClose: "Please wait, do not close the application",
     },
+    transfer: {
+      downloading: "Downloading from R2",
+      uploading: "Uploading to R2",
+      complete: "Transfer complete",
+    },
     username: {
       title: "Username",
       placeholder: "Enter your nickname",

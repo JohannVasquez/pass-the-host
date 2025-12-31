@@ -23,6 +23,16 @@ const rcloneAPI = {
     ipcRenderer.on("rclone:progress", listener);
     return () => ipcRenderer.removeListener("rclone:progress", listener);
   },
+  onTransferProgress: (
+    callback: (progress: { percent: number; transferred: string; total: string }) => void
+  ): (() => void) => {
+    const listener = (
+      _event: any,
+      progress: { percent: number; transferred: string; total: string }
+    ): void => callback(progress);
+    ipcRenderer.on("rclone:transfer-progress", listener);
+    return () => ipcRenderer.removeListener("rclone:transfer-progress", listener);
+  },
 };
 
 const configAPI = {

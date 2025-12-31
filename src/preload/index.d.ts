@@ -16,6 +16,9 @@ interface RcloneAPI {
     bucket_name: string;
   }) => Promise<Array<{ id: string; name: string; version: string; type: string }>>;
   onProgress: (callback: (message: string) => void) => () => void;
+  onTransferProgress: (
+    callback: (progress: { percent: number; transferred: string; total: string }) => void
+  ) => () => void;
   downloadServer: (
     config: {
       endpoint: string;

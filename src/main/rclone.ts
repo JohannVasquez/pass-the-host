@@ -2,7 +2,7 @@ import { app } from "electron";
 import * as path from "path";
 import * as fs from "fs";
 import * as https from "https";
-import { execSync, exec } from "child_process";
+import { execSync, exec, spawn } from "child_process";
 import { promisify } from "util";
 
 const execAsync = promisify(exec);
@@ -377,7 +377,8 @@ export async function downloadServerFromR2(
     secret_key: string;
     bucket_name: string;
   },
-  serverId: string
+  serverId: string,
+  onProgress?: (percent: number, transferred: string, total: string) => void
 ): Promise<boolean> {
   try {
     const configName = "pass-the-host-r2";
@@ -415,13 +416,58 @@ export async function downloadServerFromR2(
     console.log(`Source: ${r2ServerPath}`);
     console.log(`Destination: ${localServerPath}`);
 
-    // Sync from R2 to local directory
-    const syncCommand = `"${RCLONE_PATH}" sync ${r2ServerPath} "${localServerPath}" --progress --transfers 8`;
+    onProgress?.(0, "0", "0");
 
-    await execAsync(syncCommand, { maxBuffer: 1024 * 1024 * 10 }); // 10MB buffer
+    // Use spawn to capture progress in real-time
+    return new Promise<boolean>((resolve, reject) => {
+      const rcloneProcess = spawn(
+        RCLONE_PATH,
+        ["sync", r2ServerPath, localServerPath, "--progress", "--stats", "1s", "--transfers", "8"],
+        {
+          shell: true,
+        }
+      );
 
-    console.log(`Server ${serverId} downloaded successfully`);
-    return true;
+      let lastProgress = "";
+
+      rcloneProcess.stderr.on("data", (data: Buffer) => {
+        const output = data.toString();
+        console.log(output);
+
+        // Parse rclone progress output
+        // Format: "Transferred:   	  123.456 MiB / 456.789 MiB, 27%, 12.345 MiB/s, ETA 10s"
+        const transferMatch = output.match(
+          /Transferred:\s+(\S+\s+\S+)\s+\/\s+(\S+\s+\S+),\s+(\d+)%/
+        );
+
+        if (transferMatch) {
+          const transferred = transferMatch[1].trim();
+          const total = transferMatch[2].trim();
+          const percent = parseInt(transferMatch[3]);
+
+          if (JSON.stringify({ transferred, percent }) !== lastProgress) {
+            lastProgress = JSON.stringify({ transferred, percent });
+            onProgress?.(percent, transferred, total);
+          }
+        }
+      });
+
+      rcloneProcess.on("close", (code) => {
+        if (code === 0) {
+          console.log(`Server ${serverId} downloaded successfully`);
+          onProgress?.(100, "Complete", "Complete");
+          resolve(true);
+        } else {
+          console.error(`Rclone process exited with code ${code}`);
+          reject(new Error(`Download failed with code ${code}`));
+        }
+      });
+
+      rcloneProcess.on("error", (error) => {
+        console.error(`Error spawning rclone:`, error);
+        reject(error);
+      });
+    });
   } catch (error) {
     console.error(`Error downloading server ${serverId} from R2:`, error);
     return false;
@@ -606,7 +652,8 @@ export async function uploadServerToR2(
     secret_key: string;
     bucket_name: string;
   },
-  serverId: string
+  serverId: string,
+  onProgress?: (percent: number, transferred: string, total: string) => void
 ): Promise<boolean> {
   try {
     const configName = "pass-the-host-r2";
@@ -636,13 +683,57 @@ export async function uploadServerToR2(
     console.log(`Source: ${localServerPath}`);
     console.log(`Destination: ${r2ServerPath}`);
 
-    // Sync from local directory to R2
-    const syncCommand = `"${RCLONE_PATH}" sync "${localServerPath}" ${r2ServerPath} --progress --transfers 8`;
+    onProgress?.(0, "0", "0");
 
-    await execAsync(syncCommand, { maxBuffer: 1024 * 1024 * 10 }); // 10MB buffer
+    // Use spawn to capture progress in real-time
+    return new Promise<boolean>((resolve, reject) => {
+      const rcloneProcess = spawn(
+        RCLONE_PATH,
+        ["sync", localServerPath, r2ServerPath, "--progress", "--stats", "1s", "--transfers", "8"],
+        {
+          shell: true,
+        }
+      );
 
-    console.log(`Server ${serverId} uploaded successfully`);
-    return true;
+      let lastProgress = "";
+
+      rcloneProcess.stderr.on("data", (data: Buffer) => {
+        const output = data.toString();
+        console.log(output);
+
+        // Parse rclone progress output
+        const transferMatch = output.match(
+          /Transferred:\s+(\S+\s+\S+)\s+\/\s+(\S+\s+\S+),\s+(\d+)%/
+        );
+
+        if (transferMatch) {
+          const transferred = transferMatch[1].trim();
+          const total = transferMatch[2].trim();
+          const percent = parseInt(transferMatch[3]);
+
+          if (JSON.stringify({ transferred, percent }) !== lastProgress) {
+            lastProgress = JSON.stringify({ transferred, percent });
+            onProgress?.(percent, transferred, total);
+          }
+        }
+      });
+
+      rcloneProcess.on("close", (code) => {
+        if (code === 0) {
+          console.log(`Server ${serverId} uploaded successfully`);
+          onProgress?.(100, "Complete", "Complete");
+          resolve(true);
+        } else {
+          console.error(`Rclone process exited with code ${code}`);
+          reject(new Error(`Upload failed with code ${code}`));
+        }
+      });
+
+      rcloneProcess.on("error", (error) => {
+        console.error(`Error spawning rclone:`, error);
+        reject(error);
+      });
+    });
   } catch (error) {
     console.error(`Error uploading server ${serverId} to R2:`, error);
     return false;

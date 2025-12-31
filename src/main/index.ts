@@ -100,12 +100,18 @@ app.whenReady().then(() => {
     return await listR2Servers(config);
   });
 
-  ipcMain.handle("rclone:download-server", async (_, config, serverId) => {
-    return await downloadServerFromR2(config, serverId);
+  ipcMain.handle("rclone:download-server", async (event, config, serverId) => {
+    const progressCallback = (percent: number, transferred: string, total: string): void => {
+      event.sender.send("rclone:transfer-progress", { percent, transferred, total });
+    };
+    return await downloadServerFromR2(config, serverId, progressCallback);
   });
 
-  ipcMain.handle("rclone:upload-server", async (_, config, serverId) => {
-    return await uploadServerToR2(config, serverId);
+  ipcMain.handle("rclone:upload-server", async (event, config, serverId) => {
+    const progressCallback = (percent: number, transferred: string, total: string): void => {
+      event.sender.send("rclone:transfer-progress", { percent, transferred, total });
+    };
+    return await uploadServerToR2(config, serverId, progressCallback);
   });
 
   ipcMain.handle("server:create-lock", async (_, serverId, username) => {

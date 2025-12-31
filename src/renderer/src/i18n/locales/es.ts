@@ -86,6 +86,11 @@ export const es = {
       preparing: "Preparando...",
       doNotClose: "Por favor espera, no cierres la aplicación",
     },
+    transfer: {
+      downloading: "Descargando desde R2",
+      uploading: "Subiendo a R2",
+      complete: "Transferencia completa",
+    },
     username: {
       title: "Nombre de Usuario",
       placeholder: "Ingresa tu apodo",
