@@ -44,11 +44,7 @@ function App(): React.JSX.Element {
     min: 2,
     max: 4,
   });
-  const [availableIps] = React.useState<NetworkInterface[]>([
-    { name: "Ethernet", ip: "192.168.1.100" },
-    { name: "Wi-Fi", ip: "192.168.1.101" },
-    { name: "Localhost", ip: "127.0.0.1" },
-  ]);
+  const [availableIps, setAvailableIps] = React.useState<NetworkInterface[]>([]);
   const [selectedIp, setSelectedIp] = React.useState<string | null>(null);
   const [logs, setLogs] = React.useState<LogEntry[]>([
     {
@@ -113,6 +109,46 @@ function App(): React.JSX.Element {
     };
 
     loadConfig();
+  }, []);
+
+  // Load network interfaces on mount
+  React.useEffect(() => {
+    const loadNetworkInterfaces = async (): Promise<void> => {
+      try {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Loading network interfaces...",
+            type: "info",
+          },
+        ]);
+
+        const interfaces = await window.systemAPI.getNetworkInterfaces();
+        setAvailableIps(interfaces);
+
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Found ${interfaces.length} network interface(s)`,
+            type: "info",
+          },
+        ]);
+      } catch (error) {
+        console.error("Error loading network interfaces:", error);
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Error loading network interfaces",
+            type: "error",
+          },
+        ]);
+      }
+    };
+
+    loadNetworkInterfaces();
   }, []);
 
   // Validate R2 configuration

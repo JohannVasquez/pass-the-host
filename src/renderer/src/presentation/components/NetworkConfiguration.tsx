@@ -49,7 +49,7 @@ export const NetworkConfiguration: React.FC<NetworkConfigurationProps> = ({
           </Select>
         </FormControl>
         {selectedIp && (
-          <Box sx={{ bgcolor: "action.hover", p: 1.5, borderRadius: 1 }}>
+          <Box sx={{ bgcolor: "action.hover", p: 1, pt: 0.5, borderRadius: 1 }}>
             <Typography variant="caption" color="text.secondary">
               {t("network.selectedIp")}:
             </Typography>

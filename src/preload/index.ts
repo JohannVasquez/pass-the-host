@@ -19,6 +19,8 @@ const configAPI = {
 
 const systemAPI = {
   getTotalMemoryGB: (): Promise<number> => ipcRenderer.invoke("system:get-total-memory"),
+  getNetworkInterfaces: (): Promise<Array<{ name: string; ip: string }>> =>
+    ipcRenderer.invoke("system:get-network-interfaces"),
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to

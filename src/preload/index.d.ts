@@ -23,6 +23,7 @@ interface ConfigAPI {
 
 interface SystemAPI {
   getTotalMemoryGB: () => Promise<number>;
+  getNetworkInterfaces: () => Promise<Array<{ name: string; ip: string }>>;
 }
 
 declare global {

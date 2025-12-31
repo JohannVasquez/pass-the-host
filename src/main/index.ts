@@ -84,6 +84,33 @@ app.whenReady().then(() => {
     return totalMemoryGB;
   });
 
+  ipcMain.handle("system:get-network-interfaces", async () => {
+    const interfaces = os.networkInterfaces();
+    const networkList: Array<{ name: string; ip: string }> = [];
+
+    for (const [name, addresses] of Object.entries(interfaces)) {
+      if (!addresses) continue;
+
+      for (const addr of addresses) {
+        // Filter only IPv4 addresses
+        if (addr.family === "IPv4" && !addr.internal) {
+          networkList.push({
+            name: name,
+            ip: addr.address,
+          });
+        }
+      }
+    }
+
+    // Add localhost
+    networkList.push({
+      name: "Localhost",
+      ip: "127.0.0.1",
+    });
+
+    return networkList;
+  });
+
   createWindow();
 
   app.on("activate", function () {
