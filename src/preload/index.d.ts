@@ -24,6 +24,15 @@ interface RcloneAPI {
     },
     serverId: string
   ) => Promise<boolean>;
+  uploadServer: (
+    config: {
+      endpoint: string;
+      access_key: string;
+      secret_key: string;
+      bucket_name: string;
+    },
+    serverId: string
+  ) => Promise<boolean>;
 }
 
 interface ConfigAPI {

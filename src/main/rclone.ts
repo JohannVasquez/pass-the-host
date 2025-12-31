@@ -427,3 +427,56 @@ export function getLocalServerPath(serverId: string): string {
   const localServersDir = path.join(app.getPath("userData"), "servers");
   return path.join(localServersDir, serverId);
 }
+
+/**
+ * Uploads/syncs a server from local storage to R2
+ */
+export async function uploadServerToR2(
+  config: {
+    endpoint: string;
+    access_key: string;
+    secret_key: string;
+    bucket_name: string;
+  },
+  serverId: string
+): Promise<boolean> {
+  try {
+    const configName = "pass-the-host-r2";
+    const endpoint = config.endpoint;
+
+    // Ensure rclone is configured
+    const configCommand = `"${RCLONE_PATH}" config create ${configName} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${endpoint} acl=private --non-interactive`;
+
+    try {
+      await execAsync(configCommand);
+    } catch (error) {
+      // Config might already exist, continue
+    }
+
+    // Define paths
+    const localServersDir = path.join(app.getPath("userData"), "servers");
+    const localServerPath = path.join(localServersDir, serverId);
+    const r2ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
+
+    // Check if local server directory exists
+    if (!fs.existsSync(localServerPath)) {
+      console.error(`Local server directory not found: ${localServerPath}`);
+      return false;
+    }
+
+    console.log(`Uploading server ${serverId} to R2...`);
+    console.log(`Source: ${localServerPath}`);
+    console.log(`Destination: ${r2ServerPath}`);
+
+    // Sync from local directory to R2
+    const syncCommand = `"${RCLONE_PATH}" sync "${localServerPath}" ${r2ServerPath} --progress --transfers 8`;
+
+    await execAsync(syncCommand, { maxBuffer: 1024 * 1024 * 10 }); // 10MB buffer
+
+    console.log(`Server ${serverId} uploaded successfully`);
+    return true;
+  } catch (error) {
+    console.error(`Error uploading server ${serverId} to R2:`, error);
+    return false;
+  }
+}

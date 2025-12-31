@@ -25,6 +25,18 @@ export class R2Service {
   }
 
   /**
+   * Uploads a server from local storage to R2
+   */
+  async uploadServer(serverId: string): Promise<boolean> {
+    try {
+      return await window.rclone.uploadServer(this.r2Config, serverId);
+    } catch (error) {
+      console.error(`Error uploading server ${serverId}:`, error);
+      return false;
+    }
+  }
+
+  /**
    * Tests the R2 connection
    */
   async testConnection(): Promise<boolean> {

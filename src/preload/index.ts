@@ -16,6 +16,8 @@ const rcloneAPI = {
     ipcRenderer.invoke("rclone:list-servers", config),
   downloadServer: (config: any, serverId: string): Promise<boolean> =>
     ipcRenderer.invoke("rclone:download-server", config, serverId),
+  uploadServer: (config: any, serverId: string): Promise<boolean> =>
+    ipcRenderer.invoke("rclone:upload-server", config, serverId),
 };
 
 const configAPI = {

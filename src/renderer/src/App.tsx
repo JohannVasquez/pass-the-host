@@ -485,7 +485,43 @@ function App(): React.JSX.Element {
           type: "info",
         },
       ]);
-      setTimeout(() => {
+
+      // Upload server files to R2 before stopping
+      setTimeout(async () => {
+        if (selectedServer) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Uploading server files to R2...",
+              type: "info",
+            },
+          ]);
+
+          const r2Service = new R2Service(r2Config);
+          const uploadSuccess = await r2Service.uploadServer(selectedServer);
+
+          if (uploadSuccess) {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Server files uploaded successfully",
+                type: "info",
+              },
+            ]);
+          } else {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Warning: Failed to upload server files to R2",
+                type: "warning",
+              },
+            ]);
+          }
+        }
+
         setServerStatus(ServerStatus.STOPPED);
         setLogs((prev) => [
           ...prev,

@@ -8,6 +8,7 @@ import {
   testR2Connection,
   listR2Servers,
   downloadServerFromR2,
+  uploadServerToR2,
 } from "./rclone";
 import { saveR2Config, loadConfig } from "./config";
 import os from "os";
@@ -89,6 +90,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle("rclone:download-server", async (_, config, serverId) => {
     return await downloadServerFromR2(config, serverId);
+  });
+
+  ipcMain.handle("rclone:upload-server", async (_, config, serverId) => {
+    return await uploadServerToR2(config, serverId);
   });
 
   // System IPC handlers
