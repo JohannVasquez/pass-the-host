@@ -15,6 +15,15 @@ interface RcloneAPI {
     secret_key: string;
     bucket_name: string;
   }) => Promise<Array<{ id: string; name: string; version: string; type: string }>>;
+  downloadServer: (
+    config: {
+      endpoint: string;
+      access_key: string;
+      secret_key: string;
+      bucket_name: string;
+    },
+    serverId: string
+  ) => Promise<boolean>;
 }
 
 interface ConfigAPI {

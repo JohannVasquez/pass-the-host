@@ -357,3 +357,73 @@ async function detectServerVersionAndType(
     return { version: "Unknown", type: "unknown" };
   }
 }
+
+/**
+ * Downloads/syncs a server from R2 to local storage
+ * Deletes existing local files before downloading to avoid outdated files
+ */
+export async function downloadServerFromR2(
+  config: {
+    endpoint: string;
+    access_key: string;
+    secret_key: string;
+    bucket_name: string;
+  },
+  serverId: string
+): Promise<boolean> {
+  try {
+    const configName = "pass-the-host-r2";
+    const endpoint = config.endpoint;
+
+    // Ensure rclone is configured
+    const configCommand = `"${RCLONE_PATH}" config create ${configName} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${endpoint} acl=private --non-interactive`;
+
+    try {
+      await execAsync(configCommand);
+    } catch (error) {
+      // Config might already exist, continue
+    }
+
+    // Define paths
+    const localServersDir = path.join(app.getPath("userData"), "servers");
+    const localServerPath = path.join(localServersDir, serverId);
+    const r2ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
+
+    // Create servers directory if it doesn't exist
+    if (!fs.existsSync(localServersDir)) {
+      fs.mkdirSync(localServersDir, { recursive: true });
+    }
+
+    // Delete existing server directory to avoid outdated files
+    if (fs.existsSync(localServerPath)) {
+      console.log(`Deleting existing server files at: ${localServerPath}`);
+      fs.rmSync(localServerPath, { recursive: true, force: true });
+    }
+
+    // Create fresh server directory
+    fs.mkdirSync(localServerPath, { recursive: true });
+
+    console.log(`Downloading server ${serverId} from R2...`);
+    console.log(`Source: ${r2ServerPath}`);
+    console.log(`Destination: ${localServerPath}`);
+
+    // Sync from R2 to local directory
+    const syncCommand = `"${RCLONE_PATH}" sync ${r2ServerPath} "${localServerPath}" --progress --transfers 8`;
+
+    await execAsync(syncCommand, { maxBuffer: 1024 * 1024 * 10 }); // 10MB buffer
+
+    console.log(`Server ${serverId} downloaded successfully`);
+    return true;
+  } catch (error) {
+    console.error(`Error downloading server ${serverId} from R2:`, error);
+    return false;
+  }
+}
+
+/**
+ * Gets the local path for a server
+ */
+export function getLocalServerPath(serverId: string): string {
+  const localServersDir = path.join(app.getPath("userData"), "servers");
+  return path.join(localServersDir, serverId);
+}

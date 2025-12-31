@@ -21,6 +21,7 @@ import { R2Config, RamConfig, NetworkInterface } from "./domain/entities/ServerC
 import { LogEntry } from "./domain/entities/LogEntry";
 import { Server } from "./domain/entities/Server";
 import { R2ServerRepository } from "./infrastructure/repositories/R2ServerRepository";
+import { R2Service } from "./infrastructure/services/R2Service";
 import "./i18n/config";
 
 const darkTheme = createTheme({
@@ -402,13 +403,99 @@ function App(): React.JSX.Element {
     console.log("R2 Config saved:", config);
   };
 
-  const handleStartStop = (): void => {
+  const handleStartStop = async (): Promise<void> => {
     if (serverStatus === ServerStatus.STOPPED) {
+      // Check if a server is selected
+      if (!selectedServer) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Please select a server first",
+            type: "error",
+          },
+        ]);
+        return;
+      }
+
       setServerStatus(ServerStatus.STARTING);
-      setTimeout(() => setServerStatus(ServerStatus.RUNNING), 2000);
+
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: `Starting server: ${selectedServer}`,
+          type: "info",
+        },
+      ]);
+
+      // Download server files from R2
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Downloading server files from R2...",
+          type: "info",
+        },
+      ]);
+
+      const r2Service = new R2Service(r2Config);
+      const downloadSuccess = await r2Service.downloadServer(selectedServer);
+
+      if (downloadSuccess) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Server files downloaded successfully",
+            type: "info",
+          },
+        ]);
+
+        // Simulate server start
+        setTimeout(() => {
+          setServerStatus(ServerStatus.RUNNING);
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Server started successfully",
+              type: "info",
+            },
+          ]);
+        }, 2000);
+      } else {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Failed to download server files",
+            type: "error",
+          },
+        ]);
+        setServerStatus(ServerStatus.STOPPED);
+      }
     } else if (serverStatus === ServerStatus.RUNNING) {
       setServerStatus(ServerStatus.STOPPING);
-      setTimeout(() => setServerStatus(ServerStatus.STOPPED), 2000);
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Stopping server...",
+          type: "info",
+        },
+      ]);
+      setTimeout(() => {
+        setServerStatus(ServerStatus.STOPPED);
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Server stopped",
+            type: "info",
+          },
+        ]);
+      }, 2000);
     }
   };
 
