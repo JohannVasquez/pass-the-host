@@ -57,6 +57,9 @@ const serverAPI = {
     ipcRenderer.invoke("server:delete-lock", config, serverId),
   deleteLocalLock: (serverId: string): Promise<boolean> =>
     ipcRenderer.invoke("server:delete-local-lock", serverId),
+  readPort: (serverId: string): Promise<number> => ipcRenderer.invoke("server:read-port", serverId),
+  writePort: (serverId: string, port: number): Promise<boolean> =>
+    ipcRenderer.invoke("server:write-port", serverId, port),
 };
 
 const javaAPI = {

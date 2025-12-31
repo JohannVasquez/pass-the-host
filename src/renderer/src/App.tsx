@@ -58,6 +58,7 @@ function App(): React.JSX.Element {
   });
   const [availableIps, setAvailableIps] = React.useState<NetworkInterface[]>([]);
   const [selectedIp, setSelectedIp] = React.useState<string | null>(null);
+  const [serverPort, setServerPort] = React.useState<number>(25565);
   const [username, setUsername] = React.useState<string>("");
   const [isReleaseLockModalOpen, setIsReleaseLockModalOpen] = React.useState<boolean>(false);
   const [isJavaDownloading, setIsJavaDownloading] = React.useState<boolean>(false);
@@ -467,6 +468,33 @@ function App(): React.JSX.Element {
     console.log("R2 Config saved:", config);
   };
 
+  const handleSelectServer = async (serverId: string): Promise<void> => {
+    setSelectedServer(serverId);
+
+    // Load port from server.properties if server files exist locally
+    try {
+      const port = await window.serverAPI.readPort(serverId);
+      setServerPort(port);
+
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: `Server port loaded: ${port}`,
+          type: "info",
+        },
+      ]);
+    } catch (error) {
+      console.error("Error reading server port:", error);
+      // Keep default port 25565 if reading fails
+      setServerPort(25565);
+    }
+  };
+
+  const handlePortChange = (port: number): void => {
+    setServerPort(port);
+  };
+
   const handleSaveUsername = async (newUsername: string): Promise<void> => {
     const success = await window.configAPI.saveUsername(newUsername);
     if (success) {
@@ -560,6 +588,23 @@ function App(): React.JSX.Element {
             type: "info",
           },
         ]);
+
+        // Update server port in server.properties after downloading
+        try {
+          const portUpdateSuccess = await window.serverAPI.writePort(selectedServer, serverPort);
+          if (portUpdateSuccess) {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: `Server port configured to ${serverPort}`,
+                type: "info",
+              },
+            ]);
+          }
+        } catch (error) {
+          console.error("Error updating server port:", error);
+        }
 
         // Get server version to determine Java requirements
         const server = servers.find((s) => s.id === selectedServer);
@@ -1138,7 +1183,7 @@ function App(): React.JSX.Element {
               status={serverStatus}
               selectedServer={selectedServer}
               servers={servers}
-              onSelectServer={setSelectedServer}
+              onSelectServer={handleSelectServer}
               onCreateServer={handleCreateServer}
               onStartStop={handleStartStop}
               onReleaseLock={handleReleaseLock}
@@ -1162,7 +1207,9 @@ function App(): React.JSX.Element {
             <NetworkConfiguration
               availableIps={availableIps}
               selectedIp={selectedIp}
+              serverPort={serverPort}
               onSelectIp={setSelectedIp}
+              onPortChange={handlePortChange}
               disabled={serverStatus !== ServerStatus.STOPPED}
             />
 

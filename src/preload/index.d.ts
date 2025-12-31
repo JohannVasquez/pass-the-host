@@ -76,6 +76,8 @@ interface ServerAPI {
     serverId: string
   ) => Promise<{ success: boolean; existed: boolean }>;
   deleteLocalLock: (serverId: string) => Promise<{ success: boolean; existed: boolean }>;
+  readPort: (serverId: string) => Promise<number>;
+  writePort: (serverId: string, port: number) => Promise<boolean>;
 }
 
 interface JavaAPI {

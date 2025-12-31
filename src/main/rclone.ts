@@ -739,3 +739,101 @@ export async function uploadServerToR2(
     return false;
   }
 }
+
+/**
+ * Reads the server port from server.properties file
+ * @param serverId Server ID to read properties from
+ * @returns The server port or 25565 as default
+ */
+export function readServerPort(serverId: string): number {
+  const serverPath = getLocalServerPath(serverId);
+  const propertiesPath = path.join(serverPath, "server.properties");
+
+  try {
+    if (!fs.existsSync(propertiesPath)) {
+      console.log(`server.properties not found for ${serverId}, using default port 25565`);
+      return 25565;
+    }
+
+    const content = fs.readFileSync(propertiesPath, "utf-8");
+    const lines = content.split("\n");
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      // Skip comments and empty lines
+      if (trimmedLine.startsWith("#") || trimmedLine === "") {
+        continue;
+      }
+
+      // Look for server-port property
+      if (trimmedLine.startsWith("server-port=")) {
+        const portValue = trimmedLine.split("=")[1]?.trim();
+        if (portValue) {
+          const port = parseInt(portValue, 10);
+          if (!isNaN(port) && port > 0 && port <= 65535) {
+            console.log(`Found server port ${port} in ${serverId}/server.properties`);
+            return port;
+          }
+        }
+      }
+    }
+
+    console.log(`server-port not found in ${serverId}/server.properties, using default 25565`);
+    return 25565;
+  } catch (error) {
+    console.error(`Error reading server.properties for ${serverId}:`, error);
+    return 25565;
+  }
+}
+
+/**
+ * Writes the server port to server.properties file
+ * @param serverId Server ID to write properties to
+ * @param port The port number to set
+ * @returns true if successful, false otherwise
+ */
+export function writeServerPort(serverId: string, port: number): boolean {
+  const serverPath = getLocalServerPath(serverId);
+  const propertiesPath = path.join(serverPath, "server.properties");
+
+  try {
+    // Validate port
+    if (isNaN(port) || port < 1 || port > 65535) {
+      console.error(`Invalid port number: ${port}`);
+      return false;
+    }
+
+    if (!fs.existsSync(propertiesPath)) {
+      console.log(`server.properties not found for ${serverId}, cannot update port`);
+      return false;
+    }
+
+    const content = fs.readFileSync(propertiesPath, "utf-8");
+    const lines = content.split("\n");
+    let portFound = false;
+
+    // Update existing server-port line or add it
+    const updatedLines = lines.map((line) => {
+      const trimmedLine = line.trim();
+
+      if (trimmedLine.startsWith("server-port=")) {
+        portFound = true;
+        return `server-port=${port}`;
+      }
+
+      return line;
+    });
+
+    // If server-port wasn't found, add it
+    if (!portFound) {
+      updatedLines.push(`server-port=${port}`);
+    }
+
+    fs.writeFileSync(propertiesPath, updatedLines.join("\n"), "utf-8");
+    console.log(`Server port updated to ${port} in ${serverId}/server.properties`);
+    return true;
+  } catch (error) {
+    console.error(`Error writing server.properties for ${serverId}:`, error);
+    return false;
+  }
+}

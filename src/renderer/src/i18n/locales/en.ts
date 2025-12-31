@@ -26,6 +26,7 @@ export const en = {
       title: "Network Configuration",
       selectIp: "Server IP",
       selectedIp: "Selected IP",
+      port: "Server Port",
     },
     ram: {
       title: "RAM",

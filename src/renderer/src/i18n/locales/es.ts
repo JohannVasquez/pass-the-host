@@ -27,6 +27,7 @@ export const es = {
       title: "Configuración de Red",
       selectIp: "IP del Servidor",
       selectedIp: "IP Seleccionada",
+      port: "Puerto del Servidor",
     },
     ram: {
       title: "RAM",

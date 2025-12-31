@@ -13,6 +13,8 @@ import {
   uploadServerLock,
   deleteServerLock,
   deleteLocalServerLock,
+  readServerPort,
+  writeServerPort,
 } from "./rclone";
 import { saveR2Config, loadConfig, saveUsername } from "./config";
 import { ensureJavaForMinecraft, getInstalledJavaVersions, getRequiredJavaVersion } from "./java";
@@ -128,6 +130,14 @@ app.whenReady().then(() => {
 
   ipcMain.handle("server:delete-local-lock", async (_, serverId) => {
     return deleteLocalServerLock(serverId);
+  });
+
+  ipcMain.handle("server:read-port", async (_, serverId) => {
+    return readServerPort(serverId);
+  });
+
+  ipcMain.handle("server:write-port", async (_, serverId, port) => {
+    return writeServerPort(serverId, port);
   });
 
   // System IPC handlers
