@@ -18,6 +18,7 @@ import { CommandInput } from "./presentation/components/CommandInput";
 import { LanguageSwitcher } from "./presentation/components/LanguageSwitcher";
 import { UsernameInput } from "./presentation/components/UsernameInput";
 import { ReleaseLockModal } from "./presentation/components/ReleaseLockModal";
+import { JavaDownloadModal } from "./presentation/components/JavaDownloadModal";
 import { ServerStatus } from "./domain/entities/ServerStatus";
 import { R2Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
@@ -55,6 +56,8 @@ function App(): React.JSX.Element {
   const [selectedIp, setSelectedIp] = React.useState<string | null>(null);
   const [username, setUsername] = React.useState<string>("");
   const [isReleaseLockModalOpen, setIsReleaseLockModalOpen] = React.useState<boolean>(false);
+  const [isJavaDownloading, setIsJavaDownloading] = React.useState<boolean>(false);
+  const [javaProgressMessage, setJavaProgressMessage] = React.useState<string>("");
   const [logs, setLogs] = React.useState<LogEntry[]>([
     {
       timestamp: new Date(),
@@ -121,6 +124,17 @@ function App(): React.JSX.Element {
     };
 
     loadConfig();
+  }, []);
+
+  // Listen to Java download progress
+  React.useEffect(() => {
+    const unsubscribe = window.javaAPI.onProgress((message: string) => {
+      setJavaProgressMessage(message);
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // Load network interfaces on mount
@@ -495,6 +509,78 @@ function App(): React.JSX.Element {
             type: "info",
           },
         ]);
+
+        // Get server version to determine Java requirements
+        const server = servers.find((s) => s.id === selectedServer);
+        if (server && server.version && server.version !== "Unknown") {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: `Checking Java requirements for Minecraft ${server.version}...`,
+              type: "info",
+            },
+          ]);
+
+          try {
+            // Show Java download modal
+            setIsJavaDownloading(true);
+            setJavaProgressMessage("Checking Java requirements...");
+
+            const javaResult = await window.javaAPI.ensureForMinecraft(server.version);
+
+            // Hide Java download modal
+            setIsJavaDownloading(false);
+            setJavaProgressMessage("");
+
+            if (javaResult.success) {
+              setLogs((prev) => [
+                ...prev,
+                {
+                  timestamp: new Date(),
+                  message: `Java ${javaResult.javaVersion} is ready`,
+                  type: "info",
+                },
+              ]);
+            } else {
+              setLogs((prev) => [
+                ...prev,
+                {
+                  timestamp: new Date(),
+                  message: `Failed to setup Java ${javaResult.javaVersion}. Server may not start correctly.`,
+                  type: "error",
+                },
+              ]);
+              setServerStatus(ServerStatus.STOPPED);
+              return;
+            }
+          } catch (error) {
+            // Hide Java download modal on error
+            setIsJavaDownloading(false);
+            setJavaProgressMessage("");
+
+            console.error("Error setting up Java:", error);
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: `Error setting up Java: ${error instanceof Error ? error.message : String(error)}`,
+                type: "error",
+              },
+            ]);
+            setServerStatus(ServerStatus.STOPPED);
+            return;
+          }
+        } else {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Warning: Could not determine server version, skipping Java check",
+              type: "warning",
+            },
+          ]);
+        }
 
         // Create server lock file
         setLogs((prev) => [
@@ -1062,6 +1148,9 @@ function App(): React.JSX.Element {
           onClose={(): void => setIsReleaseLockModalOpen(false)}
           onConfirm={handleConfirmReleaseLock}
         />
+
+        {/* Java Download Modal */}
+        <JavaDownloadModal open={isJavaDownloading} message={javaProgressMessage} />
       </Box>
     </ThemeProvider>
   );

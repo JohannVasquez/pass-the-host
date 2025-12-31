@@ -15,6 +15,7 @@ import {
   deleteLocalServerLock,
 } from "./rclone";
 import { saveR2Config, loadConfig, saveUsername } from "./config";
+import { ensureJavaForMinecraft, getInstalledJavaVersions, getRequiredJavaVersion } from "./java";
 import os from "os";
 
 function createWindow(): void {
@@ -152,6 +153,22 @@ app.whenReady().then(() => {
     });
 
     return networkList;
+  });
+
+  // Java IPC handlers
+  ipcMain.handle("java:ensure-for-minecraft", async (event, minecraftVersion: string) => {
+    const progressCallback = (message: string): void => {
+      event.sender.send("java:progress", message);
+    };
+    return await ensureJavaForMinecraft(minecraftVersion, progressCallback);
+  });
+
+  ipcMain.handle("java:get-installed-versions", async () => {
+    return getInstalledJavaVersions();
+  });
+
+  ipcMain.handle("java:get-required-version", async (_, minecraftVersion: string) => {
+    return getRequiredJavaVersion(minecraftVersion);
   });
 
   createWindow();

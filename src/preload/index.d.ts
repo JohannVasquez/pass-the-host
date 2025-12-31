@@ -74,6 +74,15 @@ interface ServerAPI {
   deleteLocalLock: (serverId: string) => Promise<{ success: boolean; existed: boolean }>;
 }
 
+interface JavaAPI {
+  ensureForMinecraft: (
+    minecraftVersion: string
+  ) => Promise<{ success: boolean; javaPath: string; javaVersion: number }>;
+  getInstalledVersions: () => Promise<Array<{ version: number; path: string }>>;
+  getRequiredVersion: (minecraftVersion: string) => Promise<number>;
+  onProgress: (callback: (message: string) => void) => () => void;
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI;
@@ -82,6 +91,7 @@ declare global {
     configAPI: ConfigAPI;
     systemAPI: SystemAPI;
     serverAPI: ServerAPI;
+    javaAPI: JavaAPI;
   }
 }
 

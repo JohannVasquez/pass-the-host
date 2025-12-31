@@ -44,6 +44,22 @@ const serverAPI = {
     ipcRenderer.invoke("server:delete-local-lock", serverId),
 };
 
+const javaAPI = {
+  ensureForMinecraft: (
+    minecraftVersion: string
+  ): Promise<{ success: boolean; javaPath: string; javaVersion: number }> =>
+    ipcRenderer.invoke("java:ensure-for-minecraft", minecraftVersion),
+  getInstalledVersions: (): Promise<Array<{ version: number; path: string }>> =>
+    ipcRenderer.invoke("java:get-installed-versions"),
+  getRequiredVersion: (minecraftVersion: string): Promise<number> =>
+    ipcRenderer.invoke("java:get-required-version", minecraftVersion),
+  onProgress: (callback: (message: string) => void): (() => void) => {
+    const listener = (_event: any, message: string): void => callback(message);
+    ipcRenderer.on("java:progress", listener);
+    return () => ipcRenderer.removeListener("java:progress", listener);
+  },
+};
+
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
@@ -55,6 +71,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("configAPI", configAPI);
     contextBridge.exposeInMainWorld("systemAPI", systemAPI);
     contextBridge.exposeInMainWorld("serverAPI", serverAPI);
+    contextBridge.exposeInMainWorld("javaAPI", javaAPI);
   } catch (error) {
     console.error(error);
   }
@@ -65,4 +82,5 @@ if (process.contextIsolated) {
   (window as any).configAPI = configAPI;
   (window as any).systemAPI = systemAPI;
   (window as any).serverAPI = serverAPI;
+  (window as any).javaAPI = javaAPI;
 }
