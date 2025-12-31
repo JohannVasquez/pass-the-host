@@ -418,6 +418,19 @@ function App(): React.JSX.Element {
         return;
       }
 
+      // Check if an IP is selected
+      if (!selectedIp) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Please select a network IP address first",
+            type: "error",
+          },
+        ]);
+        return;
+      }
+
       setServerStatus(ServerStatus.STARTING);
 
       setLogs((prev) => [
