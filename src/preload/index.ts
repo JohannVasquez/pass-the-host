@@ -60,6 +60,24 @@ const serverAPI = {
   readPort: (serverId: string): Promise<number> => ipcRenderer.invoke("server:read-port", serverId),
   writePort: (serverId: string, port: number): Promise<boolean> =>
     ipcRenderer.invoke("server:write-port", serverId, port),
+  getLocalServerPath: (serverId: string): Promise<string> =>
+    ipcRenderer.invoke("server:get-local-server-path", serverId),
+  spawnServerProcess: (
+    serverId: string,
+    command: string,
+    args: string[],
+    workingDir: string
+  ): Promise<boolean> =>
+    ipcRenderer.invoke("server:spawn-server-process", serverId, command, args, workingDir),
+  killServerProcess: (serverId: string): Promise<boolean> =>
+    ipcRenderer.invoke("server:kill-server-process", serverId),
+  editForgeJvmArgs: (serverId: string, minRam: number, maxRam: number): Promise<boolean> =>
+    ipcRenderer.invoke("server:edit-forge-jvm-args", serverId, minRam, maxRam),
+  onStdout: (callback: (data: string) => void): (() => void) => {
+    const listener = (_event: any, data: string): void => callback(data);
+    ipcRenderer.on("server:stdout", listener);
+    return () => ipcRenderer.removeListener("server:stdout", listener);
+  },
 };
 
 const javaAPI = {

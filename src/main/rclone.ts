@@ -432,21 +432,31 @@ export async function downloadServerFromR2(
 
       rcloneProcess.stderr.on("data", (data: Buffer) => {
         const output = data.toString();
-        console.log(output);
 
-        // Parse rclone progress output
-        // Format: "Transferred:   	  123.456 MiB / 456.789 MiB, 27%, 12.345 MiB/s, ETA 10s"
-        const transferMatch = output.match(
-          /Transferred:\s+(\S+\s+\S+)\s+\/\s+(\S+\s+\S+),\s+(\d+)%/
-        );
+        // 1. Dividimos todo el bloque de texto en líneas (usando saltos de línea o retornos de carro)
+        const lines = output.split(/[\r\n]+/);
 
-        if (transferMatch) {
-          const transferred = transferMatch[1].trim();
-          const total = transferMatch[2].trim();
-          const percent = parseInt(transferMatch[3]);
+        // 2. Buscamos la ÚLTIMA línea que contenga información de progreso válida
+        let lastValidMatch = null;
 
-          if (JSON.stringify({ transferred, percent }) !== lastProgress) {
-            lastProgress = JSON.stringify({ transferred, percent });
+        for (const line of lines) {
+          // Regex ajustada para ser más flexible con los espacios y formatos
+          const match = line.match(/Transferred:\s+([\d.]+\s+\w+)\s+\/\s+([\d.]+\s+\w+),\s+(\d+)%/);
+          if (match) {
+            lastValidMatch = match;
+          }
+        }
+
+        // 3. Si encontramos una actualización reciente en este bloque, la enviamos
+        if (lastValidMatch) {
+          const transferred = lastValidMatch[1].trim();
+          const total = lastValidMatch[2].trim();
+          const percent = parseInt(lastValidMatch[3]);
+
+          // Solo notificamos si hubo un cambio real para no saturar el frontend
+          const currentProgress = JSON.stringify({ transferred, percent });
+          if (currentProgress !== lastProgress) {
+            lastProgress = currentProgress;
             onProgress?.(percent, transferred, total);
           }
         }
@@ -699,20 +709,31 @@ export async function uploadServerToR2(
 
       rcloneProcess.stderr.on("data", (data: Buffer) => {
         const output = data.toString();
-        console.log(output);
 
-        // Parse rclone progress output
-        const transferMatch = output.match(
-          /Transferred:\s+(\S+\s+\S+)\s+\/\s+(\S+\s+\S+),\s+(\d+)%/
-        );
+        // 1. Dividimos todo el bloque de texto en líneas (usando saltos de línea o retornos de carro)
+        const lines = output.split(/[\r\n]+/);
 
-        if (transferMatch) {
-          const transferred = transferMatch[1].trim();
-          const total = transferMatch[2].trim();
-          const percent = parseInt(transferMatch[3]);
+        // 2. Buscamos la ÚLTIMA línea que contenga información de progreso válida
+        let lastValidMatch = null;
 
-          if (JSON.stringify({ transferred, percent }) !== lastProgress) {
-            lastProgress = JSON.stringify({ transferred, percent });
+        for (const line of lines) {
+          // Regex ajustada para ser más flexible con los espacios y formatos
+          const match = line.match(/Transferred:\s+([\d.]+\s+\w+)\s+\/\s+([\d.]+\s+\w+),\s+(\d+)%/);
+          if (match) {
+            lastValidMatch = match;
+          }
+        }
+
+        // 3. Si encontramos una actualización reciente en este bloque, la enviamos
+        if (lastValidMatch) {
+          const transferred = lastValidMatch[1].trim();
+          const total = lastValidMatch[2].trim();
+          const percent = parseInt(lastValidMatch[3]);
+
+          // Solo notificamos si hubo un cambio real para no saturar el frontend
+          const currentProgress = JSON.stringify({ transferred, percent });
+          if (currentProgress !== lastProgress) {
+            lastProgress = currentProgress;
             onProgress?.(percent, transferred, total);
           }
         }

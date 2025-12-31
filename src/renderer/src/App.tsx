@@ -420,6 +420,27 @@ function App(): React.JSX.Element {
     }
   }, [r2Config, isRcloneReady]);
 
+  React.useEffect(() => {
+    const unsubscribe = window.serverAPI.onStdout((data: string) => {
+      setLogs((prev) => {
+        // Only show last 200 logs
+        const newLogs = [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: data.trim(),
+            type: "info" as const,
+          },
+        ];
+        return newLogs.slice(-200);
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   // Load servers from R2
   const loadServersFromR2 = async (): Promise<void> => {
     if (!validateR2Config(r2Config)) {
@@ -519,22 +540,18 @@ function App(): React.JSX.Element {
     }
   };
 
+  // Store the server process reference
+  const serverProcessRef = React.useRef<any>(null);
+
   const handleStartStop = async (): Promise<void> => {
     if (serverStatus === ServerStatus.STOPPED) {
-      // Check if a server is selected
       if (!selectedServer) {
         setLogs((prev) => [
           ...prev,
-          {
-            timestamp: new Date(),
-            message: "Please select a server first",
-            type: "error",
-          },
+          { timestamp: new Date(), message: "Please select a server first", type: "error" },
         ]);
         return;
       }
-
-      // Check if an IP is selected
       if (!selectedIp) {
         setLogs((prev) => [
           ...prev,
@@ -546,223 +563,256 @@ function App(): React.JSX.Element {
         ]);
         return;
       }
-
       setServerStatus(ServerStatus.STARTING);
-
       setLogs((prev) => [
         ...prev,
-        {
-          timestamp: new Date(),
-          message: `Starting server: ${selectedServer}`,
-          type: "info",
-        },
+        { timestamp: new Date(), message: `Starting server: ${selectedServer}`, type: "info" },
       ]);
-
-      // Download server files from R2
       setLogs((prev) => [
         ...prev,
-        {
-          timestamp: new Date(),
-          message: "Downloading server files from R2...",
-          type: "info",
-        },
+        { timestamp: new Date(), message: "Downloading server files from R2...", type: "info" },
       ]);
-
       setIsTransferring(true);
       setTransferType("download");
       setTransferPercent(0);
       setTransferTransferred("0");
       setTransferTotal("0");
-
       const r2Service = new R2Service(r2Config);
       const downloadSuccess = await r2Service.downloadServer(selectedServer);
-
       setIsTransferring(false);
-
-      if (downloadSuccess) {
+      if (!downloadSuccess) {
         setLogs((prev) => [
           ...prev,
-          {
-            timestamp: new Date(),
-            message: "Server files downloaded successfully",
-            type: "info",
-          },
+          { timestamp: new Date(), message: "Failed to download server files", type: "error" },
         ]);
-
-        // Update server port in server.properties after downloading
-        try {
-          const portUpdateSuccess = await window.serverAPI.writePort(selectedServer, serverPort);
-          if (portUpdateSuccess) {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: `Server port configured to ${serverPort}`,
-                type: "info",
-              },
-            ]);
-          }
-        } catch (error) {
-          console.error("Error updating server port:", error);
-        }
-
-        // Get server version to determine Java requirements
-        const server = servers.find((s) => s.id === selectedServer);
-        if (server && server.version && server.version !== "Unknown") {
+        setServerStatus(ServerStatus.STOPPED);
+        return;
+      }
+      setLogs((prev) => [
+        ...prev,
+        { timestamp: new Date(), message: "Server files downloaded successfully", type: "info" },
+      ]);
+      try {
+        const portUpdateSuccess = await window.serverAPI.writePort(selectedServer, serverPort);
+        if (portUpdateSuccess) {
           setLogs((prev) => [
             ...prev,
             {
               timestamp: new Date(),
-              message: `Checking Java requirements for Minecraft ${server.version}...`,
+              message: `Server port configured to ${serverPort}`,
               type: "info",
             },
           ]);
-
-          try {
-            // Show Java download modal
-            setIsJavaDownloading(true);
-            setJavaProgressMessage("Checking Java requirements...");
-
-            const javaResult = await window.javaAPI.ensureForMinecraft(server.version);
-
-            // Hide Java download modal
-            setIsJavaDownloading(false);
-            setJavaProgressMessage("");
-
-            if (javaResult.success) {
-              setLogs((prev) => [
-                ...prev,
-                {
-                  timestamp: new Date(),
-                  message: `Java ${javaResult.javaVersion} is ready`,
-                  type: "info",
-                },
-              ]);
-            } else {
-              setLogs((prev) => [
-                ...prev,
-                {
-                  timestamp: new Date(),
-                  message: `Failed to setup Java ${javaResult.javaVersion}. Server may not start correctly.`,
-                  type: "error",
-                },
-              ]);
-              setServerStatus(ServerStatus.STOPPED);
-              return;
-            }
-          } catch (error) {
-            // Hide Java download modal on error
-            setIsJavaDownloading(false);
-            setJavaProgressMessage("");
-
-            console.error("Error setting up Java:", error);
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: `Error setting up Java: ${error instanceof Error ? error.message : String(error)}`,
-                type: "error",
-              },
-            ]);
-            setServerStatus(ServerStatus.STOPPED);
-            return;
-          }
+        }
+      } catch (error) {
+        console.error("Error updating server port:", error);
+      }
+      const server = servers.find((s) => s.id === selectedServer);
+      if (!server) {
+        setLogs((prev) => [
+          ...prev,
+          { timestamp: new Date(), message: "Server info not found", type: "error" },
+        ]);
+        setServerStatus(ServerStatus.STOPPED);
+        return;
+      }
+      // Java check
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: `Checking Java requirements for Minecraft ${server.version}...`,
+          type: "info",
+        },
+      ]);
+      try {
+        setIsJavaDownloading(true);
+        setJavaProgressMessage("Checking Java requirements...");
+        const javaResult = await window.javaAPI.ensureForMinecraft(server.version);
+        setIsJavaDownloading(false);
+        setJavaProgressMessage("");
+        if (!javaResult.success) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: `Failed to setup Java ${javaResult.javaVersion}. Server may not start correctly.`,
+              type: "error",
+            },
+          ]);
+          setServerStatus(ServerStatus.STOPPED);
+          return;
+        }
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Java ${javaResult.javaVersion} is ready`,
+            type: "info",
+          },
+        ]);
+      } catch (error) {
+        setIsJavaDownloading(false);
+        setJavaProgressMessage("");
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Error setting up Java: ${error instanceof Error ? error.message : String(error)}`,
+            type: "error",
+          },
+        ]);
+        setServerStatus(ServerStatus.STOPPED);
+        return;
+      }
+      // Create server lock
+      setLogs((prev) => [
+        ...prev,
+        { timestamp: new Date(), message: "Creating server lock...", type: "info" },
+      ]);
+      const lockSuccess = await window.serverAPI.createLock(selectedServer, username || "Unknown");
+      if (lockSuccess) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Server locked by: ${username || "Unknown"}`,
+            type: "info",
+          },
+        ]);
+        setLogs((prev) => [
+          ...prev,
+          { timestamp: new Date(), message: "Uploading lock to R2...", type: "info" },
+        ]);
+        const uploadLockSuccess = await window.serverAPI.uploadLock(r2Config, selectedServer);
+        if (uploadLockSuccess) {
+          setLogs((prev) => [
+            ...prev,
+            { timestamp: new Date(), message: "Lock uploaded to R2", type: "info" },
+          ]);
         } else {
           setLogs((prev) => [
             ...prev,
             {
               timestamp: new Date(),
-              message: "Warning: Could not determine server version, skipping Java check",
+              message: "Warning: Failed to upload lock to R2",
               type: "warning",
             },
           ]);
         }
-
-        // Create server lock file
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: "Creating server lock...",
-            type: "info",
-          },
-        ]);
-
-        const lockSuccess = await window.serverAPI.createLock(
-          selectedServer,
-          username || "Unknown"
-        );
-
-        if (lockSuccess) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: `Server locked by: ${username || "Unknown"}`,
-              type: "info",
-            },
-          ]);
-
-          // Upload lock to R2
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Uploading lock to R2...",
-              type: "info",
-            },
-          ]);
-
-          const uploadLockSuccess = await window.serverAPI.uploadLock(r2Config, selectedServer);
-
-          if (uploadLockSuccess) {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Lock uploaded to R2",
-                type: "info",
-              },
-            ]);
-          } else {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Warning: Failed to upload lock to R2",
-                type: "warning",
-              },
-            ]);
-          }
-        } else {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Warning: Failed to create server lock",
-              type: "warning",
-            },
-          ]);
-        }
-
-        // Simulate server start
-        setTimeout(() => {
-          setServerStatus(ServerStatus.RUNNING);
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Server started successfully",
-              type: "info",
-            },
-          ]);
-        }, 2000);
       } else {
         setLogs((prev) => [
           ...prev,
           {
             timestamp: new Date(),
-            message: "Failed to download server files",
+            message: "Warning: Failed to create server lock",
+            type: "warning",
+          },
+        ]);
+      }
+      // --- REAL SERVER START LOGIC ---
+      // Get local server path from main process
+      let localServerPath = "";
+      try {
+        localServerPath = await window.serverAPI.getLocalServerPath(selectedServer);
+      } catch (e) {
+        setLogs((prev) => [
+          ...prev,
+          { timestamp: new Date(), message: "Could not get local server path", type: "error" },
+        ]);
+        setServerStatus(ServerStatus.STOPPED);
+        return;
+      }
+      // Prepare command and args
+      let startCmd = "";
+      let startArgs: string[] = [];
+      let workingDir = localServerPath;
+      let javaPath = "";
+      try {
+        const javaResult = await window.javaAPI.ensureForMinecraft(server.version);
+        javaPath = javaResult.javaPath;
+      } catch (e) {
+        setLogs((prev) => [
+          ...prev,
+          { timestamp: new Date(), message: "Could not get Java path", type: "error" },
+        ]);
+        setServerStatus(ServerStatus.STOPPED);
+        return;
+      }
+      if (server.type === "vanilla") {
+        startCmd = javaPath;
+        startArgs = [
+          `-Xmx${ramConfig.max}G`,
+          `-Xms${ramConfig.min}G`,
+          "-jar",
+          "server.jar",
+          "nogui",
+        ];
+      } else if (server.type === "forge") {
+        const versionNum = parseFloat(server.version);
+        if (versionNum < 1.17) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "No se pudo iniciar el server Forge <= 1.16.5. No soportado.",
+              type: "error",
+            },
+          ]);
+          setServerStatus(ServerStatus.STOPPED);
+          return;
+        }
+        try {
+          console.log(selectedServer, ramConfig.min, ramConfig.max);
+          await window.serverAPI.editForgeJvmArgs(selectedServer, ramConfig.min, ramConfig.max);
+        } catch (e) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "No se pudo editar user_jvm_args.txt",
+              type: "error",
+            },
+          ]);
+        }
+        if (navigator.userAgent.includes("Windows")) {
+          startCmd = "cmd";
+          startArgs = ["/c", "run.bat", "nogui"];
+        } else {
+          startCmd = "/bin/bash";
+          startArgs = ["run.sh", "nogui"];
+        }
+      } else {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Tipo de server no soportado: ${server.type}`,
+            type: "error",
+          },
+        ]);
+        setServerStatus(ServerStatus.STOPPED);
+        return;
+      }
+      try {
+        const proc = await window.serverAPI.spawnServerProcess(
+          selectedServer,
+          startCmd,
+          startArgs,
+          workingDir
+        );
+        serverProcessRef.current = proc;
+        setLogs((prev) => [
+          ...prev,
+          { timestamp: new Date(), message: "Server started successfully", type: "info" },
+        ]);
+        setServerStatus(ServerStatus.RUNNING);
+      } catch (e) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Error starting server: ${e instanceof Error ? e.message : String(e)}`,
             type: "error",
           },
         ]);
@@ -772,36 +822,36 @@ function App(): React.JSX.Element {
       setServerStatus(ServerStatus.STOPPING);
       setLogs((prev) => [
         ...prev,
-        {
-          timestamp: new Date(),
-          message: "Stopping server...",
-          type: "info",
-        },
+        { timestamp: new Date(), message: "Stopping server...", type: "info" },
       ]);
-
-      // Upload server files to R2 before stopping
-      setTimeout(async () => {
-        if (selectedServer) {
-          // Delete lock from R2
+      // Kill the process
+      if (selectedServer) {
+        try {
+          await window.serverAPI.killServerProcess(selectedServer);
+          serverProcessRef.current = null;
+        } catch (e) {
           setLogs((prev) => [
             ...prev,
             {
               timestamp: new Date(),
-              message: "Deleting lock from R2...",
-              type: "info",
+              message: `Error stopping server: ${e instanceof Error ? e.message : String(e)}`,
+              type: "error",
             },
           ]);
-
+        }
+      }
+      // Upload server files to R2 before stopping
+      setTimeout(async () => {
+        if (selectedServer) {
+          setLogs((prev) => [
+            ...prev,
+            { timestamp: new Date(), message: "Deleting lock from R2...", type: "info" },
+          ]);
           const deleteLockSuccess = await window.serverAPI.deleteLock(r2Config, selectedServer);
-
           if (deleteLockSuccess) {
             setLogs((prev) => [
               ...prev,
-              {
-                timestamp: new Date(),
-                message: "Lock deleted from R2",
-                type: "info",
-              },
+              { timestamp: new Date(), message: "Lock deleted from R2", type: "info" },
             ]);
           } else {
             setLogs((prev) => [
@@ -813,18 +863,11 @@ function App(): React.JSX.Element {
               },
             ]);
           }
-
-          // Delete local lock file
           const deleteLocalLockSuccess = await window.serverAPI.deleteLocalLock(selectedServer);
-
           if (deleteLocalLockSuccess) {
             setLogs((prev) => [
               ...prev,
-              {
-                timestamp: new Date(),
-                message: "Local lock deleted",
-                type: "info",
-              },
+              { timestamp: new Date(), message: "Local lock deleted", type: "info" },
             ]);
           } else {
             setLogs((prev) => [
@@ -836,27 +879,18 @@ function App(): React.JSX.Element {
               },
             ]);
           }
-
           setLogs((prev) => [
             ...prev,
-            {
-              timestamp: new Date(),
-              message: "Uploading server files to R2...",
-              type: "info",
-            },
+            { timestamp: new Date(), message: "Uploading server files to R2...", type: "info" },
           ]);
-
           setIsTransferring(true);
           setTransferType("upload");
           setTransferPercent(0);
           setTransferTransferred("0");
           setTransferTotal("0");
-
           const r2Service = new R2Service(r2Config);
           const uploadSuccess = await r2Service.uploadServer(selectedServer);
-
           setIsTransferring(false);
-
           if (uploadSuccess) {
             setLogs((prev) => [
               ...prev,
@@ -877,15 +911,10 @@ function App(): React.JSX.Element {
             ]);
           }
         }
-
         setServerStatus(ServerStatus.STOPPED);
         setLogs((prev) => [
           ...prev,
-          {
-            timestamp: new Date(),
-            message: "Server stopped",
-            type: "info",
-          },
+          { timestamp: new Date(), message: "Server stopped", type: "info" },
         ]);
       }, 2000);
     }

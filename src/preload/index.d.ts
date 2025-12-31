@@ -78,6 +78,16 @@ interface ServerAPI {
   deleteLocalLock: (serverId: string) => Promise<{ success: boolean; existed: boolean }>;
   readPort: (serverId: string) => Promise<number>;
   writePort: (serverId: string, port: number) => Promise<boolean>;
+  getLocalServerPath: (serverId: string) => Promise<string>;
+  spawnServerProcess: (
+    serverId: string,
+    command: string,
+    args: string[],
+    workingDir: string
+  ) => Promise<any>;
+  killServerProcess: (serverId: string) => Promise<void>;
+  editForgeJvmArgs: (serverId: string, minRam: number, maxRam: number) => Promise<void>;
+  onStdout: (callback: (data: string) => void) => () => void;
 }
 
 interface JavaAPI {

@@ -1,4 +1,8 @@
-import { app, shell, BrowserWindow, ipcMain } from "electron";
+import { getLocalServerPath } from "./rclone";
+import { spawn, ChildProcessWithoutNullStreams } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+import { app, shell, BrowserWindow, ipcMain, Tray, nativeImage, Menu } from "electron";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import icon from "../../resources/icon.png?asset";
@@ -20,9 +24,112 @@ import { saveR2Config, loadConfig, saveUsername } from "./config";
 import { ensureJavaForMinecraft, getInstalledJavaVersions, getRequiredJavaVersion } from "./java";
 import os from "os";
 
+const serverProcesses: Record<string, ChildProcessWithoutNullStreams> = {};
+
+// Get local server path
+ipcMain.handle("server:get-local-server-path", async (_event, serverId) => {
+  return getLocalServerPath(serverId);
+});
+
+// Spawn Minecraft server process
+ipcMain.handle(
+  "server:spawn-server-process",
+  async (event, serverId, command, args, workingDir) => {
+    return new Promise((resolve, reject) => {
+      try {
+        if (serverProcesses[serverId]) {
+          return reject(new Error("Server process already running"));
+        }
+
+        // Auto accept EULA
+        const eulaPath = path.join(workingDir, "eula.txt");
+        if (!fs.existsSync(eulaPath) || !fs.readFileSync(eulaPath, "utf-8").includes("eula=true")) {
+          try {
+            fs.writeFileSync(eulaPath, "eula=true");
+          } catch (e) {}
+        }
+
+        const proc = spawn(command, args, {
+          cwd: workingDir,
+          env: process.env,
+          stdio: ["pipe", "pipe", "pipe"],
+          windowsHide: true,
+        });
+
+        serverProcesses[serverId] = proc;
+
+        proc.stdout.on("data", (data) => {
+          if (!event.sender.isDestroyed()) {
+            // Convertimos buffer a string para enviarlo
+            event.sender.send("server:stdout", data.toString());
+          }
+        });
+
+        proc.stderr.on("data", (data) => {
+          if (!event.sender.isDestroyed()) {
+            event.sender.send("server:stdout", data.toString());
+          }
+        });
+
+        proc.on("close", (_code) => {
+          delete serverProcesses[serverId];
+        });
+
+        resolve(true);
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+);
+
+// Kill Minecraft server process (safe stop)
+ipcMain.handle("server:kill-server-process", async (_event, serverId) => {
+  return new Promise((resolve, _) => {
+    const proc = serverProcesses[serverId];
+    if (!proc) return resolve(false);
+    try {
+      // Send 'stop' command to stdin for safe shutdown
+      proc.stdin.write("stop\n");
+      setTimeout(() => {
+        if (!proc.killed) {
+          proc.kill();
+        }
+        delete serverProcesses[serverId];
+        resolve(true);
+      }, 8000); // Give it 8 seconds to shutdown gracefully
+    } catch (e) {
+      try {
+        proc.kill();
+      } catch {}
+      delete serverProcesses[serverId];
+      resolve(false);
+    }
+  });
+});
+
+// Edit Forge user_jvm_args.txt for RAM
+ipcMain.handle("server:edit-forge-jvm-args", async (_event, serverId, minRam, maxRam) => {
+  try {
+    const serverPath = getLocalServerPath(serverId);
+    const jvmArgsPath = path.join(serverPath, "user_jvm_args.txt");
+    if (!fs.existsSync(jvmArgsPath)) return false;
+    let content = fs.readFileSync(jvmArgsPath, "utf-8");
+    content = content.replace(/-Xms\d+[mMgG]/g, `-Xms${minRam}G`);
+    content = content.replace(/-Xmx\d+[mMgG]/g, `-Xmx${maxRam}G`);
+    fs.writeFileSync(jvmArgsPath, content, "utf-8");
+    return true;
+  } catch (e) {
+    return false;
+  }
+});
+
+let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+let isQuitting = false;
+
 function createWindow(): void {
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
     show: false,
@@ -35,7 +142,7 @@ function createWindow(): void {
   });
 
   mainWindow.on("ready-to-show", () => {
-    mainWindow.show();
+    mainWindow?.show();
   });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -43,13 +150,49 @@ function createWindow(): void {
     return { action: "deny" };
   });
 
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
+  // Minimize tray instead of closing it
+  mainWindow.on("close", (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow?.hide();
+      return;
+    }
+  });
+
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
   } else {
     mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
   }
+}
+
+// System tray config
+function createTray() {
+  const iconPath = process.platform === "win32" ? icon : icon; // Ajusta si tienes icono diferente para tray
+  const trayIcon = nativeImage.createFromPath(iconPath);
+
+  tray = new Tray(trayIcon);
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Abrir Minecraft Manager",
+      click: () => mainWindow?.show(),
+    },
+    { type: "separator" },
+    {
+      label: "Cerrar App (Kill Server)",
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setToolTip("Minecraft Server Manager");
+  tray.setContextMenu(contextMenu);
+
+  tray.on("double-click", () => {
+    mainWindow?.show();
+  });
 }
 
 // This method will be called when Electron has finished
@@ -65,6 +208,9 @@ app.whenReady().then(() => {
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window);
   });
+
+  createWindow();
+  createTray();
 
   // IPC test
   ipcMain.on("ping", () => console.log("pong"));
