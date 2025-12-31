@@ -70,8 +70,8 @@ interface ServerAPI {
       bucket_name: string;
     },
     serverId: string
-  ) => Promise<boolean>;
-  deleteLocalLock: (serverId: string) => Promise<boolean>;
+  ) => Promise<{ success: boolean; existed: boolean }>;
+  deleteLocalLock: (serverId: string) => Promise<{ success: boolean; existed: boolean }>;
 }
 
 declare global {

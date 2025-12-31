@@ -17,6 +17,7 @@ import { ServerConsole } from "./presentation/components/ServerConsole";
 import { CommandInput } from "./presentation/components/CommandInput";
 import { LanguageSwitcher } from "./presentation/components/LanguageSwitcher";
 import { UsernameInput } from "./presentation/components/UsernameInput";
+import { ReleaseLockModal } from "./presentation/components/ReleaseLockModal";
 import { ServerStatus } from "./domain/entities/ServerStatus";
 import { R2Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
@@ -53,6 +54,7 @@ function App(): React.JSX.Element {
   const [availableIps, setAvailableIps] = React.useState<NetworkInterface[]>([]);
   const [selectedIp, setSelectedIp] = React.useState<string | null>(null);
   const [username, setUsername] = React.useState<string>("");
+  const [isReleaseLockModalOpen, setIsReleaseLockModalOpen] = React.useState<boolean>(false);
   const [logs, setLogs] = React.useState<LogEntry[]>([
     {
       timestamp: new Date(),
@@ -700,7 +702,156 @@ function App(): React.JSX.Element {
   };
 
   const handleReleaseLock = (): void => {
-    console.log("Lock released");
+    if (!selectedServer) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Please select a server first",
+          type: "error",
+        },
+      ]);
+      return;
+    }
+    setIsReleaseLockModalOpen(true);
+  };
+
+  const handleConfirmReleaseLock = async (): Promise<void> => {
+    if (!selectedServer) {
+      return;
+    }
+
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: `Releasing lock for server: ${selectedServer}`,
+        type: "warning",
+      },
+    ]);
+
+    try {
+      let anyLockDeleted = false;
+
+      // Delete lock from R2
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Checking lock in R2...",
+          type: "info",
+        },
+      ]);
+
+      const deleteLockResult = await window.serverAPI.deleteLock(r2Config, selectedServer);
+
+      if (deleteLockResult.success) {
+        if (deleteLockResult.existed) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Lock deleted from R2 successfully",
+              type: "info",
+            },
+          ]);
+          anyLockDeleted = true;
+        } else {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "No lock file found in R2",
+              type: "info",
+            },
+          ]);
+        }
+      } else {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Warning: Failed to delete lock from R2",
+            type: "warning",
+          },
+        ]);
+      }
+
+      // Delete local lock file
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Checking local lock file...",
+          type: "info",
+        },
+      ]);
+
+      const deleteLocalLockResult = await window.serverAPI.deleteLocalLock(selectedServer);
+
+      if (deleteLocalLockResult.success) {
+        if (deleteLocalLockResult.existed) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Local lock file deleted successfully",
+              type: "info",
+            },
+          ]);
+          anyLockDeleted = true;
+        } else {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "No local lock file found",
+              type: "info",
+            },
+          ]);
+        }
+      } else {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Warning: Failed to delete local lock file",
+            type: "warning",
+          },
+        ]);
+      }
+
+      // Final message
+      if (anyLockDeleted) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Lock released successfully",
+            type: "info",
+          },
+        ]);
+      } else {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "No lock files found to delete",
+            type: "warning",
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error("Error releasing lock:", error);
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: `Error releasing lock: ${error instanceof Error ? error.message : String(error)}`,
+          type: "error",
+        },
+      ]);
+    }
   };
 
   const handleSyncToR2 = async (): Promise<void> => {
@@ -903,6 +1054,14 @@ function App(): React.JSX.Element {
             </Box>
           </Box>
         </Box>
+
+        {/* Release Lock Modal */}
+        <ReleaseLockModal
+          open={isReleaseLockModalOpen}
+          serverName={selectedServer}
+          onClose={(): void => setIsReleaseLockModalOpen(false)}
+          onConfirm={handleConfirmReleaseLock}
+        />
       </Box>
     </ThemeProvider>
   );

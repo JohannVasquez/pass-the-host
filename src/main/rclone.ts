@@ -514,7 +514,7 @@ export async function uploadServerLock(
 /**
  * Deletes the server.lock file from local storage
  */
-export function deleteLocalServerLock(serverId: string): boolean {
+export function deleteLocalServerLock(serverId: string): { success: boolean; existed: boolean } {
   try {
     const serverPath = getLocalServerPath(serverId);
     const lockFilePath = path.join(serverPath, "server.lock");
@@ -522,17 +522,17 @@ export function deleteLocalServerLock(serverId: string): boolean {
     // Check if lock file exists
     if (!fs.existsSync(lockFilePath)) {
       console.log(`Lock file not found: ${lockFilePath}`);
-      return true; // Not an error if file doesn't exist
+      return { success: true, existed: false }; // Not an error if file doesn't exist
     }
 
     // Delete the lock file
     fs.unlinkSync(lockFilePath);
 
     console.log(`Local server lock deleted for ${serverId}`);
-    return true;
+    return { success: true, existed: true };
   } catch (error) {
     console.error(`Error deleting local server lock for ${serverId}:`, error);
-    return false;
+    return { success: false, existed: true };
   }
 }
 
@@ -547,7 +547,7 @@ export async function deleteServerLock(
     bucket_name: string;
   },
   serverId: string
-): Promise<boolean> {
+): Promise<{ success: boolean; existed: boolean }> {
   try {
     const configName = "pass-the-host-r2";
     const endpoint = config.endpoint;
@@ -565,16 +565,26 @@ export async function deleteServerLock(
 
     console.log(`Deleting server.lock for ${serverId} from R2...`);
 
+    // Check if file exists first
+    const checkCommand = `"${RCLONE_PATH}" ls ${r2LockPath}`;
+    try {
+      await execAsync(checkCommand, { maxBuffer: 1024 * 1024 });
+    } catch (error) {
+      // File doesn't exist
+      console.log(`Lock file not found in R2 for ${serverId}`);
+      return { success: true, existed: false };
+    }
+
     // Delete the lock file from R2
     const deleteCommand = `"${RCLONE_PATH}" deletefile ${r2LockPath}`;
 
     await execAsync(deleteCommand, { maxBuffer: 1024 * 1024 });
 
     console.log(`Server lock deleted successfully for ${serverId}`);
-    return true;
+    return { success: true, existed: true };
   } catch (error) {
     console.error(`Error deleting server lock for ${serverId}:`, error);
-    return false;
+    return { success: false, existed: true };
   }
 }
 
