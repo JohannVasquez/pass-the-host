@@ -1,9 +1,10 @@
 {
   "name": "pass-the-host",
+  "productName": "Pass the host!",
   "version": "1.0.0",
-  "description": "An Electron application with React and TypeScript",
+  "description": "Minecraft server manager using Cloudflare R2",
   "main": "./out/main/index.js",
-  "author": "example.com",
+  "author": "Johann Vasquez",
   "homepage": "https://electron-vite.org",
   "scripts": {
     "format": "prettier --write .",

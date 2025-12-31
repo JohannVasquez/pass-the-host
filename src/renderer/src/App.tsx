@@ -73,7 +73,7 @@ function App(): React.JSX.Element {
   const [logs, setLogs] = React.useState<LogEntry[]>([
     {
       timestamp: new Date(),
-      message: "Minecraft Server - Server Manager v1.0",
+      message: "Pass the host! - Server Manager v1.0",
       type: "info",
     },
     {
@@ -1207,7 +1207,7 @@ function App(): React.JSX.Element {
         <AppBar position="static" elevation={1}>
           <Toolbar variant="dense">
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              Minecraft Server Manager
+              Pass the host!
             </Typography>
             <LanguageSwitcher />
           </Toolbar>
