@@ -5,7 +5,6 @@ import * as path from "path";
 import { app, shell, BrowserWindow, ipcMain, Tray, nativeImage, Menu } from "electron";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
-import icon from "../../resources/icon.png?asset";
 import {
   checkRcloneInstallation,
   installRclone,
@@ -150,6 +149,7 @@ ipcMain.handle("server:openFolder", async (_event, serverId: string) => {
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
+const icon = nativeImage.createFromPath(join(__dirname, "../../resources/icon.png"));
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -157,7 +157,9 @@ function createWindow(): void {
     height: 670,
     show: false,
     autoHideMenuBar: true,
-    ...(process.platform === "linux" ? { icon } : {}),
+
+    icon: icon,
+
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       sandbox: false,
@@ -173,7 +175,6 @@ function createWindow(): void {
     return { action: "deny" };
   });
 
-  // Minimize tray instead of closing it
   mainWindow.on("close", (event) => {
     if (!isQuitting) {
       event.preventDefault();
@@ -191,29 +192,32 @@ function createWindow(): void {
 
 // System tray config
 function createTray() {
-  const iconPath = process.platform === "win32" ? icon : icon; // Ajusta si tienes icono diferente para tray
-  const trayIcon = nativeImage.createFromPath(iconPath);
+  tray = new Tray(icon);
 
-  tray = new Tray(trayIcon);
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: "Abrir Minecraft Manager",
+      label: "Abrir Pass the host",
       click: () => mainWindow?.show(),
     },
     { type: "separator" },
     {
       label: "Cerrar App (Kill Server)",
       click: () => {
-        isQuitting = true;
+        isQuitting = true; // Asegúrate de tener esta variable global importada o definida
         app.quit();
       },
     },
   ]);
 
-  tray.setToolTip("Minecraft Server Manager");
+  tray.setToolTip("Pass the host");
   tray.setContextMenu(contextMenu);
 
   tray.on("double-click", () => {
+    mainWindow?.show();
+  });
+
+  // Tip: En Windows, a veces prefieren un solo click para abrir
+  tray.on("click", () => {
     mainWindow?.show();
   });
 }
