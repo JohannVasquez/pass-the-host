@@ -26,7 +26,7 @@
     "productName": "Pass-the-host",
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "resources/icon.ico"
     },
     "publish": [
       {
