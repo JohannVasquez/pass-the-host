@@ -35,8 +35,9 @@ linux:
   maintainer: electronjs.org
   category: Utility
   desktop:
-    Name: "Pass the host"
-    Comment: "Minecraft server manager using Cloudflare R2"
+    entry:
+      Name: "Pass the host"
+      Comment: "Minecraft server manager using Cloudflare R2"
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false

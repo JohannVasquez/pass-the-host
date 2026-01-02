@@ -35,8 +35,10 @@
     },
     "linux": {
       "desktop": {
-        "Name": "Pass the host",
-        "Comment": "Minecraft server manager using Cloudflare R2"
+        "entry": {
+          "Name": "Pass the host",
+          "Comment": "Minecraft server manager using Cloudflare R2"
+        }
       }
     },
     "publish": [
