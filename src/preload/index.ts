@@ -40,6 +40,8 @@ const configAPI = {
   saveR2Config: (r2Config: any): Promise<boolean> => ipcRenderer.invoke("config:save-r2", r2Config),
   saveUsername: (username: string): Promise<boolean> =>
     ipcRenderer.invoke("config:save-username", username),
+  saveRamConfig: (minRam: number, maxRam: number): Promise<boolean> =>
+    ipcRenderer.invoke("config:save-ram", minRam, maxRam),
 };
 
 const systemAPI = {
@@ -51,6 +53,12 @@ const systemAPI = {
 const serverAPI = {
   createLock: (serverId: string, username: string): Promise<boolean> =>
     ipcRenderer.invoke("server:create-lock", serverId, username),
+  readLock: (
+    r2Config: any,
+    serverId: string
+  ): Promise<{ exists: boolean; username?: string; startedAt?: string; timestamp?: number }> => {
+    return ipcRenderer.invoke("server:read-server-lock", r2Config, serverId);
+  },
   uploadLock: (config: any, serverId: string): Promise<boolean> =>
     ipcRenderer.invoke("server:upload-lock", config, serverId),
   deleteLock: (config: any, serverId: string): Promise<boolean> =>

@@ -13,6 +13,28 @@ const RCLONE_VERSION = "v1.65.0";
 const RCLONE_DIR = path.join(app.getPath("userData"), "rclone");
 const RCLONE_EXECUTABLE = process.platform === "win32" ? "rclone.exe" : "rclone";
 const RCLONE_PATH = path.join(RCLONE_DIR, RCLONE_EXECUTABLE);
+const RCLONE_CONFIG_NAME = "pass-the-host-r2";
+
+interface R2Config {
+  endpoint: string;
+  access_key: string;
+  secret_key: string;
+  bucket_name: string;
+}
+
+/**
+ * Ensures rclone is configured with R2 credentials
+ * Reusable helper function for all R2 operations
+ */
+async function ensureRcloneConfigured(config: R2Config): Promise<void> {
+  const configCommand = `"${RCLONE_PATH}" config create ${RCLONE_CONFIG_NAME} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${config.endpoint} acl=private --non-interactive`;
+
+  try {
+    await execAsync(configCommand);
+  } catch (error) {
+    // Config might already exist, continue
+  }
+}
 
 function getRcloneDownloadUrl(): string {
   const platform = process.platform;
@@ -99,7 +121,6 @@ export async function checkRcloneInstallation(): Promise<boolean> {
 export async function installRclone(onProgress?: (message: string) => void): Promise<boolean> {
   // Prevent concurrent installations
   if (isInstalling) {
-    console.log("Rclone installation already in progress...");
     onProgress?.("Rclone installation already in progress...");
     // Wait for current installation to complete
     let attempts = 0;
@@ -123,13 +144,11 @@ export async function installRclone(onProgress?: (message: string) => void): Pro
     const downloadUrl = getRcloneDownloadUrl();
     const zipPath = path.join(RCLONE_DIR, "rclone.zip");
 
-    console.log("Downloading rclone from:", downloadUrl);
     onProgress?.("Downloading rclone...");
 
     // Download rclone
     await downloadFile(downloadUrl, zipPath);
 
-    console.log("Extracting rclone...");
     onProgress?.("Extracting rclone...");
 
     // Extract zip
@@ -169,7 +188,6 @@ export async function installRclone(onProgress?: (message: string) => void): Pro
       fs.unlinkSync(zipPath);
       fs.rmSync(extractedDir, { recursive: true, force: true });
 
-      console.log("Rclone installed successfully at:", RCLONE_PATH);
       onProgress?.("Rclone installed successfully");
       return true;
     } else {
@@ -191,20 +209,13 @@ export async function testR2Connection(config: {
   bucket_name: string;
 }): Promise<boolean> {
   try {
-    const configName = "pass-the-host-r2";
-    // Use the endpoint directly from config
-    const endpoint = config.endpoint;
-
-    // Configure rclone for R2
-    const configCommand = `"${RCLONE_PATH}" config create ${configName} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${endpoint} acl=private`;
-
-    await execAsync(configCommand);
+    // Ensure rclone is configured
+    await ensureRcloneConfigured(config);
 
     // Test connection by listing the bucket
-    const testCommand = `"${RCLONE_PATH}" lsd ${configName}:${config.bucket_name}`;
+    const testCommand = `"${RCLONE_PATH}" lsd ${RCLONE_CONFIG_NAME}:${config.bucket_name}`;
     await execAsync(testCommand);
 
-    console.log("R2 connection test successful");
     return true;
   } catch (error) {
     console.error("Error testing R2 connection:", error);
@@ -222,20 +233,11 @@ export async function listR2Servers(config: {
   bucket_name: string;
 }): Promise<Array<{ id: string; name: string; version: string; type: string }>> {
   try {
-    const configName = "pass-the-host-r2";
-    const endpoint = config.endpoint;
-
     // Ensure rclone is configured
-    const configCommand = `"${RCLONE_PATH}" config create ${configName} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${endpoint} acl=private --non-interactive`;
-
-    try {
-      await execAsync(configCommand);
-    } catch (error) {
-      // Config might already exist, continue
-    }
+    await ensureRcloneConfigured(config);
 
     // List directories in pass_the_host folder
-    const listCommand = `"${RCLONE_PATH}" lsf ${configName}:${config.bucket_name}/pass_the_host --dirs-only`;
+    const listCommand = `"${RCLONE_PATH}" lsf ${RCLONE_CONFIG_NAME}:${config.bucket_name}/pass_the_host --dirs-only`;
     const { stdout } = await execAsync(listCommand);
 
     const serverDirs = stdout
@@ -247,7 +249,7 @@ export async function listR2Servers(config: {
     // For each server directory, try to detect version and type
     const servers = await Promise.all(
       serverDirs.map(async (serverName) => {
-        const serverPath = `${configName}:${config.bucket_name}/pass_the_host/${serverName}`;
+        const serverPath = `${RCLONE_CONFIG_NAME}:${config.bucket_name}/pass_the_host/${serverName}`;
 
         // Try to detect server type and version
         const { version, type } = await detectServerVersionAndType(serverPath, serverName);
@@ -278,7 +280,6 @@ async function detectServerVersionAndType(
   try {
     // List all files in the server directory
     const listCommand = `"${RCLONE_PATH}" lsf ${serverPath}`;
-    console.debug(serverPath, listCommand);
     const { stdout } = await execAsync(listCommand);
 
     const files = stdout
@@ -287,7 +288,6 @@ async function detectServerVersionAndType(
       .filter((line) => line.trim() !== "");
 
     // Check for Forge by looking in libraries/net/minecraftforge/forge/ directory
-    console.debug(serverName, files);
     const hasLibrariesFolder = files.some((file) => file.startsWith("libraries/"));
 
     if (hasLibrariesFolder) {
@@ -381,15 +381,12 @@ export async function downloadServerFromR2(
   onProgress?: (percent: number, transferred: string, total: string) => void
 ): Promise<boolean> {
   try {
-    const configName = "pass-the-host-r2";
-    const configCommand = `"${RCLONE_PATH}" config create ${configName} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${config.endpoint} acl=private --non-interactive`;
-    try {
-      await execAsync(configCommand);
-    } catch (error) {}
+    // Ensure rclone is configured
+    await ensureRcloneConfigured(config);
 
     const localServersDir = path.join(app.getPath("userData"), "servers");
     const localServerPath = path.join(localServersDir, serverId);
-    const r2ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
+    const r2ServerPath = `${RCLONE_CONFIG_NAME}:${config.bucket_name}/pass_the_host/${serverId}`;
 
     if (!fs.existsSync(localServersDir)) fs.mkdirSync(localServersDir, { recursive: true });
     if (fs.existsSync(localServerPath))
@@ -460,6 +457,40 @@ export function getLocalServerPath(serverId: string): string {
 }
 
 /**
+ * Reads the server.lock file from R2 and returns its content
+ */
+export async function readServerLock(
+  config: R2Config,
+  serverId: string
+): Promise<{
+  exists: boolean;
+  username?: string;
+  startedAt?: string;
+  timestamp?: number;
+}> {
+  try {
+    const r2LockPath = `${RCLONE_CONFIG_NAME}:${config.bucket_name}/pass_the_host/${serverId}/server.lock`;
+
+    // Try to read the lock file from R2 using async exec
+    const catCommand = `"${RCLONE_PATH}" cat ${r2LockPath}`;
+
+    const { stdout } = await execAsync(catCommand, { maxBuffer: 1024 * 1024 });
+
+    // Parse the lock content
+    const lockContent = JSON.parse(stdout.trim());
+
+    return {
+      exists: true,
+      username: lockContent.username,
+      startedAt: lockContent.startedAt,
+      timestamp: lockContent.timestamp,
+    };
+  } catch (error: any) {
+    return { exists: false };
+  }
+}
+
+/**
  * Creates a server.lock file with username and timestamp
  */
 export function createServerLock(serverId: string, username: string): boolean {
@@ -483,7 +514,6 @@ export function createServerLock(serverId: string, username: string): boolean {
     // Write lock file
     fs.writeFileSync(lockFilePath, JSON.stringify(lockContent, null, 2), "utf-8");
 
-    console.log(`Server lock created for ${serverId} by ${username}`);
     return true;
   } catch (error) {
     console.error(`Error creating server lock for ${serverId}:`, error);
@@ -504,22 +534,13 @@ export async function uploadServerLock(
   serverId: string
 ): Promise<boolean> {
   try {
-    const configName = "pass-the-host-r2";
-    const endpoint = config.endpoint;
-
     // Ensure rclone is configured
-    const configCommand = `"${RCLONE_PATH}" config create ${configName} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${endpoint} acl=private --non-interactive`;
-
-    try {
-      await execAsync(configCommand);
-    } catch (error) {
-      // Config might already exist, continue
-    }
+    await ensureRcloneConfigured(config);
 
     // Define paths
     const serverPath = getLocalServerPath(serverId);
     const lockFilePath = path.join(serverPath, "server.lock");
-    const r2LockPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/server.lock`;
+    const r2LockPath = `${RCLONE_CONFIG_NAME}:${config.bucket_name}/pass_the_host/${serverId}/server.lock`;
 
     // Check if lock file exists
     if (!fs.existsSync(lockFilePath)) {
@@ -527,14 +548,11 @@ export async function uploadServerLock(
       return false;
     }
 
-    console.log(`Uploading server.lock for ${serverId} to R2...`);
-
     // Copy the lock file to R2
     const copyCommand = `"${RCLONE_PATH}" copyto "${lockFilePath}" ${r2LockPath}`;
 
     await execAsync(copyCommand, { maxBuffer: 1024 * 1024 });
 
-    console.log(`Server lock uploaded successfully for ${serverId}`);
     return true;
   } catch (error) {
     console.error(`Error uploading server lock for ${serverId}:`, error);
@@ -552,14 +570,12 @@ export function deleteLocalServerLock(serverId: string): { success: boolean; exi
 
     // Check if lock file exists
     if (!fs.existsSync(lockFilePath)) {
-      console.log(`Lock file not found: ${lockFilePath}`);
       return { success: true, existed: false }; // Not an error if file doesn't exist
     }
 
     // Delete the lock file
     fs.unlinkSync(lockFilePath);
 
-    console.log(`Local server lock deleted for ${serverId}`);
     return { success: true, existed: true };
   } catch (error) {
     console.error(`Error deleting local server lock for ${serverId}:`, error);
@@ -580,21 +596,10 @@ export async function deleteServerLock(
   serverId: string
 ): Promise<{ success: boolean; existed: boolean }> {
   try {
-    const configName = "pass-the-host-r2";
-    const endpoint = config.endpoint;
-
     // Ensure rclone is configured
-    const configCommand = `"${RCLONE_PATH}" config create ${configName} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${endpoint} acl=private --non-interactive`;
+    await ensureRcloneConfigured(config);
 
-    try {
-      await execAsync(configCommand);
-    } catch (error) {
-      // Config might already exist, continue
-    }
-
-    const r2LockPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/server.lock`;
-
-    console.log(`Deleting server.lock for ${serverId} from R2...`);
+    const r2LockPath = `${RCLONE_CONFIG_NAME}:${config.bucket_name}/pass_the_host/${serverId}/server.lock`;
 
     // Check if file exists first
     const checkCommand = `"${RCLONE_PATH}" ls ${r2LockPath}`;
@@ -602,7 +607,6 @@ export async function deleteServerLock(
       await execAsync(checkCommand, { maxBuffer: 1024 * 1024 });
     } catch (error) {
       // File doesn't exist
-      console.log(`Lock file not found in R2 for ${serverId}`);
       return { success: true, existed: false };
     }
 
@@ -611,7 +615,6 @@ export async function deleteServerLock(
 
     await execAsync(deleteCommand, { maxBuffer: 1024 * 1024 });
 
-    console.log(`Server lock deleted successfully for ${serverId}`);
     return { success: true, existed: true };
   } catch (error) {
     console.error(`Error deleting server lock for ${serverId}:`, error);
@@ -633,15 +636,12 @@ export async function uploadServerToR2(
   onProgress?: (percent: number, transferred: string, total: string) => void
 ): Promise<boolean> {
   try {
-    const configName = "pass-the-host-r2";
-    const configCommand = `"${RCLONE_PATH}" config create ${configName} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${config.endpoint} acl=private --non-interactive`;
-    try {
-      await execAsync(configCommand);
-    } catch (error) {}
+    // Ensure rclone is configured
+    await ensureRcloneConfigured(config);
 
     const localServersDir = path.join(app.getPath("userData"), "servers");
     const localServerPath = path.join(localServersDir, serverId);
-    const r2ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
+    const r2ServerPath = `${RCLONE_CONFIG_NAME}:${config.bucket_name}/pass_the_host/${serverId}`;
 
     if (!fs.existsSync(localServerPath)) return false;
 
@@ -711,7 +711,6 @@ export function readServerPort(serverId: string): number {
 
   try {
     if (!fs.existsSync(propertiesPath)) {
-      console.log(`server.properties not found for ${serverId}, using default port 25565`);
       return 25565;
     }
 
@@ -731,14 +730,12 @@ export function readServerPort(serverId: string): number {
         if (portValue) {
           const port = parseInt(portValue, 10);
           if (!isNaN(port) && port > 0 && port <= 65535) {
-            console.log(`Found server port ${port} in ${serverId}/server.properties`);
             return port;
           }
         }
       }
     }
 
-    console.log(`server-port not found in ${serverId}/server.properties, using default 25565`);
     return 25565;
   } catch (error) {
     console.error(`Error reading server.properties for ${serverId}:`, error);
@@ -764,7 +761,6 @@ export function writeServerPort(serverId: string, port: number): boolean {
     }
 
     if (!fs.existsSync(propertiesPath)) {
-      console.log(`server.properties not found for ${serverId}, cannot update port`);
       return false;
     }
 
@@ -790,7 +786,6 @@ export function writeServerPort(serverId: string, port: number): boolean {
     }
 
     fs.writeFileSync(propertiesPath, updatedLines.join("\n"), "utf-8");
-    console.log(`Server port updated to ${port} in ${serverId}/server.properties`);
     return true;
   } catch (error) {
     console.error(`Error writing server.properties for ${serverId}:`, error);

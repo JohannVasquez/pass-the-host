@@ -48,6 +48,7 @@ interface ConfigAPI {
     bucket_name: string;
   }) => Promise<boolean>;
   saveUsername: (username: string) => Promise<boolean>;
+  saveRamConfig: (minRam: number, maxRam: number) => Promise<boolean>;
 }
 
 interface SystemAPI {
@@ -57,6 +58,10 @@ interface SystemAPI {
 
 interface ServerAPI {
   createLock: (serverId: string, username: string) => Promise<boolean>;
+  readLock: (
+    r2Config: any,
+    serverId: string
+  ) => Promise<{ exists: boolean; username?: string; startedAt?: string; timestamp?: number }>;
   uploadLock: (
     config: {
       endpoint: string;

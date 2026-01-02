@@ -18,6 +18,7 @@ import { CommandInput } from "./presentation/components/CommandInput";
 import { LanguageSwitcher } from "./presentation/components/LanguageSwitcher";
 import { UsernameInput } from "./presentation/components/UsernameInput";
 import { ReleaseLockModal } from "./presentation/components/ReleaseLockModal";
+import { ServerLockedModal } from "./presentation/components/ServerLockedModal";
 import { DownloadProgressModal } from "./presentation/components/DownloadProgressModal";
 import { TransferProgressModal } from "./presentation/components/TransferProgressModal";
 import { ServerStatus } from "./domain/entities/ServerStatus";
@@ -61,6 +62,11 @@ function App(): React.JSX.Element {
   const [serverPort, setServerPort] = React.useState<number>(25565);
   const [username, setUsername] = React.useState<string>("");
   const [isReleaseLockModalOpen, setIsReleaseLockModalOpen] = React.useState<boolean>(false);
+  const [isServerLockedModalOpen, setIsServerLockedModalOpen] = React.useState<boolean>(false);
+  const [lockedServerInfo, setLockedServerInfo] = React.useState<{
+    username: string;
+    startedAt: string;
+  }>({ username: "", startedAt: "" });
   const [isJavaDownloading, setIsJavaDownloading] = React.useState<boolean>(false);
   const [javaProgressMessage, setJavaProgressMessage] = React.useState<string>("");
   const [isRcloneDownloading, setIsRcloneDownloading] = React.useState<boolean>(false);
@@ -188,6 +194,7 @@ function App(): React.JSX.Element {
 
         const interfaces = await window.systemAPI.getNetworkInterfaces();
         setAvailableIps(interfaces);
+        setSelectedIp(interfaces[0].ip);
 
         setLogs((prev) => [
           ...prev,
@@ -403,6 +410,7 @@ function App(): React.JSX.Element {
               type: "info",
             },
           ]);
+          await loadServersFromR2();
         } else {
           setLogs((prev) => [
             ...prev,
@@ -483,10 +491,90 @@ function App(): React.JSX.Element {
     }
   };
 
-  // Simulated handlers (interface only)
-  const handleSaveR2Config = (config: R2Config): void => {
+  const handleSaveR2Config = async (config: R2Config): Promise<void> => {
     setR2Config(config);
-    console.log("R2 Config saved:", config);
+
+    // Save to config.json
+    const saveSuccess = await window.configAPI.saveR2Config(config);
+
+    if (!saveSuccess) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Failed to save R2 configuration",
+          type: "error",
+        },
+      ]);
+      return;
+    }
+
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "R2 configuration saved successfully",
+        type: "info",
+      },
+    ]);
+
+    // Validate configuration
+    const isValid = validateR2Config(config);
+    setIsR2Configured(isValid);
+
+    if (!isValid) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "R2 configuration is incomplete",
+          type: "warning",
+        },
+      ]);
+      return;
+    }
+
+    // Test connection
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "Testing R2 connection...",
+        type: "info",
+      },
+    ]);
+
+    const connectionSuccess = await window.rclone.testR2Connection({
+      endpoint: config.endpoint,
+      access_key: config.access_key,
+      secret_key: config.secret_key,
+      bucket_name: config.bucket_name,
+    });
+
+    if (connectionSuccess) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "R2 connection successful",
+          type: "info",
+        },
+      ]);
+      setIsRcloneReady(true);
+
+      // Load servers from R2
+      await loadServersFromR2();
+    } else {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Failed to connect to R2. Please check your configuration.",
+          type: "error",
+        },
+      ]);
+      setIsRcloneReady(false);
+    }
   };
 
   const handleSelectServer = async (serverId: string): Promise<void> => {
@@ -540,6 +628,30 @@ function App(): React.JSX.Element {
     }
   };
 
+  const handleRamConfigChange = async (newRamConfig: RamConfig): Promise<void> => {
+    setRamConfig(newRamConfig);
+    const success = await window.configAPI.saveRamConfig(newRamConfig.min, newRamConfig.max);
+    if (success) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: `RAM configuration updated: Min ${newRamConfig.min}GB, Max ${newRamConfig.max}GB`,
+          type: "info",
+        },
+      ]);
+    } else {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Failed to save RAM configuration",
+          type: "error",
+        },
+      ]);
+    }
+  };
+
   // Store the server process reference
   const serverProcessRef = React.useRef<any>(null);
 
@@ -568,6 +680,32 @@ function App(): React.JSX.Element {
         ...prev,
         { timestamp: new Date(), message: `Starting server: ${selectedServer}`, type: "info" },
       ]);
+
+      // Check if server is locked
+      setLogs((prev) => [
+        ...prev,
+        { timestamp: new Date(), message: "Checking server lock status...", type: "info" },
+      ]);
+      const lockInfo = await window.serverAPI.readLock(r2Config, selectedServer);
+
+      if (lockInfo.exists) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Server is locked by ${lockInfo.username}`,
+            type: "error",
+          },
+        ]);
+        setLockedServerInfo({
+          username: lockInfo.username || "Unknown",
+          startedAt: lockInfo.startedAt || new Date().toISOString(),
+        });
+        setIsServerLockedModalOpen(true);
+        setServerStatus(ServerStatus.STOPPED);
+        return;
+      }
+
       setLogs((prev) => [
         ...prev,
         { timestamp: new Date(), message: "Downloading server files from R2...", type: "info" },
@@ -763,7 +901,6 @@ function App(): React.JSX.Element {
           return;
         }
         try {
-          console.log(selectedServer, ramConfig.min, ramConfig.max);
           await window.serverAPI.editForgeJvmArgs(selectedServer, ramConfig.min, ramConfig.max);
         } catch (e) {
           setLogs((prev) => [
@@ -1128,7 +1265,7 @@ function App(): React.JSX.Element {
   };
 
   const handleEditProperties = (): void => {
-    console.log("Opening server.properties editor");
+    console.debug("Opening server.properties editor");
   };
 
   const handleOpenServerFolder = async (): Promise<void> => {
@@ -1167,11 +1304,10 @@ function App(): React.JSX.Element {
       type: "info",
     };
     setLogs([...logs, newLog]);
-    console.log("Command executed:", command);
   };
 
   const handleCreateServer = (): void => {
-    console.log("Creating new server...");
+    console.debug("Creating new server...");
   };
 
   return (
@@ -1274,7 +1410,7 @@ function App(): React.JSX.Element {
 
             <RamConfiguration
               ramConfig={ramConfig}
-              onChange={setRamConfig}
+              onChange={handleRamConfigChange}
               disabled={serverStatus !== ServerStatus.STOPPED}
             />
           </Box>
@@ -1320,6 +1456,15 @@ function App(): React.JSX.Element {
           serverName={selectedServer}
           onClose={(): void => setIsReleaseLockModalOpen(false)}
           onConfirm={handleConfirmReleaseLock}
+        />
+
+        {/* Server Locked Modal */}
+        <ServerLockedModal
+          open={isServerLockedModalOpen}
+          serverName={selectedServer}
+          username={lockedServerInfo.username}
+          startedAt={lockedServerInfo.startedAt}
+          onClose={(): void => setIsServerLockedModalOpen(false)}
         />
 
         {/* Rclone Download Modal */}
