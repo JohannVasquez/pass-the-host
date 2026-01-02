@@ -119,7 +119,8 @@ export const en = {
     updater: {
       updateAvailable: "Update Available",
       updateDownloaded: "Update Downloaded",
-      newVersionDownloaded: "A new version has been downloaded. Restart the application to apply the updates.",
+      newVersionDownloaded:
+        "A new version has been downloaded. Restart the application to apply the updates.",
       restartNow: "Restart now",
       later: "Later",
       checkingForUpdates: "Checking for updates...",

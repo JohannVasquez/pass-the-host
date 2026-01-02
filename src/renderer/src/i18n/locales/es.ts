@@ -120,7 +120,8 @@ export const es = {
     updater: {
       updateAvailable: "Actualización Disponible",
       updateDownloaded: "Actualización Descargada",
-      newVersionDownloaded: "Se ha descargado una nueva versión. Reinicia la aplicación para aplicar las actualizaciones.",
+      newVersionDownloaded:
+        "Se ha descargado una nueva versión. Reinicia la aplicación para aplicar las actualizaciones.",
       restartNow: "Reiniciar ahora",
       later: "Más tarde",
       checkingForUpdates: "Verificando actualizaciones...",

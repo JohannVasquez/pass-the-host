@@ -165,27 +165,36 @@ function setupAutoUpdater(): void {
   // Handle update-downloaded event
   autoUpdater.on("update-downloaded", (event) => {
     const language = loadConfig()?.app?.language || "en";
-    
+
     // Messages in different languages
-    const messages: { [key: string]: { title: string; message: string; detail: string; restartNow: string; later: string } } = {
+    const messages: {
+      [key: string]: {
+        title: string;
+        message: string;
+        detail: string;
+        restartNow: string;
+        later: string;
+      };
+    } = {
       en: {
         title: "Application Update",
         message: event.version || "Update Available",
         detail: "A new version has been downloaded. Restart the application to apply the updates.",
         restartNow: "Restart now",
-        later: "Later"
+        later: "Later",
       },
       es: {
         title: "Actualización de la Aplicación",
         message: event.version || "Actualización Disponible",
-        detail: "Se ha descargado una nueva versión. Reinicia la aplicación para aplicar las actualizaciones.",
+        detail:
+          "Se ha descargado una nueva versión. Reinicia la aplicación para aplicar las actualizaciones.",
         restartNow: "Reiniciar ahora",
-        later: "Más tarde"
-      }
+        later: "Más tarde",
+      },
     };
-    
+
     const msg = messages[language] || messages["en"];
-    
+
     const dialogOpts = {
       type: "info" as const,
       buttons: [msg.restartNow, msg.later],
