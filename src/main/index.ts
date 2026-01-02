@@ -19,7 +19,7 @@ import {
   readServerPort,
   writeServerPort,
 } from "./rclone";
-import { saveR2Config, loadConfig, saveUsername } from "./config";
+import { saveR2Config, loadConfig, saveUsername, saveRamConfig } from "./config";
 import { ensureJavaForMinecraft, getInstalledJavaVersions, getRequiredJavaVersion } from "./java";
 import os from "os";
 
@@ -274,6 +274,10 @@ if (!gotTheLock) {
 
     ipcMain.handle("config:save-username", async (_, username) => {
       return saveUsername(username);
+    });
+
+    ipcMain.handle("config:save-ram", async (_, minRam, maxRam) => {
+      return saveRamConfig(minRam, maxRam);
     });
 
     // Rclone IPC handlers

@@ -48,6 +48,7 @@ interface ConfigAPI {
     bucket_name: string;
   }) => Promise<boolean>;
   saveUsername: (username: string) => Promise<boolean>;
+  saveRamConfig: (minRam: number, maxRam: number) => Promise<boolean>;
 }
 
 interface SystemAPI {

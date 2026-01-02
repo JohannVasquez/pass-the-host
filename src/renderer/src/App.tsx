@@ -541,6 +541,30 @@ function App(): React.JSX.Element {
     }
   };
 
+  const handleRamConfigChange = async (newRamConfig: RamConfig): Promise<void> => {
+    setRamConfig(newRamConfig);
+    const success = await window.configAPI.saveRamConfig(newRamConfig.min, newRamConfig.max);
+    if (success) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: `RAM configuration updated: Min ${newRamConfig.min}GB, Max ${newRamConfig.max}GB`,
+          type: "info",
+        },
+      ]);
+    } else {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Failed to save RAM configuration",
+          type: "error",
+        },
+      ]);
+    }
+  };
+
   // Store the server process reference
   const serverProcessRef = React.useRef<any>(null);
 
@@ -1275,7 +1299,7 @@ function App(): React.JSX.Element {
 
             <RamConfiguration
               ramConfig={ramConfig}
-              onChange={setRamConfig}
+              onChange={handleRamConfigChange}
               disabled={serverStatus !== ServerStatus.STOPPED}
             />
           </Box>
