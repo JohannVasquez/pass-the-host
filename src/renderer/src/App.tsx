@@ -37,7 +37,7 @@ const darkTheme = createTheme({
 });
 
 function App(): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // Estados simulados para la interfaz
   const [serverStatus, setServerStatus] = React.useState<ServerStatus>(ServerStatus.STOPPED);
@@ -117,6 +117,10 @@ function App(): React.JSX.Element {
 
         // Load username
         setUsername(config.app?.owner_name || "");
+
+        // Load and set language
+        const savedLanguage = config.app?.language || "en";
+        i18n.changeLanguage(savedLanguage);
 
         setLogs((prev) => [
           ...prev,

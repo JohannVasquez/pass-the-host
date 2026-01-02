@@ -116,5 +116,16 @@ export const en = {
       noLockInR2: "No lock file found in R2",
       noLocalLock: "No local lock file found",
     },
+    updater: {
+      updateAvailable: "Update Available",
+      updateDownloaded: "Update Downloaded",
+      newVersionDownloaded:
+        "A new version has been downloaded. Restart the application to apply the updates.",
+      restartNow: "Restart now",
+      later: "Later",
+      checkingForUpdates: "Checking for updates...",
+      noUpdatesAvailable: "No updates available",
+      downloadingUpdate: "Downloading update...",
+    },
   },
 };

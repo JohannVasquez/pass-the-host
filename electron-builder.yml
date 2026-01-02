@@ -1,7 +1,7 @@
-appId: com.electron.app
-productName: pass-the-host
+appId: cl.jvdev.passthehost
+productName: "Pass-the-host"
 directories:
-  buildResources: build
+  buildResources: resources
 files:
   - "!**/.vscode/*"
   - "!src/*"
@@ -12,19 +12,18 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: pass-the-host
+  executableName: "Pass the host"
+  icon: resources/icon.ico
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
-  shortcutName: ${productName}
-  uninstallDisplayName: ${productName}
+  shortcutName: "Pass the host"
+  uninstallDisplayName: "Pass the host"
   createDesktopShortcut: always
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
 mac:
   entitlementsInherit: build/entitlements.mac.plist
-  extendInfo:
-    - NSCameraUsageDescription: Application requests access to the device's camera.
-    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
-    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
-    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+
   notarize: false
 dmg:
   artifactName: ${name}-${version}.${ext}
@@ -35,9 +34,10 @@ linux:
     - deb
   maintainer: electronjs.org
   category: Utility
+  desktop:
+    entry:
+      Name: "Pass the host"
+      Comment: "Minecraft server manager using Cloudflare R2"
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
-publish:
-  provider: generic
-  url: https://example.com/auto-updates
