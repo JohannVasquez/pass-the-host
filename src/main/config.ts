@@ -190,3 +190,52 @@ export function saveRamConfig(minRam: number, maxRam: number): boolean {
     return false;
   }
 }
+
+export function saveLanguage(language: string): boolean {
+  const configPath = getConfigPath();
+  try {
+    let config: any = {};
+
+    // Try to read existing config
+    if (fs.existsSync(configPath)) {
+      config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    } else {
+      // Initialize default config structure if file doesn't exist
+      config = {
+        r2: {},
+        server: {},
+        app: {},
+      };
+    }
+
+    // Ensure app section exists
+    if (!config.app) {
+      config.app = {};
+    }
+
+    // Update language
+    config.app.language = language;
+
+    // Write back to file
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
+
+    return true;
+  } catch (e) {
+    console.error("Failed to save language:", e);
+    return false;
+  }
+}
+
+export function getLanguage(): string {
+  const configPath = getConfigPath();
+  try {
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      return config.app?.language || "en";
+    }
+    return "en"; // Default language
+  } catch (e) {
+    console.error("Failed to get language:", e);
+    return "en";
+  }
+}
