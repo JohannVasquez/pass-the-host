@@ -5,7 +5,6 @@ import * as path from "path";
 import { app, shell, BrowserWindow, ipcMain, Tray, nativeImage, Menu } from "electron";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
-import icon from "../../resources/icon.png?asset";
 import {
   checkRcloneInstallation,
   installRclone,
@@ -14,13 +13,14 @@ import {
   downloadServerFromR2,
   uploadServerToR2,
   createServerLock,
+  readServerLock,
   uploadServerLock,
   deleteServerLock,
   deleteLocalServerLock,
   readServerPort,
   writeServerPort,
 } from "./rclone";
-import { saveR2Config, loadConfig, saveUsername } from "./config";
+import { saveR2Config, loadConfig, saveUsername, saveRamConfig } from "./config";
 import { ensureJavaForMinecraft, getInstalledJavaVersions, getRequiredJavaVersion } from "./java";
 import os from "os";
 
@@ -150,6 +150,7 @@ ipcMain.handle("server:openFolder", async (_event, serverId: string) => {
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
+const icon = nativeImage.createFromPath(join(__dirname, "../../resources/icon.png"));
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -157,7 +158,9 @@ function createWindow(): void {
     height: 670,
     show: false,
     autoHideMenuBar: true,
-    ...(process.platform === "linux" ? { icon } : {}),
+
+    icon: icon,
+
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       sandbox: false,
@@ -173,7 +176,6 @@ function createWindow(): void {
     return { action: "deny" };
   });
 
-  // Minimize tray instead of closing it
   mainWindow.on("close", (event) => {
     if (!isQuitting) {
       event.preventDefault();
@@ -191,183 +193,214 @@ function createWindow(): void {
 
 // System tray config
 function createTray() {
-  const iconPath = process.platform === "win32" ? icon : icon; // Ajusta si tienes icono diferente para tray
-  const trayIcon = nativeImage.createFromPath(iconPath);
+  tray = new Tray(icon);
 
-  tray = new Tray(trayIcon);
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: "Abrir Minecraft Manager",
+      label: "Abrir Pass the host",
       click: () => mainWindow?.show(),
     },
     { type: "separator" },
     {
       label: "Cerrar App (Kill Server)",
       click: () => {
-        isQuitting = true;
+        isQuitting = true; // Asegúrate de tener esta variable global importada o definida
         app.quit();
       },
     },
   ]);
 
-  tray.setToolTip("Minecraft Server Manager");
+  tray.setToolTip("Pass the host");
   tray.setContextMenu(contextMenu);
 
   tray.on("double-click", () => {
     mainWindow?.show();
   });
+
+  // Tip: En Windows, a veces prefieren un solo click para abrir
+  tray.on("click", () => {
+    mainWindow?.show();
+  });
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId("com.electron");
+// Prevent multiple instances of the app
+const gotTheLock = app.requestSingleInstanceLock();
 
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  app.on("browser-window-created", (_, window) => {
-    optimizer.watchWindowShortcuts(window);
-  });
-
-  createWindow();
-  createTray();
-
-  // IPC test
-  ipcMain.on("ping", () => console.log("pong"));
-
-  // Config IPC handlers
-  ipcMain.handle("config:load", async () => {
-    return loadConfig();
-  });
-
-  ipcMain.handle("config:save-r2", async (_, r2Config) => {
-    return saveR2Config(r2Config);
-  });
-
-  ipcMain.handle("config:save-username", async (_, username) => {
-    return saveUsername(username);
-  });
-
-  // Rclone IPC handlers
-  ipcMain.handle("rclone:check-installation", async () => {
-    return await checkRcloneInstallation();
-  });
-
-  ipcMain.handle("rclone:install", async (event) => {
-    const progressCallback = (message: string): void => {
-      event.sender.send("rclone:progress", message);
-    };
-    return await installRclone(progressCallback);
-  });
-
-  ipcMain.handle("rclone:test-r2-connection", async (_, config) => {
-    return await testR2Connection(config);
-  });
-
-  ipcMain.handle("rclone:list-servers", async (_, config) => {
-    return await listR2Servers(config);
-  });
-
-  ipcMain.handle("rclone:download-server", async (event, config, serverId) => {
-    const progressCallback = (percent: number, transferred: string, total: string): void => {
-      event.sender.send("rclone:transfer-progress", { percent, transferred, total });
-    };
-    return await downloadServerFromR2(config, serverId, progressCallback);
-  });
-
-  ipcMain.handle("rclone:upload-server", async (event, config, serverId) => {
-    const progressCallback = (percent: number, transferred: string, total: string): void => {
-      event.sender.send("rclone:transfer-progress", { percent, transferred, total });
-    };
-    return await uploadServerToR2(config, serverId, progressCallback);
-  });
-
-  ipcMain.handle("server:create-lock", async (_, serverId, username) => {
-    return createServerLock(serverId, username);
-  });
-
-  ipcMain.handle("server:upload-lock", async (_, config, serverId) => {
-    return await uploadServerLock(config, serverId);
-  });
-
-  ipcMain.handle("server:delete-lock", async (_, config, serverId) => {
-    return await deleteServerLock(config, serverId);
-  });
-
-  ipcMain.handle("server:delete-local-lock", async (_, serverId) => {
-    return deleteLocalServerLock(serverId);
-  });
-
-  ipcMain.handle("server:read-port", async (_, serverId) => {
-    return readServerPort(serverId);
-  });
-
-  ipcMain.handle("server:write-port", async (_, serverId, port) => {
-    return writeServerPort(serverId, port);
-  });
-
-  // System IPC handlers
-  ipcMain.handle("system:get-total-memory", async () => {
-    const totalMemoryBytes = os.totalmem();
-    const totalMemoryGB = Math.floor(totalMemoryBytes / 1024 ** 3);
-    return totalMemoryGB;
-  });
-
-  ipcMain.handle("system:get-network-interfaces", async () => {
-    const interfaces = os.networkInterfaces();
-    const networkList: Array<{ name: string; ip: string }> = [];
-
-    for (const [name, addresses] of Object.entries(interfaces)) {
-      if (!addresses) continue;
-
-      for (const addr of addresses) {
-        // Filter only IPv4 addresses
-        if (addr.family === "IPv4" && !addr.internal) {
-          networkList.push({
-            name: name,
-            ip: addr.address,
-          });
-        }
+if (!gotTheLock) {
+  // Another instance is already running, quit this one
+  app.quit();
+} else {
+  // Handle when user tries to run a second instance
+  app.on("second-instance", () => {
+    // Focus on the existing window
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
       }
+      if (!mainWindow.isVisible()) {
+        mainWindow.show();
+      }
+      mainWindow.focus();
     }
+  });
 
-    // Add localhost
-    networkList.push({
-      name: "Localhost",
-      ip: "127.0.0.1",
+  // This method will be called when Electron has finished
+  // initialization and is ready to create browser windows.
+  // Some APIs can only be used after this event occurs.
+  app.whenReady().then(() => {
+    // Set app user model id for windows
+    electronApp.setAppUserModelId("com.electron");
+
+    // Default open or close DevTools by F12 in development
+    // and ignore CommandOrControl + R in production.
+    // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+    app.on("browser-window-created", (_, window) => {
+      optimizer.watchWindowShortcuts(window);
     });
 
-    return networkList;
+    createWindow();
+    createTray();
+
+    // IPC test
+    ipcMain.on("ping", () => console.debug("pong"));
+
+    // Config IPC handlers
+    ipcMain.handle("config:load", async () => {
+      return loadConfig();
+    });
+
+    ipcMain.handle("config:save-r2", async (_, r2Config) => {
+      return saveR2Config(r2Config);
+    });
+
+    ipcMain.handle("config:save-username", async (_, username) => {
+      return saveUsername(username);
+    });
+
+    ipcMain.handle("config:save-ram", async (_, minRam, maxRam) => {
+      return saveRamConfig(minRam, maxRam);
+    });
+
+    // Rclone IPC handlers
+    ipcMain.handle("rclone:check-installation", async () => {
+      return await checkRcloneInstallation();
+    });
+
+    ipcMain.handle("rclone:install", async (event) => {
+      const progressCallback = (message: string): void => {
+        event.sender.send("rclone:progress", message);
+      };
+      return await installRclone(progressCallback);
+    });
+
+    ipcMain.handle("rclone:test-r2-connection", async (_, config) => {
+      return await testR2Connection(config);
+    });
+
+    ipcMain.handle("rclone:list-servers", async (_, config) => {
+      return await listR2Servers(config);
+    });
+
+    ipcMain.handle("rclone:download-server", async (event, config, serverId) => {
+      const progressCallback = (percent: number, transferred: string, total: string): void => {
+        event.sender.send("rclone:transfer-progress", { percent, transferred, total });
+      };
+      return await downloadServerFromR2(config, serverId, progressCallback);
+    });
+
+    ipcMain.handle("rclone:upload-server", async (event, config, serverId) => {
+      const progressCallback = (percent: number, transferred: string, total: string): void => {
+        event.sender.send("rclone:transfer-progress", { percent, transferred, total });
+      };
+      return await uploadServerToR2(config, serverId, progressCallback);
+    });
+
+    ipcMain.handle("server:create-lock", async (_, serverId, username) => {
+      return createServerLock(serverId, username);
+    });
+
+    ipcMain.handle("server:read-server-lock", async (_, r2Config, serverId) => {
+      const result = await readServerLock(r2Config, serverId);
+      return result;
+    });
+
+    ipcMain.handle("server:upload-lock", async (_, config, serverId) => {
+      return await uploadServerLock(config, serverId);
+    });
+
+    ipcMain.handle("server:delete-lock", async (_, config, serverId) => {
+      return await deleteServerLock(config, serverId);
+    });
+
+    ipcMain.handle("server:delete-local-lock", async (_, serverId) => {
+      return deleteLocalServerLock(serverId);
+    });
+
+    ipcMain.handle("server:read-port", async (_, serverId) => {
+      return readServerPort(serverId);
+    });
+
+    ipcMain.handle("server:write-port", async (_, serverId, port) => {
+      return writeServerPort(serverId, port);
+    });
+
+    // System IPC handlers
+    ipcMain.handle("system:get-total-memory", async () => {
+      const totalMemoryBytes = os.totalmem();
+      const totalMemoryGB = Math.floor(totalMemoryBytes / 1024 ** 3);
+      return totalMemoryGB;
+    });
+
+    ipcMain.handle("system:get-network-interfaces", async () => {
+      const interfaces = os.networkInterfaces();
+      const networkList: Array<{ name: string; ip: string }> = [];
+
+      for (const [name, addresses] of Object.entries(interfaces)) {
+        if (!addresses) continue;
+
+        for (const addr of addresses) {
+          // Filter only IPv4 addresses
+          if (addr.family === "IPv4" && !addr.internal) {
+            networkList.push({
+              name: name,
+              ip: addr.address,
+            });
+          }
+        }
+      }
+
+      // Add localhost
+      networkList.push({
+        name: "Localhost",
+        ip: "127.0.0.1",
+      });
+
+      return networkList;
+    });
+
+    // Java IPC handlers
+    ipcMain.handle("java:ensure-for-minecraft", async (event, minecraftVersion: string) => {
+      const progressCallback = (message: string): void => {
+        event.sender.send("java:progress", message);
+      };
+      return await ensureJavaForMinecraft(minecraftVersion, progressCallback);
+    });
+
+    ipcMain.handle("java:get-installed-versions", async () => {
+      return getInstalledJavaVersions();
+    });
+
+    ipcMain.handle("java:get-required-version", async (_, minecraftVersion: string) => {
+      return getRequiredJavaVersion(minecraftVersion);
+    });
+
+    app.on("activate", function () {
+      // On macOS it's common to re-create a window in the app when the
+      // dock icon is clicked and there are no other windows open.
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
   });
-
-  // Java IPC handlers
-  ipcMain.handle("java:ensure-for-minecraft", async (event, minecraftVersion: string) => {
-    const progressCallback = (message: string): void => {
-      event.sender.send("java:progress", message);
-    };
-    return await ensureJavaForMinecraft(minecraftVersion, progressCallback);
-  });
-
-  ipcMain.handle("java:get-installed-versions", async () => {
-    return getInstalledJavaVersions();
-  });
-
-  ipcMain.handle("java:get-required-version", async (_, minecraftVersion: string) => {
-    return getRequiredJavaVersion(minecraftVersion);
-  });
-
-  createWindow();
-
-  app.on("activate", function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
-});
-
+}
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
