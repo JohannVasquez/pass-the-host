@@ -58,6 +58,10 @@ interface SystemAPI {
 
 interface ServerAPI {
   createLock: (serverId: string, username: string) => Promise<boolean>;
+  readLock: (
+    r2Config: any,
+    serverId: string
+  ) => Promise<{ exists: boolean; username?: string; startedAt?: string; timestamp?: number }>;
   uploadLock: (
     config: {
       endpoint: string;

@@ -13,6 +13,7 @@ import {
   downloadServerFromR2,
   uploadServerToR2,
   createServerLock,
+  readServerLock,
   uploadServerLock,
   deleteServerLock,
   deleteLocalServerLock,
@@ -261,7 +262,7 @@ if (!gotTheLock) {
     createTray();
 
     // IPC test
-    ipcMain.on("ping", () => console.log("pong"));
+    ipcMain.on("ping", () => console.debug("pong"));
 
     // Config IPC handlers
     ipcMain.handle("config:load", async () => {
@@ -316,6 +317,11 @@ if (!gotTheLock) {
 
     ipcMain.handle("server:create-lock", async (_, serverId, username) => {
       return createServerLock(serverId, username);
+    });
+
+    ipcMain.handle("server:read-server-lock", async (_, r2Config, serverId) => {
+      const result = await readServerLock(r2Config, serverId);
+      return result;
     });
 
     ipcMain.handle("server:upload-lock", async (_, config, serverId) => {

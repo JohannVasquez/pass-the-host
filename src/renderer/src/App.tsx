@@ -18,6 +18,7 @@ import { CommandInput } from "./presentation/components/CommandInput";
 import { LanguageSwitcher } from "./presentation/components/LanguageSwitcher";
 import { UsernameInput } from "./presentation/components/UsernameInput";
 import { ReleaseLockModal } from "./presentation/components/ReleaseLockModal";
+import { ServerLockedModal } from "./presentation/components/ServerLockedModal";
 import { DownloadProgressModal } from "./presentation/components/DownloadProgressModal";
 import { TransferProgressModal } from "./presentation/components/TransferProgressModal";
 import { ServerStatus } from "./domain/entities/ServerStatus";
@@ -61,6 +62,11 @@ function App(): React.JSX.Element {
   const [serverPort, setServerPort] = React.useState<number>(25565);
   const [username, setUsername] = React.useState<string>("");
   const [isReleaseLockModalOpen, setIsReleaseLockModalOpen] = React.useState<boolean>(false);
+  const [isServerLockedModalOpen, setIsServerLockedModalOpen] = React.useState<boolean>(false);
+  const [lockedServerInfo, setLockedServerInfo] = React.useState<{
+    username: string;
+    startedAt: string;
+  }>({ username: "", startedAt: "" });
   const [isJavaDownloading, setIsJavaDownloading] = React.useState<boolean>(false);
   const [javaProgressMessage, setJavaProgressMessage] = React.useState<string>("");
   const [isRcloneDownloading, setIsRcloneDownloading] = React.useState<boolean>(false);
@@ -674,6 +680,32 @@ function App(): React.JSX.Element {
         ...prev,
         { timestamp: new Date(), message: `Starting server: ${selectedServer}`, type: "info" },
       ]);
+
+      // Check if server is locked
+      setLogs((prev) => [
+        ...prev,
+        { timestamp: new Date(), message: "Checking server lock status...", type: "info" },
+      ]);
+      const lockInfo = await window.serverAPI.readLock(r2Config, selectedServer);
+
+      if (lockInfo.exists) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Server is locked by ${lockInfo.username}`,
+            type: "error",
+          },
+        ]);
+        setLockedServerInfo({
+          username: lockInfo.username || "Unknown",
+          startedAt: lockInfo.startedAt || new Date().toISOString(),
+        });
+        setIsServerLockedModalOpen(true);
+        setServerStatus(ServerStatus.STOPPED);
+        return;
+      }
+
       setLogs((prev) => [
         ...prev,
         { timestamp: new Date(), message: "Downloading server files from R2...", type: "info" },
@@ -869,7 +901,6 @@ function App(): React.JSX.Element {
           return;
         }
         try {
-          console.log(selectedServer, ramConfig.min, ramConfig.max);
           await window.serverAPI.editForgeJvmArgs(selectedServer, ramConfig.min, ramConfig.max);
         } catch (e) {
           setLogs((prev) => [
@@ -1234,7 +1265,7 @@ function App(): React.JSX.Element {
   };
 
   const handleEditProperties = (): void => {
-    console.log("Opening server.properties editor");
+    console.debug("Opening server.properties editor");
   };
 
   const handleOpenServerFolder = async (): Promise<void> => {
@@ -1273,11 +1304,10 @@ function App(): React.JSX.Element {
       type: "info",
     };
     setLogs([...logs, newLog]);
-    console.log("Command executed:", command);
   };
 
   const handleCreateServer = (): void => {
-    console.log("Creating new server...");
+    console.debug("Creating new server...");
   };
 
   return (
@@ -1426,6 +1456,15 @@ function App(): React.JSX.Element {
           serverName={selectedServer}
           onClose={(): void => setIsReleaseLockModalOpen(false)}
           onConfirm={handleConfirmReleaseLock}
+        />
+
+        {/* Server Locked Modal */}
+        <ServerLockedModal
+          open={isServerLockedModalOpen}
+          serverName={selectedServer}
+          username={lockedServerInfo.username}
+          startedAt={lockedServerInfo.startedAt}
+          onClose={(): void => setIsServerLockedModalOpen(false)}
         />
 
         {/* Rclone Download Modal */}

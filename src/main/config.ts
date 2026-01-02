@@ -75,7 +75,6 @@ export function saveR2Config(r2Config: any): boolean {
     // Write back to file
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
 
-    console.log("R2 config saved successfully to:", configPath);
     return true;
   } catch (e) {
     console.error("Failed to save R2 config:", e);
@@ -126,7 +125,6 @@ export function saveUsername(username: string): boolean {
     // Write back to file
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
 
-    console.log("Username saved successfully to:", configPath);
     return true;
   } catch (e) {
     console.error("Failed to save username:", e);
@@ -186,7 +184,6 @@ export function saveRamConfig(minRam: number, maxRam: number): boolean {
     // Write back to file
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
 
-    console.log("RAM config saved successfully to:", configPath);
     return true;
   } catch (e) {
     console.error("Failed to save RAM config:", e);
