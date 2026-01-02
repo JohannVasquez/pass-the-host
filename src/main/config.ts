@@ -133,3 +133,63 @@ export function saveUsername(username: string): boolean {
     return false;
   }
 }
+
+export function saveRamConfig(minRam: number, maxRam: number): boolean {
+  const configPath = getConfigPath();
+  try {
+    let config: any = {};
+
+    // Try to read existing config
+    if (fs.existsSync(configPath)) {
+      config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    } else {
+      // Initialize default config structure if file doesn't exist
+      config = {
+        r2: {
+          endpoint: "",
+          access_key: "",
+          secret_key: "",
+          bucket_name: "",
+        },
+        server: {
+          server_path: "./server_files",
+          java_path: "./java_runtime/bin/java.exe",
+          server_jar: "server.jar",
+          server_type: "vanilla",
+          memory_min: "2G",
+          memory_max: "4G",
+          server_port: 25565,
+        },
+        app: {
+          owner_name: "YourName",
+        },
+      };
+    }
+
+    // Ensure server section exists
+    if (!config.server) {
+      config.server = {
+        server_path: "./server_files",
+        java_path: "./java_runtime/bin/java.exe",
+        server_jar: "server.jar",
+        server_type: "vanilla",
+        memory_min: "2G",
+        memory_max: "4G",
+        server_port: 25565,
+      };
+    }
+
+    // Update RAM config
+    config.server.memory_min = `${minRam}G`;
+    config.server.memory_max = `${maxRam}G`;
+
+    // Write back to file
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
+
+    console.log("RAM config saved successfully to:", configPath);
+    return true;
+  } catch (e) {
+    console.error("Failed to save RAM config:", e);
+    return false;
+  }
+}

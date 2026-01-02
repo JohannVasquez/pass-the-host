@@ -40,6 +40,8 @@ const configAPI = {
   saveR2Config: (r2Config: any): Promise<boolean> => ipcRenderer.invoke("config:save-r2", r2Config),
   saveUsername: (username: string): Promise<boolean> =>
     ipcRenderer.invoke("config:save-username", username),
+  saveRamConfig: (minRam: number, maxRam: number): Promise<boolean> =>
+    ipcRenderer.invoke("config:save-ram", minRam, maxRam),
 };
 
 const systemAPI = {
