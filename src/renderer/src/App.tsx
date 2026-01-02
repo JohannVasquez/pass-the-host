@@ -404,6 +404,7 @@ function App(): React.JSX.Element {
               type: "info",
             },
           ]);
+          await loadServersFromR2();
         } else {
           setLogs((prev) => [
             ...prev,
@@ -484,10 +485,90 @@ function App(): React.JSX.Element {
     }
   };
 
-  // Simulated handlers (interface only)
-  const handleSaveR2Config = (config: R2Config): void => {
+  const handleSaveR2Config = async (config: R2Config): Promise<void> => {
     setR2Config(config);
-    console.log("R2 Config saved:", config);
+
+    // Save to config.json
+    const saveSuccess = await window.configAPI.saveR2Config(config);
+
+    if (!saveSuccess) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Failed to save R2 configuration",
+          type: "error",
+        },
+      ]);
+      return;
+    }
+
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "R2 configuration saved successfully",
+        type: "info",
+      },
+    ]);
+
+    // Validate configuration
+    const isValid = validateR2Config(config);
+    setIsR2Configured(isValid);
+
+    if (!isValid) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "R2 configuration is incomplete",
+          type: "warning",
+        },
+      ]);
+      return;
+    }
+
+    // Test connection
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "Testing R2 connection...",
+        type: "info",
+      },
+    ]);
+
+    const connectionSuccess = await window.rclone.testR2Connection({
+      endpoint: config.endpoint,
+      access_key: config.access_key,
+      secret_key: config.secret_key,
+      bucket_name: config.bucket_name,
+    });
+
+    if (connectionSuccess) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "R2 connection successful",
+          type: "info",
+        },
+      ]);
+      setIsRcloneReady(true);
+
+      // Load servers from R2
+      await loadServersFromR2();
+    } else {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Failed to connect to R2. Please check your configuration.",
+          type: "error",
+        },
+      ]);
+      setIsRcloneReady(false);
+    }
   };
 
   const handleSelectServer = async (serverId: string): Promise<void> => {
