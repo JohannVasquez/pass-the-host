@@ -53,6 +53,12 @@ const systemAPI = {
 const serverAPI = {
   createLock: (serverId: string, username: string): Promise<boolean> =>
     ipcRenderer.invoke("server:create-lock", serverId, username),
+  readLock: (
+    r2Config: any,
+    serverId: string
+  ): Promise<{ exists: boolean; username?: string; startedAt?: string; timestamp?: number }> => {
+    return ipcRenderer.invoke("server:read-server-lock", r2Config, serverId);
+  },
   uploadLock: (config: any, serverId: string): Promise<boolean> =>
     ipcRenderer.invoke("server:upload-lock", config, serverId),
   deleteLock: (config: any, serverId: string): Promise<boolean> =>
