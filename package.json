@@ -25,8 +25,19 @@
     "appId": "cl.jvdev.passthehost",
     "productName": "Pass-the-host",
     "win": {
+      "executableName": "Pass the host",
       "target": "nsis",
       "icon": "resources/icon.ico"
+    },
+    "nsis": {
+      "shortcutName": "Pass the host",
+      "uninstallDisplayName": "Pass the host"
+    },
+    "linux": {
+      "desktop": {
+        "Name": "Pass the host",
+        "Comment": "Minecraft server manager using Cloudflare R2"
+      }
     },
     "publish": [
       {
