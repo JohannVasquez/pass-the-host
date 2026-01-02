@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: pass-the-host
+appId: cl.jvdev.passthehost
+productName: "Pass The Host"
 directories:
   buildResources: build
 files:
@@ -12,7 +12,8 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: pass-the-host
+  executableName: "Pass The Host"
+  icon: build/icon.ico
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
