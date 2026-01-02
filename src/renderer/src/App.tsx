@@ -188,6 +188,7 @@ function App(): React.JSX.Element {
 
         const interfaces = await window.systemAPI.getNetworkInterfaces();
         setAvailableIps(interfaces);
+        setSelectedIp(interfaces[0].ip);
 
         setLogs((prev) => [
           ...prev,
