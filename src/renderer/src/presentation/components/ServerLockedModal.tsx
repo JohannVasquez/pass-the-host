@@ -27,7 +27,6 @@ export function ServerLockedModal({
   startedAt,
   onClose,
 }: ServerLockedModalProps): React.JSX.Element {
-
   const formatDate = (isoString: string): string => {
     try {
       const date = new Date(isoString);
