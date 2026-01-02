@@ -2,7 +2,9 @@ import { getLocalServerPath } from "./rclone";
 import { spawn, ChildProcessWithoutNullStreams } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import { app, shell, BrowserWindow, ipcMain, Tray, nativeImage, Menu } from "electron";
+import { app, shell, BrowserWindow, ipcMain, Tray, nativeImage, Menu, dialog } from "electron";
+import { autoUpdater } from "electron-updater";
+import log from "electron-log";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import {
@@ -20,9 +22,15 @@ import {
   readServerPort,
   writeServerPort,
 } from "./rclone";
-import { saveR2Config, loadConfig, saveUsername, saveRamConfig } from "./config";
+import { saveR2Config, loadConfig, saveUsername, saveRamConfig, saveLanguage } from "./config";
 import { ensureJavaForMinecraft, getInstalledJavaVersions, getRequiredJavaVersion } from "./java";
 import os from "os";
+
+// Configure electron-log for autoUpdater
+autoUpdater.logger = log;
+if (autoUpdater.logger && "transports" in autoUpdater.logger) {
+  (autoUpdater.logger as typeof log).transports.file.level = "info";
+}
 
 const serverProcesses: Record<string, ChildProcessWithoutNullStreams> = {};
 
@@ -152,6 +160,71 @@ let tray: Tray | null = null;
 let isQuitting = false;
 const icon = nativeImage.createFromPath(join(__dirname, "../../resources/icon.png"));
 
+// Auto-updater functions
+function setupAutoUpdater(): void {
+  // Handle update-downloaded event
+  autoUpdater.on("update-downloaded", (event) => {
+    const language = loadConfig()?.app?.language || "en";
+    
+    // Messages in different languages
+    const messages: { [key: string]: { title: string; message: string; detail: string; restartNow: string; later: string } } = {
+      en: {
+        title: "Application Update",
+        message: event.version || "Update Available",
+        detail: "A new version has been downloaded. Restart the application to apply the updates.",
+        restartNow: "Restart now",
+        later: "Later"
+      },
+      es: {
+        title: "Actualización de la Aplicación",
+        message: event.version || "Actualización Disponible",
+        detail: "Se ha descargado una nueva versión. Reinicia la aplicación para aplicar las actualizaciones.",
+        restartNow: "Reiniciar ahora",
+        later: "Más tarde"
+      }
+    };
+    
+    const msg = messages[language] || messages["en"];
+    
+    const dialogOpts = {
+      type: "info" as const,
+      buttons: [msg.restartNow, msg.later],
+      title: msg.title,
+      message: msg.message,
+      detail: msg.detail,
+    };
+
+    dialog.showMessageBox(dialogOpts).then((returnValue) => {
+      if (returnValue.response === 0) {
+        // User clicked "Restart now"
+        isQuitting = true;
+        autoUpdater.quitAndInstall();
+      }
+    });
+  });
+
+  // Optional: Log update events
+  autoUpdater.on("checking-for-update", () => {
+    log.info("Checking for updates...");
+  });
+
+  autoUpdater.on("update-available", (info) => {
+    log.info("Update available:", info);
+  });
+
+  autoUpdater.on("update-not-available", (info) => {
+    log.info("Update not available:", info);
+  });
+
+  autoUpdater.on("error", (err) => {
+    log.error("Error in auto-updater:", err);
+  });
+
+  autoUpdater.on("download-progress", (progressObj) => {
+    log.info(`Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}%`);
+  });
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 900,
@@ -169,6 +242,11 @@ function createWindow(): void {
 
   mainWindow.on("ready-to-show", () => {
     mainWindow?.show();
+
+    // Check for updates when window is ready
+    if (!is.dev) {
+      autoUpdater.checkForUpdatesAndNotify();
+    }
   });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -260,6 +338,7 @@ if (!gotTheLock) {
 
     createWindow();
     createTray();
+    setupAutoUpdater();
 
     // IPC test
     ipcMain.on("ping", () => console.debug("pong"));
@@ -279,6 +358,10 @@ if (!gotTheLock) {
 
     ipcMain.handle("config:save-ram", async (_, minRam, maxRam) => {
       return saveRamConfig(minRam, maxRam);
+    });
+
+    ipcMain.handle("config:save-language", async (_, language) => {
+      return saveLanguage(language);
     });
 
     // Rclone IPC handlers

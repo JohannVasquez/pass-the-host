@@ -16,8 +16,14 @@ export const LanguageSwitcher: React.FC = (): React.JSX.Element => {
     setAnchorEl(null);
   };
 
-  const handleLanguageChange = (lang: string): void => {
+  const handleLanguageChange = async (lang: string): Promise<void> => {
     i18n.changeLanguage(lang);
+    // Save language to config so main process can use it
+    try {
+      await window.electron.ipcRenderer.invoke("config:save-language", lang);
+    } catch (error) {
+      console.error("Failed to save language:", error);
+    }
     handleClose();
   };
 
