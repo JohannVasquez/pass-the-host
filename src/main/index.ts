@@ -91,6 +91,20 @@ ipcMain.handle(
   }
 );
 
+// Send command to Minecraft server process
+ipcMain.handle("server:send-command", async (_event, serverId, command) => {
+  return new Promise((resolve, _) => {
+    const proc = serverProcesses[serverId];
+    if (!proc) return resolve(false);
+    try {
+      proc.stdin.write(`${command}\n`);
+      resolve(true);
+    } catch (e) {
+      resolve(false);
+    }
+  });
+});
+
 // Kill Minecraft server process (safe stop)
 ipcMain.handle("server:kill-server-process", async (_event, serverId) => {
   return new Promise((resolve, _) => {

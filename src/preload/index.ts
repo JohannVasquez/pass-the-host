@@ -86,6 +86,8 @@ const serverAPI = {
     ipcRenderer.on("server:stdout", listener);
     return () => ipcRenderer.removeListener("server:stdout", listener);
   },
+  sendCommand: (serverId: string, command: string): Promise<boolean> =>
+    ipcRenderer.invoke("server:send-command", serverId, command),
   openServerFolder: (serverId: string) => ipcRenderer.invoke("server:openFolder", serverId),
 };
 
