@@ -39,6 +39,7 @@ interface ServerControlPanelProps {
   onEditProperties: () => void;
   onOpenServerFolder: () => void;
   disabled?: boolean;
+  serverStartTime: Date | null;
 }
 
 export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
@@ -53,10 +54,36 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   onEditProperties,
   onOpenServerFolder,
   disabled = false,
+  serverStartTime,
 }): React.JSX.Element => {
   const { t } = useTranslation();
   const isRunning = status === ServerStatus.RUNNING;
   const isTransitioning = status === ServerStatus.STARTING || status === ServerStatus.STOPPING;
+  const [uptime, setUptime] = React.useState<string>("00:00:00");
+
+  // Update uptime every second when server is running
+  React.useEffect(() => {
+    if (!serverStartTime || !isRunning) {
+      setUptime("00:00:00");
+      return;
+    }
+
+    const updateUptime = (): void => {
+      const now = new Date();
+      const diff = now.getTime() - serverStartTime.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      const formatted = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+      setUptime(formatted);
+    };
+
+    updateUptime(); // Initial update
+    const interval = setInterval(updateUptime, 1000);
+
+    return () => clearInterval(interval);
+  }, [serverStartTime, isRunning]);
 
   const getStatusColor = (): "success" | "error" | "warning" | "default" => {
     switch (status) {
@@ -116,11 +143,18 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
         <Typography variant="body2" color="text.secondary" gutterBottom>
           {t("serverControl.status")}:
         </Typography>
-        <Chip
-          label={t(`serverStatus.${status}`)}
-          color={getStatusColor()}
-          sx={{ textTransform: "capitalize" }}
-        />
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Chip
+            label={t(`serverStatus.${status}`)}
+            color={getStatusColor()}
+            sx={{ textTransform: "capitalize" }}
+          />
+          {isRunning && (
+            <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "monospace" }}>
+              {uptime}
+            </Typography>
+          )}
+        </Box>
       </Box>
 
       <Stack spacing={1.5}>
