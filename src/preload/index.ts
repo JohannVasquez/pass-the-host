@@ -89,6 +89,14 @@ const serverAPI = {
   sendCommand: (serverId: string, command: string): Promise<boolean> =>
     ipcRenderer.invoke("server:send-command", serverId, command),
   openServerFolder: (serverId: string) => ipcRenderer.invoke("server:openFolder", serverId),
+  createSession: (serverId: string, username: string): Promise<boolean> =>
+    ipcRenderer.invoke("server:create-session", serverId, username),
+  updateSession: (serverId: string, username: string): Promise<boolean> =>
+    ipcRenderer.invoke("server:update-session", serverId, username),
+  uploadSession: (config: any, serverId: string): Promise<boolean> =>
+    ipcRenderer.invoke("server:upload-session", config, serverId),
+  shouldDownload: (config: any, serverId: string): Promise<boolean> =>
+    ipcRenderer.invoke("server:should-download", config, serverId),
 };
 
 const javaAPI = {

@@ -710,30 +710,49 @@ function App(): React.JSX.Element {
         return;
       }
 
+      // Check if we need to download server files
       setLogs((prev) => [
         ...prev,
-        { timestamp: new Date(), message: "Downloading server files from R2...", type: "info" },
+        { timestamp: new Date(), message: "Checking server files...", type: "info" },
       ]);
-      setIsTransferring(true);
-      setTransferType("download");
-      setTransferPercent(0);
-      setTransferTransferred("0");
-      setTransferTotal("0");
-      const r2Service = new R2Service(r2Config);
-      const downloadSuccess = await r2Service.downloadServer(selectedServer);
-      setIsTransferring(false);
-      if (!downloadSuccess) {
+
+      const shouldDownload = await window.serverAPI.shouldDownload(r2Config, selectedServer);
+
+      if (shouldDownload) {
         setLogs((prev) => [
           ...prev,
-          { timestamp: new Date(), message: "Failed to download server files", type: "error" },
+          { timestamp: new Date(), message: "Downloading server files from R2...", type: "info" },
         ]);
-        setServerStatus(ServerStatus.STOPPED);
-        return;
+        setIsTransferring(true);
+        setTransferType("download");
+        setTransferPercent(0);
+        setTransferTransferred("0");
+        setTransferTotal("0");
+        const r2Service = new R2Service(r2Config);
+        const downloadSuccess = await r2Service.downloadServer(selectedServer);
+        setIsTransferring(false);
+        if (!downloadSuccess) {
+          setLogs((prev) => [
+            ...prev,
+            { timestamp: new Date(), message: "Failed to download server files", type: "error" },
+          ]);
+          setServerStatus(ServerStatus.STOPPED);
+          return;
+        }
+        setLogs((prev) => [
+          ...prev,
+          { timestamp: new Date(), message: "Server files downloaded successfully", type: "info" },
+        ]);
+      } else {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Local server files are up to date, skipping download",
+            type: "info",
+          },
+        ]);
       }
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: "Server files downloaded successfully", type: "info" },
-      ]);
       try {
         const portUpdateSuccess = await window.serverAPI.writePort(selectedServer, serverPort);
         if (portUpdateSuccess) {
@@ -852,6 +871,27 @@ function App(): React.JSX.Element {
           },
         ]);
       }
+      
+      // Create session metadata
+      setLogs((prev) => [
+        ...prev,
+        { timestamp: new Date(), message: "Creating session metadata...", type: "info" },
+      ]);
+      const sessionCreateSuccess = await window.serverAPI.createSession(
+        selectedServer,
+        username || "Unknown"
+      );
+      if (sessionCreateSuccess) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Session created for user: ${username || "Unknown"}`,
+            type: "info",
+          },
+        ]);
+      }
+
       // --- REAL SERVER START LOGIC ---
       // Get local server path from main process
       let localServerPath = "";
@@ -1041,6 +1081,46 @@ function App(): React.JSX.Element {
                 type: "info",
               },
             ]);
+
+            // Update and upload session metadata
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Updating session metadata...",
+                type: "info",
+              },
+            ]);
+
+            const sessionUpdateSuccess = await window.serverAPI.updateSession(
+              selectedServer,
+              username || "Unknown"
+            );
+            if (sessionUpdateSuccess) {
+              const sessionUploadSuccess = await window.serverAPI.uploadSession(
+                r2Config,
+                selectedServer
+              );
+              if (sessionUploadSuccess) {
+                setLogs((prev) => [
+                  ...prev,
+                  {
+                    timestamp: new Date(),
+                    message: "Session metadata updated successfully",
+                    type: "info",
+                  },
+                ]);
+              } else {
+                setLogs((prev) => [
+                  ...prev,
+                  {
+                    timestamp: new Date(),
+                    message: "Warning: Failed to upload session metadata",
+                    type: "warning",
+                  },
+                ]);
+              }
+            }
           } else {
             setLogs((prev) => [
               ...prev,
@@ -1256,6 +1336,43 @@ function App(): React.JSX.Element {
           type: "info",
         },
       ]);
+
+      // Update and upload session metadata
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Updating session metadata...",
+          type: "info",
+        },
+      ]);
+
+      const sessionUpdateSuccess = await window.serverAPI.updateSession(
+        selectedServer,
+        username || "Unknown"
+      );
+      if (sessionUpdateSuccess) {
+        const sessionUploadSuccess = await window.serverAPI.uploadSession(r2Config, selectedServer);
+        if (sessionUploadSuccess) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Session metadata updated successfully",
+              type: "info",
+            },
+          ]);
+        } else {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Warning: Failed to upload session metadata",
+              type: "warning",
+            },
+          ]);
+        }
+      }
     } else {
       setLogs((prev) => [
         ...prev,

@@ -21,6 +21,10 @@ import {
   deleteLocalServerLock,
   readServerPort,
   writeServerPort,
+  createSessionMetadata,
+  updateSessionMetadata,
+  uploadSessionMetadata,
+  shouldDownloadServer,
 } from "./rclone";
 import { saveR2Config, loadConfig, saveUsername, saveRamConfig, saveLanguage } from "./config";
 import { ensureJavaForMinecraft, getInstalledJavaVersions, getRequiredJavaVersion } from "./java";
@@ -448,6 +452,23 @@ if (!gotTheLock) {
 
     ipcMain.handle("server:write-port", async (_, serverId, port) => {
       return writeServerPort(serverId, port);
+    });
+
+    // Session metadata IPC handlers
+    ipcMain.handle("server:create-session", async (_, serverId, username) => {
+      return createSessionMetadata(serverId, username);
+    });
+
+    ipcMain.handle("server:update-session", async (_, serverId, username) => {
+      return updateSessionMetadata(serverId, username);
+    });
+
+    ipcMain.handle("server:upload-session", async (_, config, serverId) => {
+      return await uploadSessionMetadata(config, serverId);
+    });
+
+    ipcMain.handle("server:should-download", async (_, config, serverId) => {
+      return await shouldDownloadServer(config, serverId);
     });
 
     // System IPC handlers

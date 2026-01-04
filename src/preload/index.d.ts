@@ -95,6 +95,10 @@ interface ServerAPI {
   onStdout: (callback: (data: string) => void) => () => void;
   sendCommand: (serverId: string, command: string) => Promise<boolean>;
   openServerFolder: (serverId: string) => Promise<boolean>;
+  createSession: (serverId: string, username: string) => Promise<boolean>;
+  updateSession: (serverId: string, username: string) => Promise<boolean>;
+  uploadSession: (config: any, serverId: string) => Promise<boolean>;
+  shouldDownload: (config: any, serverId: string) => Promise<boolean>;
 }
 
 interface JavaAPI {
