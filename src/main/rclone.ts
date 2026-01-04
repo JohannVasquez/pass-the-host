@@ -883,15 +883,25 @@ export function writeServerPort(serverId: string, port: number): boolean {
 }
 
 /**
+ * Session entry interface
+ */
+export interface SessionEntry {
+  username: string;
+  startTime: string; // ISO timestamp
+  startTimestamp: number; // Unix timestamp
+  endTime?: string; // ISO timestamp
+  endTimestamp?: number; // Unix timestamp
+  duration?: number; // Duration in milliseconds
+}
+
+/**
  * Session metadata interface
  */
-interface SessionMetadata {
+export interface SessionMetadata {
   lastPlayed: string; // ISO timestamp
   lastPlayedTimestamp: number; // Unix timestamp
-  username: string; // Username of the player who started the session
-  sessionStartTime?: string; // ISO timestamp when session started
-  sessionStartTimestamp?: number; // Unix timestamp when session started
-  sessionDuration?: number; // Duration in milliseconds
+  username: string; // Username of the last player
+  sessions: SessionEntry[]; // Array of all sessions
 }
 
 /**
@@ -912,12 +922,31 @@ export function createSessionMetadata(serverId: string, username: string): boole
     }
 
     const now = new Date();
+    const nowTimestamp = Date.now();
+
+    // Read existing session data if it exists
+    let existingData: SessionMetadata | null = null;
+    if (fs.existsSync(sessionFilePath)) {
+      try {
+        existingData = JSON.parse(fs.readFileSync(sessionFilePath, "utf-8"));
+      } catch (e) {
+        console.warn(`Could not parse existing session.json, creating new one`);
+      }
+    }
+
+    // Create new session entry
+    const newSession: SessionEntry = {
+      username: username,
+      startTime: now.toISOString(),
+      startTimestamp: nowTimestamp,
+    };
+
+    // Create or update session data
     const sessionData: SessionMetadata = {
       lastPlayed: now.toISOString(),
-      lastPlayedTimestamp: Date.now(),
+      lastPlayedTimestamp: nowTimestamp,
       username: username,
-      sessionStartTime: now.toISOString(),
-      sessionStartTimestamp: Date.now(),
+      sessions: existingData?.sessions ? [...existingData.sessions, newSession] : [newSession],
     };
 
     fs.writeFileSync(sessionFilePath, JSON.stringify(sessionData, null, 2), "utf-8");
@@ -946,40 +975,49 @@ export function updateSessionMetadata(serverId: string, username: string): boole
       return false;
     }
 
-    // Read existing session to get start time
-    let sessionStartTimestamp = Date.now();
-    if (fs.existsSync(sessionFilePath)) {
-      try {
-        const existingSession = JSON.parse(fs.readFileSync(sessionFilePath, "utf-8"));
-        if (existingSession.sessionStartTimestamp) {
-          sessionStartTimestamp = existingSession.sessionStartTimestamp;
-        }
-      } catch (e) {
-        // If we can't read existing session, use current time
-      }
+    // Read existing session data
+    if (!fs.existsSync(sessionFilePath)) {
+      console.error(`Session file not found: ${sessionFilePath}`);
+      return false;
+    }
+
+    let sessionData: SessionMetadata;
+    try {
+      sessionData = JSON.parse(fs.readFileSync(sessionFilePath, "utf-8"));
+    } catch (e) {
+      console.error(`Could not parse session.json`);
+      return false;
     }
 
     const now = Date.now();
-    const sessionDuration = now - sessionStartTimestamp;
+    const nowISO = new Date().toISOString();
 
-    const sessionData: SessionMetadata = {
-      lastPlayed: new Date().toISOString(),
-      lastPlayedTimestamp: now,
-      username: username,
-      sessionStartTime: new Date(sessionStartTimestamp).toISOString(),
-      sessionStartTimestamp: sessionStartTimestamp,
-      sessionDuration: sessionDuration,
-    };
+    // Update the last session in the array
+    if (sessionData.sessions && sessionData.sessions.length > 0) {
+      const lastSession = sessionData.sessions[sessionData.sessions.length - 1];
+      
+      // Only update if the session doesn't have an end time yet
+      if (!lastSession.endTime) {
+        const duration = now - lastSession.startTimestamp;
+        lastSession.endTime = nowISO;
+        lastSession.endTimestamp = now;
+        lastSession.duration = duration;
+
+        // Format duration for logging
+        const durationMinutes = Math.floor(duration / 60000);
+        const durationSeconds = Math.floor((duration % 60000) / 1000);
+        console.log(
+          `[SESSION] Updated session metadata for ${serverId} (user: ${username}, duration: ${durationMinutes}m ${durationSeconds}s)`
+        );
+      }
+    }
+
+    // Update metadata
+    sessionData.lastPlayed = nowISO;
+    sessionData.lastPlayedTimestamp = now;
+    sessionData.username = username;
 
     fs.writeFileSync(sessionFilePath, JSON.stringify(sessionData, null, 2), "utf-8");
-    
-    // Format duration for logging
-    const durationMinutes = Math.floor(sessionDuration / 60000);
-    const durationSeconds = Math.floor((sessionDuration % 60000) / 1000);
-    console.log(
-      `[SESSION] Updated session metadata for ${serverId} (user: ${username}, duration: ${durationMinutes}m ${durationSeconds}s)`
-    );
-    
     return true;
   } catch (error) {
     console.error(`Error updating session metadata for ${serverId}:`, error);
@@ -1008,6 +1046,40 @@ export function readLocalSessionMetadata(serverId: string): SessionMetadata | nu
     return null;
   }
 }
+
+/**
+ * Gets server statistics from session metadata
+ * @param serverId Server ID
+ * @returns Statistics object with total playtime and session count
+ */
+export function getServerStatistics(serverId: string): {
+  totalPlaytime: number; // Total playtime in milliseconds
+  sessionCount: number;
+  sessions: SessionEntry[];
+} | null {
+  try {
+    const sessionData = readLocalSessionMetadata(serverId);
+    
+    if (!sessionData || !sessionData.sessions) {
+      return null;
+    }
+
+    // Calculate total playtime from all completed sessions
+    const totalPlaytime = sessionData.sessions.reduce((total, session) => {
+      return total + (session.duration || 0);
+    }, 0);
+
+    return {
+      totalPlaytime,
+      sessionCount: sessionData.sessions.length,
+      sessions: sessionData.sessions,
+    };
+  } catch (error) {
+    console.error(`Error getting server statistics for ${serverId}:`, error);
+    return null;
+  }
+}
+
 
 /**
  * Reads the session.json file from R2

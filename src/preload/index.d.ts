@@ -100,6 +100,18 @@ interface ServerAPI {
   updateSession: (serverId: string, username: string) => Promise<boolean>;
   uploadSession: (config: any, serverId: string) => Promise<boolean>;
   shouldDownload: (config: any, serverId: string) => Promise<boolean>;
+  getStatistics: (serverId: string) => Promise<{
+    totalPlaytime: number;
+    sessionCount: number;
+    sessions: Array<{
+      username: string;
+      startTime: string;
+      startTimestamp: number;
+      endTime?: string;
+      endTimestamp?: number;
+      duration?: number;
+    }>;
+  } | null>;
 }
 
 interface JavaAPI {

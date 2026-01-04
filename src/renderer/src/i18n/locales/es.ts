@@ -24,6 +24,7 @@ export const es = {
       r2NotConfigured:
         "Por favor configure los ajustes de R2 antes de usar los controles del servidor",
       usernameNotConfigured: "Por favor configure su nombre de usuario antes de iniciar el servidor",
+      viewStatistics: "Ver Estadísticas",
     },
     network: {
       title: "Configuración de Red",
@@ -128,6 +129,23 @@ export const es = {
       checkingForUpdates: "Verificando actualizaciones...",
       noUpdatesAvailable: "No hay actualizaciones disponibles",
       downloadingUpdate: "Descargando actualización...",
+    },
+    statistics: {
+      title: "Estadísticas del Servidor",
+      summary: "Resumen",
+      totalPlaytime: "Tiempo Total Jugado",
+      totalSessions: "Sesiones Totales",
+      sessionHistory: "Historial de Sesiones",
+      username: "Usuario",
+      startTime: "Hora de Inicio",
+      endTime: "Hora de Fin",
+      duration: "Duración",
+      inProgress: "En Progreso",
+      noData: "No hay estadísticas disponibles",
+      days: "Días",
+      hours: "Horas",
+      minutes: "Minutos",
+      seconds: "Segundos",
     },
   },
 };

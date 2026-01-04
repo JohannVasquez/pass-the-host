@@ -99,6 +99,8 @@ const serverAPI = {
     ipcRenderer.invoke("server:upload-session", config, serverId),
   shouldDownload: (config: any, serverId: string): Promise<boolean> =>
     ipcRenderer.invoke("server:should-download", config, serverId),
+  getStatistics: (serverId: string): Promise<any> =>
+    ipcRenderer.invoke("server:get-statistics", serverId),
 };
 
 const javaAPI = {

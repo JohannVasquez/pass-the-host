@@ -8,7 +8,10 @@ import {
   Toolbar,
   Typography,
   GlobalStyles,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
+import { BarChart as BarChartIcon } from "@mui/icons-material";
 import { R2Configuration } from "./presentation/components/R2Configuration";
 import { ServerControlPanel } from "./presentation/components/ServerControlPanel";
 import { NetworkConfiguration } from "./presentation/components/NetworkConfiguration";
@@ -21,6 +24,7 @@ import { ReleaseLockModal } from "./presentation/components/ReleaseLockModal";
 import { ServerLockedModal } from "./presentation/components/ServerLockedModal";
 import { DownloadProgressModal } from "./presentation/components/DownloadProgressModal";
 import { TransferProgressModal } from "./presentation/components/TransferProgressModal";
+import { ServerStatisticsModal } from "./presentation/components/ServerStatisticsModal";
 import { ServerStatus } from "./domain/entities/ServerStatus";
 import { R2Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
@@ -89,6 +93,8 @@ function App(): React.JSX.Element {
     },
   ]);
   const [serverStartTime, setServerStartTime] = React.useState<Date | null>(null);
+  const [isStatisticsModalOpen, setIsStatisticsModalOpen] = React.useState<boolean>(false);
+  const [serverStatistics, setServerStatistics] = React.useState<any>(null);
 
   // Load configuration from config.json on mount
   React.useEffect(() => {
@@ -1159,6 +1165,36 @@ function App(): React.JSX.Element {
     setIsReleaseLockModalOpen(true);
   };
 
+  const handleViewStatistics = async (): Promise<void> => {
+    if (!selectedServer) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Please select a server first",
+          type: "error",
+        },
+      ]);
+      return;
+    }
+
+    try {
+      const stats = await window.serverAPI.getStatistics(selectedServer);
+      setServerStatistics(stats);
+      setIsStatisticsModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching statistics:", error);
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Error loading statistics",
+          type: "error",
+        },
+      ]);
+    }
+  };
+
   const handleConfirmReleaseLock = async (): Promise<void> => {
     if (!selectedServer) {
       return;
@@ -1520,6 +1556,17 @@ function App(): React.JSX.Element {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               Pass the host!
             </Typography>
+            <Tooltip title={t("serverControl.viewStatistics")}>
+              <span>
+                <IconButton
+                  color="inherit"
+                  onClick={handleViewStatistics}
+                  disabled={!selectedServer}
+                >
+                  <BarChartIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
             <LanguageSwitcher />
           </Toolbar>
         </AppBar>
@@ -1665,6 +1712,14 @@ function App(): React.JSX.Element {
           percent={transferPercent}
           transferred={transferTransferred}
           total={transferTotal}
+        />
+
+        {/* Server Statistics Modal */}
+        <ServerStatisticsModal
+          open={isStatisticsModalOpen}
+          onClose={() => setIsStatisticsModalOpen(false)}
+          serverName={selectedServer}
+          statistics={serverStatistics}
         />
       </Box>
     </ThemeProvider>
