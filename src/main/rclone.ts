@@ -389,9 +389,42 @@ export async function downloadServerFromR2(
     const r2ServerPath = `${RCLONE_CONFIG_NAME}:${config.bucket_name}/pass_the_host/${serverId}`;
 
     if (!fs.existsSync(localServersDir)) fs.mkdirSync(localServersDir, { recursive: true });
-    if (fs.existsSync(localServerPath))
-      fs.rmSync(localServerPath, { recursive: true, force: true });
-    fs.mkdirSync(localServerPath, { recursive: true });
+
+    // Try to delete existing folder with retries
+    if (fs.existsSync(localServerPath)) {
+      let deleted = false;
+      let attempts = 0;
+      const maxAttempts = 3;
+
+      while (!deleted && attempts < maxAttempts) {
+        try {
+          console.log(`[RCLONE] Attempting to delete existing folder (attempt ${attempts + 1}/${maxAttempts})...`);
+          fs.rmSync(localServerPath, { recursive: true, force: true });
+          deleted = true;
+          console.log(`[RCLONE] Successfully deleted existing folder`);
+        } catch (error: any) {
+          attempts++;
+          if (error.code === "EBUSY" || error.code === "EPERM") {
+            if (attempts < maxAttempts) {
+              console.log(`[RCLONE] Folder is locked, waiting 2 seconds before retry...`);
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+            } else {
+              console.log(
+                `[RCLONE] Could not delete folder after ${maxAttempts} attempts, will use rclone sync (may take longer)`
+              );
+              // Don't throw error, just continue with sync
+            }
+          } else {
+            throw error;
+          }
+        }
+      }
+    }
+
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(localServerPath)) {
+      fs.mkdirSync(localServerPath, { recursive: true });
+    }
 
     console.log(`[RCLONE] Starting download from ${r2ServerPath} to ${localServerPath}`);
     onProgress?.(0, "0 B", "0 B");
@@ -848,3 +881,310 @@ export function writeServerPort(serverId: string, port: number): boolean {
     return false;
   }
 }
+
+/**
+ * Session entry interface
+ */
+export interface SessionEntry {
+  username: string;
+  startTime: string; // ISO timestamp
+  startTimestamp: number; // Unix timestamp
+  endTime?: string; // ISO timestamp
+  endTimestamp?: number; // Unix timestamp
+  duration?: number; // Duration in milliseconds
+}
+
+/**
+ * Session metadata interface
+ */
+export interface SessionMetadata {
+  lastPlayed: string; // ISO timestamp
+  lastPlayedTimestamp: number; // Unix timestamp
+  username: string; // Username of the last player
+  sessions: SessionEntry[]; // Array of all sessions
+}
+
+/**
+ * Creates or updates the session.json file with session start information
+ * @param serverId Server ID
+ * @param username Username of the player starting the session
+ * @returns true if successful, false otherwise
+ */
+export function createSessionMetadata(serverId: string, username: string): boolean {
+  try {
+    const serverPath = getLocalServerPath(serverId);
+    const sessionFilePath = path.join(serverPath, "session.json");
+ 
+    // Check if server directory exists
+    if (!fs.existsSync(serverPath)) {
+      console.error(`Server directory not found: ${serverPath}`);
+      return false;
+    }
+
+    const now = new Date();
+    const nowTimestamp = Date.now();
+
+    // Read existing session data if it exists
+    let existingData: SessionMetadata | null = null;
+    if (fs.existsSync(sessionFilePath)) {
+      try {
+        existingData = JSON.parse(fs.readFileSync(sessionFilePath, "utf-8"));
+      } catch (e) {
+        console.warn(`Could not parse existing session.json, creating new one`);
+      }
+    }
+
+    // Create new session entry
+    const newSession: SessionEntry = {
+      username: username,
+      startTime: now.toISOString(),
+      startTimestamp: nowTimestamp,
+    };
+
+    // Create or update session data
+    const sessionData: SessionMetadata = {
+      lastPlayed: now.toISOString(),
+      lastPlayedTimestamp: nowTimestamp,
+      username: username,
+      sessions: existingData?.sessions ? [...existingData.sessions, newSession] : [newSession],
+    };
+
+    fs.writeFileSync(sessionFilePath, JSON.stringify(sessionData, null, 2), "utf-8");
+    console.log(`[SESSION] Created session metadata for ${serverId} (user: ${username})`);
+    return true;
+  } catch (error) {
+    console.error(`Error creating session metadata for ${serverId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Updates the session.json file with session end information
+ * @param serverId Server ID
+ * @param username Username of the player who played
+ * @returns true if successful, false otherwise
+ */
+export function updateSessionMetadata(serverId: string, username: string): boolean {
+  try {
+    const serverPath = getLocalServerPath(serverId);
+    const sessionFilePath = path.join(serverPath, "session.json");
+
+    // Check if server directory exists
+    if (!fs.existsSync(serverPath)) {
+      console.error(`Server directory not found: ${serverPath}`);
+      return false;
+    }
+
+    // Read existing session data
+    if (!fs.existsSync(sessionFilePath)) {
+      console.error(`Session file not found: ${sessionFilePath}`);
+      return false;
+    }
+
+    let sessionData: SessionMetadata;
+    try {
+      sessionData = JSON.parse(fs.readFileSync(sessionFilePath, "utf-8"));
+    } catch (e) {
+      console.error(`Could not parse session.json`);
+      return false;
+    }
+
+    const now = Date.now();
+    const nowISO = new Date().toISOString();
+
+    // Update the last session in the array
+    if (sessionData.sessions && sessionData.sessions.length > 0) {
+      const lastSession = sessionData.sessions[sessionData.sessions.length - 1];
+      
+      // Only update if the session doesn't have an end time yet
+      if (!lastSession.endTime) {
+        const duration = now - lastSession.startTimestamp;
+        lastSession.endTime = nowISO;
+        lastSession.endTimestamp = now;
+        lastSession.duration = duration;
+
+        // Format duration for logging
+        const durationMinutes = Math.floor(duration / 60000);
+        const durationSeconds = Math.floor((duration % 60000) / 1000);
+        console.log(
+          `[SESSION] Updated session metadata for ${serverId} (user: ${username}, duration: ${durationMinutes}m ${durationSeconds}s)`
+        );
+      }
+    }
+
+    // Update metadata
+    sessionData.lastPlayed = nowISO;
+    sessionData.lastPlayedTimestamp = now;
+    sessionData.username = username;
+
+    fs.writeFileSync(sessionFilePath, JSON.stringify(sessionData, null, 2), "utf-8");
+    return true;
+  } catch (error) {
+    console.error(`Error updating session metadata for ${serverId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Reads the local session.json file
+ * @param serverId Server ID
+ * @returns Session metadata or null if not found
+ */
+export function readLocalSessionMetadata(serverId: string): SessionMetadata | null {
+  try {
+    const serverPath = getLocalServerPath(serverId);
+    const sessionFilePath = path.join(serverPath, "session.json");
+
+    if (!fs.existsSync(sessionFilePath)) {
+      return null;
+    }
+
+    const content = fs.readFileSync(sessionFilePath, "utf-8");
+    return JSON.parse(content) as SessionMetadata;
+  } catch (error) {
+    console.error(`Error reading local session metadata for ${serverId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Gets server statistics from session metadata
+ * @param serverId Server ID
+ * @returns Statistics object with total playtime and session count
+ */
+export function getServerStatistics(serverId: string): {
+  totalPlaytime: number; // Total playtime in milliseconds
+  sessionCount: number;
+  sessions: SessionEntry[];
+} | null {
+  try {
+    const sessionData = readLocalSessionMetadata(serverId);
+    
+    if (!sessionData || !sessionData.sessions) {
+      return null;
+    }
+
+    // Calculate total playtime from all completed sessions
+    const totalPlaytime = sessionData.sessions.reduce((total, session) => {
+      return total + (session.duration || 0);
+    }, 0);
+
+    return {
+      totalPlaytime,
+      sessionCount: sessionData.sessions.length,
+      sessions: sessionData.sessions,
+    };
+  } catch (error) {
+    console.error(`Error getting server statistics for ${serverId}:`, error);
+    return null;
+  }
+}
+
+
+/**
+ * Reads the session.json file from R2
+ * @param config R2 configuration
+ * @param serverId Server ID
+ * @returns Session metadata or null if not found
+ */
+export async function readR2SessionMetadata(
+  config: R2Config,
+  serverId: string
+): Promise<SessionMetadata | null> {
+  try {
+    await ensureRcloneConfigured(config);
+
+    const r2SessionPath = `${RCLONE_CONFIG_NAME}:${config.bucket_name}/pass_the_host/${serverId}/session.json`;
+    const catCommand = `"${RCLONE_PATH}" cat ${r2SessionPath}`;
+
+    const { stdout } = await execAsync(catCommand, { maxBuffer: 1024 * 1024 });
+    return JSON.parse(stdout.trim()) as SessionMetadata;
+  } catch (error) {
+    // File doesn't exist in R2
+    return null;
+  }
+}
+
+/**
+ * Uploads the session.json file to R2
+ * @param config R2 configuration
+ * @param serverId Server ID
+ * @returns true if successful, false otherwise
+ */
+export async function uploadSessionMetadata(
+  config: R2Config,
+  serverId: string
+): Promise<boolean> {
+  try {
+    await ensureRcloneConfigured(config);
+
+    const serverPath = getLocalServerPath(serverId);
+    const sessionFilePath = path.join(serverPath, "session.json");
+    const r2SessionPath = `${RCLONE_CONFIG_NAME}:${config.bucket_name}/pass_the_host/${serverId}/session.json`;
+
+    // Check if session file exists locally
+    if (!fs.existsSync(sessionFilePath)) {
+      console.error(`Session file not found: ${sessionFilePath}`);
+      return false;
+    }
+
+    // Copy the session file to R2
+    const copyCommand = `"${RCLONE_PATH}" copyto "${sessionFilePath}" ${r2SessionPath}`;
+    await execAsync(copyCommand, { maxBuffer: 1024 * 1024 });
+
+    console.log(`[SESSION] Uploaded session metadata to R2 for ${serverId}`);
+    return true;
+  } catch (error) {
+    console.error(`Error uploading session metadata for ${serverId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Checks if server files need to be downloaded by comparing session metadata
+ * @param config R2 configuration
+ * @param serverId Server ID
+ * @returns true if download is needed, false if local files are up to date
+ */
+export async function shouldDownloadServer(
+  config: R2Config,
+  serverId: string
+): Promise<boolean> {
+  try {
+    const localSession = readLocalSessionMetadata(serverId);
+    const r2Session = await readR2SessionMetadata(config, serverId);
+
+    // If no local session exists, we need to download
+    if (!localSession) {
+      console.log(`[SESSION] No local session found for ${serverId}, download needed`);
+      return true;
+    }
+
+    // If no R2 session exists, local files are newer (or it's a new server)
+    if (!r2Session) {
+      console.log(`[SESSION] No R2 session found for ${serverId}, using local files`);
+      return false;
+    }
+
+    // Compare timestamps
+    const localTimestamp = localSession.lastPlayedTimestamp;
+    const r2Timestamp = r2Session.lastPlayedTimestamp;
+
+    if (r2Timestamp > localTimestamp) {
+      console.log(
+        `[SESSION] R2 files are newer for ${serverId} (R2: ${r2Session.lastPlayed}, Local: ${localSession.lastPlayed}), download needed`
+      );
+      return true;
+    } else {
+      console.log(
+        `[SESSION] Local files are up to date for ${serverId} (R2: ${r2Session.lastPlayed}, Local: ${localSession.lastPlayed}), skipping download`
+      );
+      return false;
+    }
+  } catch (error) {
+    console.error(`Error checking if download is needed for ${serverId}:`, error);
+    // On error, default to downloading to be safe
+    return true;
+  }
+}
+

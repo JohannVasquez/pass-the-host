@@ -42,6 +42,8 @@ const configAPI = {
     ipcRenderer.invoke("config:save-username", username),
   saveRamConfig: (minRam: number, maxRam: number): Promise<boolean> =>
     ipcRenderer.invoke("config:save-ram", minRam, maxRam),
+  saveLanguage: (language: string): Promise<boolean> =>
+    ipcRenderer.invoke("config:save-language", language),
 };
 
 const systemAPI = {
@@ -89,6 +91,16 @@ const serverAPI = {
   sendCommand: (serverId: string, command: string): Promise<boolean> =>
     ipcRenderer.invoke("server:send-command", serverId, command),
   openServerFolder: (serverId: string) => ipcRenderer.invoke("server:openFolder", serverId),
+  createSession: (serverId: string, username: string): Promise<boolean> =>
+    ipcRenderer.invoke("server:create-session", serverId, username),
+  updateSession: (serverId: string, username: string): Promise<boolean> =>
+    ipcRenderer.invoke("server:update-session", serverId, username),
+  uploadSession: (config: any, serverId: string): Promise<boolean> =>
+    ipcRenderer.invoke("server:upload-session", config, serverId),
+  shouldDownload: (config: any, serverId: string): Promise<boolean> =>
+    ipcRenderer.invoke("server:should-download", config, serverId),
+  getStatistics: (serverId: string): Promise<any> =>
+    ipcRenderer.invoke("server:get-statistics", serverId),
 };
 
 const javaAPI = {

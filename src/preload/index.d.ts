@@ -49,6 +49,7 @@ interface ConfigAPI {
   }) => Promise<boolean>;
   saveUsername: (username: string) => Promise<boolean>;
   saveRamConfig: (minRam: number, maxRam: number) => Promise<boolean>;
+  saveLanguage: (language: string) => Promise<boolean>;
 }
 
 interface SystemAPI {
@@ -95,6 +96,22 @@ interface ServerAPI {
   onStdout: (callback: (data: string) => void) => () => void;
   sendCommand: (serverId: string, command: string) => Promise<boolean>;
   openServerFolder: (serverId: string) => Promise<boolean>;
+  createSession: (serverId: string, username: string) => Promise<boolean>;
+  updateSession: (serverId: string, username: string) => Promise<boolean>;
+  uploadSession: (config: any, serverId: string) => Promise<boolean>;
+  shouldDownload: (config: any, serverId: string) => Promise<boolean>;
+  getStatistics: (serverId: string) => Promise<{
+    totalPlaytime: number;
+    sessionCount: number;
+    sessions: Array<{
+      username: string;
+      startTime: string;
+      startTimestamp: number;
+      endTime?: string;
+      endTimestamp?: number;
+      duration?: number;
+    }>;
+  } | null>;
 }
 
 interface JavaAPI {
