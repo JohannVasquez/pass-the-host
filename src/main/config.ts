@@ -32,7 +32,7 @@ export function loadConfig(): any {
           server_port: 25565,
         },
         app: {
-          owner_name: "YourName",
+          owner_name: null,
           language: "en",
         },
       };
@@ -65,7 +65,7 @@ export function saveR2Config(r2Config: any): boolean {
           server_port: 25565,
         },
         app: {
-          owner_name: "YourName",
+          owner_name: null,
           language: "en",
         },
       };
@@ -111,7 +111,7 @@ export function saveUsername(username: string): boolean {
           server_port: 25565,
         },
         app: {
-          owner_name: "YourName",
+          owner_name: null,
           language: "en",
         },
       };
@@ -162,7 +162,7 @@ export function saveRamConfig(minRam: number, maxRam: number): boolean {
           server_port: 25565,
         },
         app: {
-          owner_name: "YourName",
+          owner_name: null,
           language: "en",
         },
       };
