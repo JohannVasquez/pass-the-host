@@ -3,7 +3,7 @@ import { Box, TextField, Button, Paper, Stack, Chip, Typography } from "@mui/mat
 import { Send as SendIcon } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 interface CommandInputProps {
-  onExecuteCommand: (command: string) => void;
+  onExecuteCommand: (command: string) => void | Promise<void>;
 }
 
 export const CommandInput: React.FC<CommandInputProps> = ({
@@ -20,19 +20,19 @@ export const CommandInput: React.FC<CommandInputProps> = ({
     { label: t("commands.presets.clearWeather"), command: "weather clear" },
   ];
 
-  const handleSubmit = (e: React.FormEvent): void => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     if (command.trim()) {
-      onExecuteCommand(command);
+      await onExecuteCommand(command);
       setCommand("");
     }
   };
 
-  const handlePresetClick = (presetCommand: string): void => {
+  const handlePresetClick = async (presetCommand: string): Promise<void> => {
     if (presetCommand.endsWith(" ")) {
       setCommand(presetCommand);
     } else {
-      onExecuteCommand(presetCommand);
+      await onExecuteCommand(presetCommand);
     }
   };
 
