@@ -88,6 +88,7 @@ function App(): React.JSX.Element {
       type: "info",
     },
   ]);
+  const [serverStartTime, setServerStartTime] = React.useState<Date | null>(null);
 
   // Load configuration from config.json on mount
   React.useEffect(() => {
@@ -987,6 +988,7 @@ function App(): React.JSX.Element {
           ...prev,
           { timestamp: new Date(), message: "Server started successfully", type: "info" },
         ]);
+        setServerStartTime(new Date());
         setServerStatus(ServerStatus.RUNNING);
       } catch (e) {
         setLogs((prev) => [
@@ -1132,6 +1134,7 @@ function App(): React.JSX.Element {
             ]);
           }
         }
+        setServerStartTime(null);
         setServerStatus(ServerStatus.STOPPED);
         setLogs((prev) => [
           ...prev,
@@ -1557,6 +1560,7 @@ function App(): React.JSX.Element {
               onEditProperties={handleEditProperties}
               onOpenServerFolder={handleOpenServerFolder}
               disabled={!isR2Configured || !isRcloneReady}
+              serverStartTime={serverStartTime}
             />
 
             <UsernameInput
