@@ -40,6 +40,7 @@ interface ServerControlPanelProps {
   onOpenServerFolder: () => void;
   disabled?: boolean;
   serverStartTime: Date | null;
+  username: string;
 }
 
 export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
@@ -55,6 +56,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   onOpenServerFolder,
   disabled = false,
   serverStartTime,
+  username,
 }): React.JSX.Element => {
   const { t } = useTranslation();
   const isRunning = status === ServerStatus.RUNNING;
@@ -111,6 +113,12 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
         </Alert>
       )}
 
+      {!username && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {t("serverControl.usernameNotConfigured")}
+        </Alert>
+      )}
+
       <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
         <FormControl fullWidth size="small">
           <InputLabel>{t("serverControl.selectServer")}</InputLabel>
@@ -163,7 +171,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           color={isRunning ? "error" : "success"}
           startIcon={isRunning ? <StopIcon /> : <PlayIcon />}
           onClick={onStartStop}
-          disabled={disabled || isTransitioning}
+          disabled={disabled || isTransitioning || (!isRunning && !username)}
           fullWidth
         >
           {isRunning ? t("serverControl.stop") : t("serverControl.start")}

@@ -1561,6 +1561,7 @@ function App(): React.JSX.Element {
               onOpenServerFolder={handleOpenServerFolder}
               disabled={!isR2Configured || !isRcloneReady}
               serverStartTime={serverStartTime}
+              username={username}
             />
 
             <UsernameInput
