@@ -49,6 +49,7 @@ interface ConfigAPI {
   }) => Promise<boolean>;
   saveUsername: (username: string) => Promise<boolean>;
   saveRamConfig: (minRam: number, maxRam: number) => Promise<boolean>;
+  saveLanguage: (language: string) => Promise<boolean>;
 }
 
 interface SystemAPI {

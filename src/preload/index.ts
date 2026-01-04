@@ -42,6 +42,8 @@ const configAPI = {
     ipcRenderer.invoke("config:save-username", username),
   saveRamConfig: (minRam: number, maxRam: number): Promise<boolean> =>
     ipcRenderer.invoke("config:save-ram", minRam, maxRam),
+  saveLanguage: (language: string): Promise<boolean> =>
+    ipcRenderer.invoke("config:save-language", language),
 };
 
 const systemAPI = {

@@ -33,6 +33,7 @@ export function loadConfig(): any {
         },
         app: {
           owner_name: "YourName",
+          language: "en",
         },
       };
     }
@@ -65,6 +66,7 @@ export function saveR2Config(r2Config: any): boolean {
         },
         app: {
           owner_name: "YourName",
+          language: "en",
         },
       };
     }
@@ -110,6 +112,7 @@ export function saveUsername(username: string): boolean {
         },
         app: {
           owner_name: "YourName",
+          language: "en",
         },
       };
     }
@@ -160,6 +163,7 @@ export function saveRamConfig(minRam: number, maxRam: number): boolean {
         },
         app: {
           owner_name: "YourName",
+          language: "en",
         },
       };
     }
