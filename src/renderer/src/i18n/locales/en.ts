@@ -22,6 +22,7 @@ export const en = {
       openServerFolder: "Open server folder",
       editProperties: "Edit server.properties",
       r2NotConfigured: "Please configure R2 settings before using server controls",
+      usernameNotConfigured: "Please configure your username before starting the server",
     },
     network: {
       title: "Network Configuration",

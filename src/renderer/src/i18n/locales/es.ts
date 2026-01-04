@@ -23,6 +23,7 @@ export const es = {
       editProperties: "Editar server.properties",
       r2NotConfigured:
         "Por favor configure los ajustes de R2 antes de usar los controles del servidor",
+      usernameNotConfigured: "Por favor configure su nombre de usuario antes de iniciar el servidor",
     },
     network: {
       title: "Configuración de Red",
