@@ -8,7 +8,10 @@ import {
   Toolbar,
   Typography,
   GlobalStyles,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
+import { BarChart as BarChartIcon } from "@mui/icons-material";
 import { R2Configuration } from "./presentation/components/R2Configuration";
 import { ServerControlPanel } from "./presentation/components/ServerControlPanel";
 import { NetworkConfiguration } from "./presentation/components/NetworkConfiguration";
@@ -21,6 +24,7 @@ import { ReleaseLockModal } from "./presentation/components/ReleaseLockModal";
 import { ServerLockedModal } from "./presentation/components/ServerLockedModal";
 import { DownloadProgressModal } from "./presentation/components/DownloadProgressModal";
 import { TransferProgressModal } from "./presentation/components/TransferProgressModal";
+import { ServerStatisticsModal } from "./presentation/components/ServerStatisticsModal";
 import { ServerStatus } from "./domain/entities/ServerStatus";
 import { R2Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
@@ -88,6 +92,9 @@ function App(): React.JSX.Element {
       type: "info",
     },
   ]);
+  const [serverStartTime, setServerStartTime] = React.useState<Date | null>(null);
+  const [isStatisticsModalOpen, setIsStatisticsModalOpen] = React.useState<boolean>(false);
+  const [serverStatistics, setServerStatistics] = React.useState<any>(null);
 
   // Load configuration from config.json on mount
   React.useEffect(() => {
@@ -710,30 +717,49 @@ function App(): React.JSX.Element {
         return;
       }
 
+      // Check if we need to download server files
       setLogs((prev) => [
         ...prev,
-        { timestamp: new Date(), message: "Downloading server files from R2...", type: "info" },
+        { timestamp: new Date(), message: "Checking server files...", type: "info" },
       ]);
-      setIsTransferring(true);
-      setTransferType("download");
-      setTransferPercent(0);
-      setTransferTransferred("0");
-      setTransferTotal("0");
-      const r2Service = new R2Service(r2Config);
-      const downloadSuccess = await r2Service.downloadServer(selectedServer);
-      setIsTransferring(false);
-      if (!downloadSuccess) {
+
+      const shouldDownload = await window.serverAPI.shouldDownload(r2Config, selectedServer);
+
+      if (shouldDownload) {
         setLogs((prev) => [
           ...prev,
-          { timestamp: new Date(), message: "Failed to download server files", type: "error" },
+          { timestamp: new Date(), message: "Downloading server files from R2...", type: "info" },
         ]);
-        setServerStatus(ServerStatus.STOPPED);
-        return;
+        setIsTransferring(true);
+        setTransferType("download");
+        setTransferPercent(0);
+        setTransferTransferred("0");
+        setTransferTotal("0");
+        const r2Service = new R2Service(r2Config);
+        const downloadSuccess = await r2Service.downloadServer(selectedServer);
+        setIsTransferring(false);
+        if (!downloadSuccess) {
+          setLogs((prev) => [
+            ...prev,
+            { timestamp: new Date(), message: "Failed to download server files", type: "error" },
+          ]);
+          setServerStatus(ServerStatus.STOPPED);
+          return;
+        }
+        setLogs((prev) => [
+          ...prev,
+          { timestamp: new Date(), message: "Server files downloaded successfully", type: "info" },
+        ]);
+      } else {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Local server files are up to date, skipping download",
+            type: "info",
+          },
+        ]);
       }
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: "Server files downloaded successfully", type: "info" },
-      ]);
       try {
         const portUpdateSuccess = await window.serverAPI.writePort(selectedServer, serverPort);
         if (portUpdateSuccess) {
@@ -852,6 +878,27 @@ function App(): React.JSX.Element {
           },
         ]);
       }
+      
+      // Create session metadata
+      setLogs((prev) => [
+        ...prev,
+        { timestamp: new Date(), message: "Creating session metadata...", type: "info" },
+      ]);
+      const sessionCreateSuccess = await window.serverAPI.createSession(
+        selectedServer,
+        username || "Unknown"
+      );
+      if (sessionCreateSuccess) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Session created for user: ${username || "Unknown"}`,
+            type: "info",
+          },
+        ]);
+      }
+
       // --- REAL SERVER START LOGIC ---
       // Get local server path from main process
       let localServerPath = "";
@@ -947,6 +994,7 @@ function App(): React.JSX.Element {
           ...prev,
           { timestamp: new Date(), message: "Server started successfully", type: "info" },
         ]);
+        setServerStartTime(new Date());
         setServerStatus(ServerStatus.RUNNING);
       } catch (e) {
         setLogs((prev) => [
@@ -1041,6 +1089,46 @@ function App(): React.JSX.Element {
                 type: "info",
               },
             ]);
+
+            // Update and upload session metadata
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Updating session metadata...",
+                type: "info",
+              },
+            ]);
+
+            const sessionUpdateSuccess = await window.serverAPI.updateSession(
+              selectedServer,
+              username || "Unknown"
+            );
+            if (sessionUpdateSuccess) {
+              const sessionUploadSuccess = await window.serverAPI.uploadSession(
+                r2Config,
+                selectedServer
+              );
+              if (sessionUploadSuccess) {
+                setLogs((prev) => [
+                  ...prev,
+                  {
+                    timestamp: new Date(),
+                    message: "Session metadata updated successfully",
+                    type: "info",
+                  },
+                ]);
+              } else {
+                setLogs((prev) => [
+                  ...prev,
+                  {
+                    timestamp: new Date(),
+                    message: "Warning: Failed to upload session metadata",
+                    type: "warning",
+                  },
+                ]);
+              }
+            }
           } else {
             setLogs((prev) => [
               ...prev,
@@ -1052,6 +1140,7 @@ function App(): React.JSX.Element {
             ]);
           }
         }
+        setServerStartTime(null);
         setServerStatus(ServerStatus.STOPPED);
         setLogs((prev) => [
           ...prev,
@@ -1074,6 +1163,36 @@ function App(): React.JSX.Element {
       return;
     }
     setIsReleaseLockModalOpen(true);
+  };
+
+  const handleViewStatistics = async (): Promise<void> => {
+    if (!selectedServer) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Please select a server first",
+          type: "error",
+        },
+      ]);
+      return;
+    }
+
+    try {
+      const stats = await window.serverAPI.getStatistics(selectedServer);
+      setServerStatistics(stats);
+      setIsStatisticsModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching statistics:", error);
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Error loading statistics",
+          type: "error",
+        },
+      ]);
+    }
   };
 
   const handleConfirmReleaseLock = async (): Promise<void> => {
@@ -1256,6 +1375,43 @@ function App(): React.JSX.Element {
           type: "info",
         },
       ]);
+
+      // Update and upload session metadata
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Updating session metadata...",
+          type: "info",
+        },
+      ]);
+
+      const sessionUpdateSuccess = await window.serverAPI.updateSession(
+        selectedServer,
+        username || "Unknown"
+      );
+      if (sessionUpdateSuccess) {
+        const sessionUploadSuccess = await window.serverAPI.uploadSession(r2Config, selectedServer);
+        if (sessionUploadSuccess) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Session metadata updated successfully",
+              type: "info",
+            },
+          ]);
+        } else {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Warning: Failed to upload session metadata",
+              type: "warning",
+            },
+          ]);
+        }
+      }
     } else {
       setLogs((prev) => [
         ...prev,
@@ -1400,6 +1556,17 @@ function App(): React.JSX.Element {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               Pass the host!
             </Typography>
+            <Tooltip title={t("serverControl.viewStatistics")}>
+              <span>
+                <IconButton
+                  color="inherit"
+                  onClick={handleViewStatistics}
+                  disabled={!selectedServer}
+                >
+                  <BarChartIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
             <LanguageSwitcher />
           </Toolbar>
         </AppBar>
@@ -1440,6 +1607,8 @@ function App(): React.JSX.Element {
               onEditProperties={handleEditProperties}
               onOpenServerFolder={handleOpenServerFolder}
               disabled={!isR2Configured || !isRcloneReady}
+              serverStartTime={serverStartTime}
+              username={username}
             />
 
             <UsernameInput
@@ -1543,6 +1712,14 @@ function App(): React.JSX.Element {
           percent={transferPercent}
           transferred={transferTransferred}
           total={transferTotal}
+        />
+
+        {/* Server Statistics Modal */}
+        <ServerStatisticsModal
+          open={isStatisticsModalOpen}
+          onClose={() => setIsStatisticsModalOpen(false)}
+          serverName={selectedServer}
+          statistics={serverStatistics}
         />
       </Box>
     </ThemeProvider>

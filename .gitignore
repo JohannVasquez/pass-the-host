@@ -7,3 +7,5 @@ out
 
 # Configuration files with sensitive data
 src/renderer/config.json
+
+.agent
