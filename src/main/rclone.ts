@@ -393,46 +393,70 @@ export async function downloadServerFromR2(
       fs.rmSync(localServerPath, { recursive: true, force: true });
     fs.mkdirSync(localServerPath, { recursive: true });
 
-    onProgress?.(0, "0", "0");
+    console.log(`[RCLONE] Starting download from ${r2ServerPath} to ${localServerPath}`);
+    onProgress?.(0, "0 B", "0 B");
 
     return new Promise<boolean>((resolve, reject) => {
       const rcloneProcess = spawn(
         RCLONE_PATH,
-        ["sync", r2ServerPath, localServerPath, "--progress", "--stats", "1s", "--transfers", "8"],
+        ["sync", r2ServerPath, localServerPath, "--progress", "--stats", "500ms", "--transfers", "8"],
         { shell: true }
       );
 
       let lastProgress = "";
-      let outputBuffer = ""; // Buffer para acumular texto fragmentado
+      let stdoutBuffer = "";
+      let stderrBuffer = "";
 
-      rcloneProcess.stderr.on("data", (data: Buffer) => {
-        outputBuffer += data.toString();
+      // Function to parse progress from a line
+      const parseProgress = (line: string, _source: string): void => {
+        // Pattern to match: "Transferred:   	   25.983 MiB / 1.164 GiB, 2%, ..."
+        // This handles tabs, multiple spaces, and different units (MiB, GiB, etc.)
+        const match = line.match(/Transferred:\s+([0-9.]+\s*[KMGT]?i?B)\s*\/\s*([0-9.]+\s*[KMGT]?i?B),\s*(\d+)%/);
 
-        // Dividir por saltos de línea (incluyendo retornos de carro de rclone)
-        const lines = outputBuffer.split(/[\r\n]+/);
+        if (match) {
+          const transferred = match[1].trim();
+          const total = match[2].trim();
+          const percent = parseInt(match[3]);
 
-        // El último elemento puede ser una línea incompleta, guardarla en el buffer para después
-        outputBuffer = lines.pop() || "";
+          const currentProgress = JSON.stringify({ transferred, percent });
+          if (currentProgress !== lastProgress) {
+            lastProgress = currentProgress;
+            onProgress?.(percent, transferred, total);
+          }
+        }
+      };
+
+      // Listen to stdout (where rclone actually sends progress)
+      rcloneProcess.stdout.on("data", (data: Buffer) => {
+        stdoutBuffer += data.toString();
+
+        // Split by line breaks
+        const lines = stdoutBuffer.split(/[\r\n]+/);
+        stdoutBuffer = lines.pop() || "";
 
         for (const line of lines) {
-          // Regex más robusto: busca "Transferred:", luego algo hasta el /, luego algo hasta la coma
-          const match = line.match(/Transferred:\s*([^\/]+)\s*\/\s*([^,]+),\s*(\d+)%/);
+          if (line.trim()) {
+            parseProgress(line, "stdout");
+          }
+        }
+      });
 
-          if (match) {
-            const transferred = match[1].trim();
-            const total = match[2].trim();
-            const percent = parseInt(match[3]);
+      // Also listen to stderr just in case
+      rcloneProcess.stderr.on("data", (data: Buffer) => {
+        stderrBuffer += data.toString();
 
-            const currentProgress = JSON.stringify({ transferred, percent });
-            if (currentProgress !== lastProgress) {
-              lastProgress = currentProgress;
-              onProgress?.(percent, transferred, total);
-            }
+        const lines = stderrBuffer.split(/[\r\n]+/);
+        stderrBuffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.trim()) {
+            parseProgress(line, "stderr");
           }
         }
       });
 
       rcloneProcess.on("close", (code) => {
+        console.log(`[RCLONE] Process closed with code ${code}`);
         if (code === 0) {
           onProgress?.(100, "Complete", "Complete");
           resolve(true);
@@ -440,7 +464,11 @@ export async function downloadServerFromR2(
           reject(new Error(`Download failed with code ${code}`));
         }
       });
-      rcloneProcess.on("error", (error) => reject(error));
+
+      rcloneProcess.on("error", (error) => {
+        console.error(`[RCLONE ERROR]`, error);
+        reject(error);
+      });
     });
   } catch (error) {
     console.error(`Error downloading server ${serverId} from R2:`, error);
@@ -645,46 +673,70 @@ export async function uploadServerToR2(
 
     if (!fs.existsSync(localServerPath)) return false;
 
-    onProgress?.(0, "0", "0");
+    console.log(`[RCLONE] Starting upload from ${localServerPath} to ${r2ServerPath}`);
+    onProgress?.(0, "0 B", "0 B");
 
     return new Promise<boolean>((resolve, reject) => {
       const rcloneProcess = spawn(
         RCLONE_PATH,
-        ["sync", localServerPath, r2ServerPath, "--progress", "--stats", "1s", "--transfers", "8"],
+        ["sync", localServerPath, r2ServerPath, "--progress", "--stats", "500ms", "--transfers", "8"],
         { shell: true }
       );
 
       let lastProgress = "";
-      let outputBuffer = ""; // Buffer para acumular texto fragmentado
+      let stdoutBuffer = "";
+      let stderrBuffer = "";
 
-      rcloneProcess.stderr.on("data", (data: Buffer) => {
-        outputBuffer += data.toString();
+      // Function to parse progress from a line
+      const parseProgress = (line: string, _source: string): void => {
+        // Pattern to match: "Transferred:   	   25.983 MiB / 1.164 GiB, 2%, ..."
+        // This handles tabs, multiple spaces, and different units (MiB, GiB, etc.)
+        const match = line.match(/Transferred:\s+([0-9.]+\s*[KMGT]?i?B)\s*\/\s*([0-9.]+\s*[KMGT]?i?B),\s*(\d+)%/);
 
-        // Dividir por saltos de línea y retornos de carro (rclone usa \r para actualizar línea)
-        const lines = outputBuffer.split(/[\r\n]+/);
+        if (match) {
+          const transferred = match[1].trim();
+          const total = match[2].trim();
+          const percent = parseInt(match[3]);
 
-        // Guardar remanente
-        outputBuffer = lines.pop() || "";
+          const currentProgress = JSON.stringify({ transferred, percent });
+          if (currentProgress !== lastProgress) {
+            lastProgress = currentProgress;
+            onProgress?.(percent, transferred, total);
+          }
+        }
+      };
+
+      // Listen to stdout (where rclone actually sends progress)
+      rcloneProcess.stdout.on("data", (data: Buffer) => {
+        stdoutBuffer += data.toString();
+
+        // Split by line breaks
+        const lines = stdoutBuffer.split(/[\r\n]+/);
+        stdoutBuffer = lines.pop() || "";
 
         for (const line of lines) {
-          // Regex robusto igual que en download
-          const match = line.match(/Transferred:\s*([^\/]+)\s*\/\s*([^,]+),\s*(\d+)%/);
+          if (line.trim()) {
+            parseProgress(line, "stdout");
+          }
+        }
+      });
 
-          if (match) {
-            const transferred = match[1].trim();
-            const total = match[2].trim();
-            const percent = parseInt(match[3]);
+      // Also listen to stderr just in case
+      rcloneProcess.stderr.on("data", (data: Buffer) => {
+        stderrBuffer += data.toString();
 
-            const currentProgress = JSON.stringify({ transferred, percent });
-            if (currentProgress !== lastProgress) {
-              lastProgress = currentProgress;
-              onProgress?.(percent, transferred, total);
-            }
+        const lines = stderrBuffer.split(/[\r\n]+/);
+        stderrBuffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (line.trim()) {
+            parseProgress(line, "stderr");
           }
         }
       });
 
       rcloneProcess.on("close", (code) => {
+        console.log(`[RCLONE] Process closed with code ${code}`);
         if (code === 0) {
           onProgress?.(100, "Complete", "Complete");
           resolve(true);
@@ -692,7 +744,11 @@ export async function uploadServerToR2(
           reject(new Error(`Upload failed with code ${code}`));
         }
       });
-      rcloneProcess.on("error", (error) => reject(error));
+
+      rcloneProcess.on("error", (error) => {
+        console.error(`[RCLONE ERROR]`, error);
+        reject(error);
+      });
     });
   } catch (error) {
     console.error(`Error uploading server ${serverId} to R2:`, error);

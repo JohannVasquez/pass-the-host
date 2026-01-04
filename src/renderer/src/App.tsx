@@ -1301,13 +1301,64 @@ function App(): React.JSX.Element {
     }
   };
 
-  const handleExecuteCommand = (command: string): void => {
-    const newLog: LogEntry = {
-      timestamp: new Date(),
-      message: `> ${command}`,
-      type: "info",
-    };
-    setLogs([...logs, newLog]);
+  const handleExecuteCommand = async (command: string): Promise<void> => {
+    if (!selectedServer) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "No server selected",
+          type: "error",
+        },
+      ]);
+      return;
+    }
+
+    if (serverStatus !== ServerStatus.RUNNING) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Server is not running",
+          type: "error",
+        },
+      ]);
+      return;
+    }
+
+    // Log the command being sent
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: `> ${command}`,
+        type: "info",
+      },
+    ]);
+
+    // Send the command to the server process
+    try {
+      const success = await window.serverAPI.sendCommand(selectedServer, command);
+      if (!success) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Failed to send command to server",
+            type: "error",
+          },
+        ]);
+      }
+    } catch (error) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: `Error sending command: ${error instanceof Error ? error.message : String(error)}`,
+          type: "error",
+        },
+      ]);
+    }
   };
 
   const handleCreateServer = (): void => {
