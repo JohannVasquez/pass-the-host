@@ -25,6 +25,7 @@ import {
   updateSessionMetadata,
   uploadSessionMetadata,
   shouldDownloadServer,
+  getServerStatistics,
 } from "./rclone";
 import { saveR2Config, loadConfig, saveUsername, saveRamConfig, saveLanguage } from "./config";
 import { ensureJavaForMinecraft, getInstalledJavaVersions, getRequiredJavaVersion } from "./java";
@@ -469,6 +470,10 @@ if (!gotTheLock) {
 
     ipcMain.handle("server:should-download", async (_, config, serverId) => {
       return await shouldDownloadServer(config, serverId);
+    });
+
+    ipcMain.handle("server:get-statistics", async (_, serverId) => {
+      return getServerStatistics(serverId);
     });
 
     // System IPC handlers
