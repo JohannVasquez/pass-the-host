@@ -26,6 +26,7 @@ import {
   uploadSessionMetadata,
   shouldDownloadServer,
   getServerStatistics,
+  createMinecraftServer,
 } from "./rclone";
 import { saveR2Config, loadConfig, saveUsername, saveRamConfig, saveLanguage } from "./config";
 import { ensureJavaForMinecraft, getInstalledJavaVersions, getRequiredJavaVersion } from "./java";
@@ -474,6 +475,13 @@ if (!gotTheLock) {
 
     ipcMain.handle("server:get-statistics", async (_, serverId) => {
       return getServerStatistics(serverId);
+    });
+
+    ipcMain.handle("server:create-minecraft-server", async (event, serverName, version, serverType) => {
+      const progressCallback = (message: string): void => {
+        event.sender.send("server:create-progress", message);
+      };
+      return await createMinecraftServer(serverName, version, serverType, progressCallback);
     });
 
     // System IPC handlers

@@ -112,6 +112,12 @@ interface ServerAPI {
       duration?: number;
     }>;
   } | null>;
+  createMinecraftServer: (
+    serverName: string,
+    version: string,
+    serverType: "vanilla" | "forge"
+  ) => Promise<boolean>;
+  onCreateProgress: (callback: (message: string) => void) => () => void;
 }
 
 interface JavaAPI {

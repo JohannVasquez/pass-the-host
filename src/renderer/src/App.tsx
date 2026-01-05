@@ -25,10 +25,12 @@ import { ServerLockedModal } from "./presentation/components/ServerLockedModal";
 import { DownloadProgressModal } from "./presentation/components/DownloadProgressModal";
 import { TransferProgressModal } from "./presentation/components/TransferProgressModal";
 import { ServerStatisticsModal } from "./presentation/components/ServerStatisticsModal";
+import { CreateServerModal } from "./presentation/components/CreateServerModal";
 import { ServerStatus } from "./domain/entities/ServerStatus";
 import { R2Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
 import { Server } from "./domain/entities/Server";
+import { ServerType } from "./domain/entities/Server";
 import { R2ServerRepository } from "./infrastructure/repositories/R2ServerRepository";
 import { R2Service } from "./infrastructure/services/R2Service";
 import { useTranslation } from "react-i18next";
@@ -95,6 +97,9 @@ function App(): React.JSX.Element {
   const [serverStartTime, setServerStartTime] = React.useState<Date | null>(null);
   const [isStatisticsModalOpen, setIsStatisticsModalOpen] = React.useState<boolean>(false);
   const [serverStatistics, setServerStatistics] = React.useState<any>(null);
+  const [isCreateServerModalOpen, setIsCreateServerModalOpen] = React.useState<boolean>(false);
+  const [isCreatingServer, setIsCreatingServer] = React.useState<boolean>(false);
+  const [createServerProgress, setCreateServerProgress] = React.useState<string>("");
 
   // Load configuration from config.json on mount
   React.useEffect(() => {
@@ -159,6 +164,17 @@ function App(): React.JSX.Element {
   React.useEffect(() => {
     const unsubscribe = window.javaAPI.onProgress((message: string) => {
       setJavaProgressMessage(message);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  // Listen to server creation progress
+  React.useEffect(() => {
+    const unsubscribe = window.serverAPI.onCreateProgress((message: string) => {
+      setCreateServerProgress(message);
     });
 
     return () => {
@@ -878,7 +894,7 @@ function App(): React.JSX.Element {
           },
         ]);
       }
-      
+
       // Create session metadata
       setLogs((prev) => [
         ...prev,
@@ -1192,6 +1208,71 @@ function App(): React.JSX.Element {
           type: "error",
         },
       ]);
+    }
+  };
+
+  const handleConfirmCreateServer = async (
+    serverName: string,
+    version: string,
+    serverType: "vanilla" | "forge"
+  ): Promise<void> => {
+    setIsCreatingServer(true);
+    setCreateServerProgress("");
+
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: `Creating server: ${serverName} (${serverType} ${version})`,
+        type: "info",
+      },
+    ]);
+
+    try {
+      const success = await window.serverAPI.createMinecraftServer(serverName, version, serverType);
+
+      if (success) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Server ${serverName} created successfully!`,
+            type: "success",
+          },
+        ]);
+
+        // Add server to local list (it will be synced on next operation)
+        const newServer: Server = {
+          id: serverName,
+          name: serverName,
+          version: version,
+          type: serverType === "vanilla" ? ServerType.VANILLA : ServerType.FORGE,
+        };
+        setServers((prev) => [...prev, newServer]);
+        setSelectedServer(serverName);
+      } else {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Failed to create server ${serverName}`,
+            type: "error",
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error("Error creating server:", error);
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Error creating server",
+          type: "error",
+        },
+      ]);
+    } finally {
+      setIsCreatingServer(false);
+      setCreateServerProgress("");
     }
   };
 
@@ -1518,7 +1599,7 @@ function App(): React.JSX.Element {
   };
 
   const handleCreateServer = (): void => {
-    console.debug("Creating new server...");
+    setIsCreateServerModalOpen(true);
   };
 
   return (
@@ -1720,6 +1801,15 @@ function App(): React.JSX.Element {
           onClose={() => setIsStatisticsModalOpen(false)}
           serverName={selectedServer}
           statistics={serverStatistics}
+        />
+
+        {/* Create Server Modal */}
+        <CreateServerModal
+          open={isCreateServerModalOpen}
+          onClose={() => setIsCreateServerModalOpen(false)}
+          onConfirm={handleConfirmCreateServer}
+          isCreating={isCreatingServer}
+          progressMessage={createServerProgress}
         />
       </Box>
     </ThemeProvider>

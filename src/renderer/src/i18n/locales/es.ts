@@ -23,7 +23,8 @@ export const es = {
       editProperties: "Editar server.properties",
       r2NotConfigured:
         "Por favor configure los ajustes de R2 antes de usar los controles del servidor",
-      usernameNotConfigured: "Por favor configure su nombre de usuario antes de iniciar el servidor",
+      usernameNotConfigured:
+        "Por favor configure su nombre de usuario antes de iniciar el servidor",
       viewStatistics: "Ver Estadísticas",
     },
     network: {
@@ -146,6 +147,24 @@ export const es = {
       hours: "Horas",
       minutes: "Minutos",
       seconds: "Segundos",
+    },
+    createServer: {
+      title: "Crear Nuevo Servidor",
+      serverName: "Nombre del Servidor",
+      nameHelp: "Solo letras, números, guiones y guiones bajos (mín. 3 caracteres)",
+      nameRequired: "El nombre del servidor es requerido",
+      nameTooShort: "El nombre del servidor debe tener al menos 3 caracteres",
+      invalidName: "Nombre inválido. Solo se permiten letras, números, guiones y guiones bajos",
+      serverType: "Tipo de Servidor",
+      vanilla: "Vanilla",
+      forge: "Forge",
+      version: "Versión de Minecraft",
+      info: "El servidor se creará con la versión seleccionada. El EULA será aceptado automáticamente",
+      cancel: "Cancelar",
+      create: "Crear Servidor",
+      creatingTitle: "Creando Servidor",
+      preparing: "Preparando...",
+      modalWarning: "Por favor espera, esto puede tardar unos minutos",
     },
   },
 };
