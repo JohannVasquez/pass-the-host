@@ -101,6 +101,17 @@ const serverAPI = {
     ipcRenderer.invoke("server:should-download", config, serverId),
   getStatistics: (serverId: string): Promise<any> =>
     ipcRenderer.invoke("server:get-statistics", serverId),
+  createMinecraftServer: (
+    serverName: string,
+    version: string,
+    serverType: "vanilla" | "forge"
+  ): Promise<boolean> =>
+    ipcRenderer.invoke("server:create-minecraft-server", serverName, version, serverType),
+  onCreateProgress: (callback: (message: string) => void): (() => void) => {
+    const listener = (_event: any, message: string): void => callback(message);
+    ipcRenderer.on("server:create-progress", listener);
+    return () => ipcRenderer.removeListener("server:create-progress", listener);
+  },
 };
 
 const javaAPI = {

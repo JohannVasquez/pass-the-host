@@ -398,7 +398,9 @@ export async function downloadServerFromR2(
 
       while (!deleted && attempts < maxAttempts) {
         try {
-          console.log(`[RCLONE] Attempting to delete existing folder (attempt ${attempts + 1}/${maxAttempts})...`);
+          console.log(
+            `[RCLONE] Attempting to delete existing folder (attempt ${attempts + 1}/${maxAttempts})...`
+          );
           fs.rmSync(localServerPath, { recursive: true, force: true });
           deleted = true;
           console.log(`[RCLONE] Successfully deleted existing folder`);
@@ -432,7 +434,16 @@ export async function downloadServerFromR2(
     return new Promise<boolean>((resolve, reject) => {
       const rcloneProcess = spawn(
         RCLONE_PATH,
-        ["sync", r2ServerPath, localServerPath, "--progress", "--stats", "500ms", "--transfers", "8"],
+        [
+          "sync",
+          r2ServerPath,
+          localServerPath,
+          "--progress",
+          "--stats",
+          "500ms",
+          "--transfers",
+          "8",
+        ],
         { shell: true }
       );
 
@@ -444,7 +455,9 @@ export async function downloadServerFromR2(
       const parseProgress = (line: string, _source: string): void => {
         // Pattern to match: "Transferred:   	   25.983 MiB / 1.164 GiB, 2%, ..."
         // This handles tabs, multiple spaces, and different units (MiB, GiB, etc.)
-        const match = line.match(/Transferred:\s+([0-9.]+\s*[KMGT]?i?B)\s*\/\s*([0-9.]+\s*[KMGT]?i?B),\s*(\d+)%/);
+        const match = line.match(
+          /Transferred:\s+([0-9.]+\s*[KMGT]?i?B)\s*\/\s*([0-9.]+\s*[KMGT]?i?B),\s*(\d+)%/
+        );
 
         if (match) {
           const transferred = match[1].trim();
@@ -712,7 +725,16 @@ export async function uploadServerToR2(
     return new Promise<boolean>((resolve, reject) => {
       const rcloneProcess = spawn(
         RCLONE_PATH,
-        ["sync", localServerPath, r2ServerPath, "--progress", "--stats", "500ms", "--transfers", "8"],
+        [
+          "sync",
+          localServerPath,
+          r2ServerPath,
+          "--progress",
+          "--stats",
+          "500ms",
+          "--transfers",
+          "8",
+        ],
         { shell: true }
       );
 
@@ -724,7 +746,9 @@ export async function uploadServerToR2(
       const parseProgress = (line: string, _source: string): void => {
         // Pattern to match: "Transferred:   	   25.983 MiB / 1.164 GiB, 2%, ..."
         // This handles tabs, multiple spaces, and different units (MiB, GiB, etc.)
-        const match = line.match(/Transferred:\s+([0-9.]+\s*[KMGT]?i?B)\s*\/\s*([0-9.]+\s*[KMGT]?i?B),\s*(\d+)%/);
+        const match = line.match(
+          /Transferred:\s+([0-9.]+\s*[KMGT]?i?B)\s*\/\s*([0-9.]+\s*[KMGT]?i?B),\s*(\d+)%/
+        );
 
         if (match) {
           const transferred = match[1].trim();
@@ -914,7 +938,7 @@ export function createSessionMetadata(serverId: string, username: string): boole
   try {
     const serverPath = getLocalServerPath(serverId);
     const sessionFilePath = path.join(serverPath, "session.json");
- 
+
     // Check if server directory exists
     if (!fs.existsSync(serverPath)) {
       console.error(`Server directory not found: ${serverPath}`);
@@ -995,7 +1019,7 @@ export function updateSessionMetadata(serverId: string, username: string): boole
     // Update the last session in the array
     if (sessionData.sessions && sessionData.sessions.length > 0) {
       const lastSession = sessionData.sessions[sessionData.sessions.length - 1];
-      
+
       // Only update if the session doesn't have an end time yet
       if (!lastSession.endTime) {
         const duration = now - lastSession.startTimestamp;
@@ -1059,7 +1083,7 @@ export function getServerStatistics(serverId: string): {
 } | null {
   try {
     const sessionData = readLocalSessionMetadata(serverId);
-    
+
     if (!sessionData || !sessionData.sessions) {
       return null;
     }
@@ -1079,7 +1103,6 @@ export function getServerStatistics(serverId: string): {
     return null;
   }
 }
-
 
 /**
  * Reads the session.json file from R2
@@ -1111,10 +1134,7 @@ export async function readR2SessionMetadata(
  * @param serverId Server ID
  * @returns true if successful, false otherwise
  */
-export async function uploadSessionMetadata(
-  config: R2Config,
-  serverId: string
-): Promise<boolean> {
+export async function uploadSessionMetadata(config: R2Config, serverId: string): Promise<boolean> {
   try {
     await ensureRcloneConfigured(config);
 
@@ -1146,10 +1166,7 @@ export async function uploadSessionMetadata(
  * @param serverId Server ID
  * @returns true if download is needed, false if local files are up to date
  */
-export async function shouldDownloadServer(
-  config: R2Config,
-  serverId: string
-): Promise<boolean> {
+export async function shouldDownloadServer(config: R2Config, serverId: string): Promise<boolean> {
   try {
     const localSession = readLocalSessionMetadata(serverId);
     const r2Session = await readR2SessionMetadata(config, serverId);
@@ -1188,3 +1205,256 @@ export async function shouldDownloadServer(
   }
 }
 
+/**
+ * Creates a new Minecraft server
+ * @param serverName Server name (will be used as folder name)
+ * @param version Minecraft version
+ * @param serverType Server type (vanilla or forge)
+ * @param onProgress Progress callback
+ * @returns true if successful, false otherwise
+ */
+/**
+ * Downloads Minecraft server JAR for a specific version
+ * @param version Minecraft version (e.g., "1.21.4")
+ * @returns URL to the server JAR
+ */
+async function getMinecraftServerJarUrl(version: string): Promise<string> {
+  try {
+    // Fetch version manifest
+    const manifestUrl = "https://piston-meta.mojang.com/mc/game/latest/launcher.json";
+
+    return new Promise((resolve, reject) => {
+      https
+        .get(manifestUrl, (response) => {
+          let data = "";
+          response.on("data", (chunk) => {
+            data += chunk;
+          });
+          response.on("end", () => {
+            try {
+              const manifest = JSON.parse(data);
+              const versionUrl = manifest.latest.release; // or latest.snapshot
+
+              // Fetch version-specific manifest
+              https
+                .get(versionUrl, (versionResponse) => {
+                  let versionData = "";
+                  versionResponse.on("data", (chunk) => {
+                    versionData += chunk;
+                  });
+                  versionResponse.on("end", () => {
+                    try {
+                      const versionManifest = JSON.parse(versionData);
+                      // Find version in manifest
+                      const versionInfo = versionManifest.versions.find(
+                        (v: any) => v.id === version
+                      );
+
+                      if (!versionInfo) {
+                        reject(new Error(`Version ${version} not found`));
+                        return;
+                      }
+
+                      // Fetch full version JSON
+                      https
+                        .get(versionInfo.url, (fullResponse) => {
+                          let fullData = "";
+                          fullResponse.on("data", (chunk) => {
+                            fullData += chunk;
+                          });
+                          fullResponse.on("end", () => {
+                            try {
+                              const fullManifest = JSON.parse(fullData);
+                              const serverUrl = fullManifest.downloads.server.url;
+                              resolve(serverUrl);
+                            } catch (e) {
+                              reject(e);
+                            }
+                          });
+                        })
+                        .on("error", reject);
+                    } catch (e) {
+                      reject(e);
+                    }
+                  });
+                })
+                .on("error", reject);
+            } catch (e) {
+              reject(e);
+            }
+          });
+        })
+        .on("error", reject);
+    });
+  } catch (error) {
+    console.error(`Error fetching Minecraft server JAR URL for version ${version}:`, error);
+    throw error;
+  }
+}
+
+export async function createMinecraftServer(
+  serverName: string,
+  version: string,
+  serverType: "vanilla" | "forge",
+  onProgress?: (message: string) => void
+): Promise<boolean> {
+  try {
+    const serverPath = getLocalServerPath(serverName);
+
+    // Check if server already exists
+    if (fs.existsSync(serverPath)) {
+      console.error(`Server ${serverName} already exists`);
+      return false;
+    }
+
+    // Create server directory
+    fs.mkdirSync(serverPath, { recursive: true });
+    onProgress?.("Creating server directory...");
+
+    if (serverType === "vanilla") {
+      // Get the correct download URL for the version
+      onProgress?.(`Fetching Minecraft ${version} server information...`);
+      let downloadUrl: string;
+
+      try {
+        downloadUrl = await getMinecraftServerJarUrl(version);
+      } catch (error) {
+        // Fallback to latest release
+        onProgress?.("Using latest release version...");
+        downloadUrl =
+          "https://launcher.mojang.com/v1/objects/a16d67e5807f57fc4e550c051f702f0b5ff0e8c9/server.jar";
+      }
+
+      const serverJarPath = path.join(serverPath, "server.jar");
+
+      onProgress?.(`Downloading Minecraft ${version} server...`);
+
+      await new Promise<void>((resolve, reject) => {
+        const file = fs.createWriteStream(serverJarPath);
+        https
+          .get(downloadUrl, (response) => {
+            // Handle redirects
+            if (response.statusCode === 301 || response.statusCode === 302) {
+              file.close();
+              if (response.headers.location) {
+                https
+                  .get(response.headers.location, (redirectResponse) => {
+                    redirectResponse.pipe(file);
+                    file.on("finish", () => {
+                      file.close();
+                      resolve();
+                    });
+                  })
+                  .on("error", (err) => {
+                    fs.unlinkSync(serverJarPath);
+                    reject(err);
+                  });
+              }
+              return;
+            }
+
+            response.pipe(file);
+            file.on("finish", () => {
+              file.close();
+              resolve();
+            });
+          })
+          .on("error", (err) => {
+            try {
+              fs.unlinkSync(serverJarPath);
+            } catch {}
+            reject(err);
+          });
+      });
+
+      onProgress?.("Server JAR downloaded successfully");
+    } else if (serverType === "forge") {
+      // Download Forge server
+      onProgress?.(`Setting up Forge ${version} server...`);
+
+      // Forge files are hosted on Maven
+      const forgeUrl = `https://maven.minecraftforge.net/net/minecraftforge/forge/${version}-latest/forge-${version}-latest-installer.jar`;
+      const forgeInstallerPath = path.join(serverPath, "forge-installer.jar");
+
+      onProgress?.("Downloading Forge installer...");
+
+      await new Promise<void>((resolve, reject) => {
+        const file = fs.createWriteStream(forgeInstallerPath);
+        https
+          .get(forgeUrl, (response) => {
+            // Handle redirects
+            if (response.statusCode === 301 || response.statusCode === 302) {
+              file.close();
+              if (response.headers.location) {
+                https
+                  .get(response.headers.location, (redirectResponse) => {
+                    redirectResponse.pipe(file);
+                    file.on("finish", () => {
+                      file.close();
+                      resolve();
+                    });
+                  })
+                  .on("error", (err) => {
+                    try {
+                      fs.unlinkSync(forgeInstallerPath);
+                    } catch {}
+                    reject(err);
+                  });
+              }
+              return;
+            }
+
+            response.pipe(file);
+            file.on("finish", () => {
+              file.close();
+              resolve();
+            });
+          })
+          .on("error", (err) => {
+            try {
+              fs.unlinkSync(forgeInstallerPath);
+            } catch {}
+            reject(err);
+          });
+      });
+
+      onProgress?.("Forge installer downloaded successfully");
+    }
+
+    // Accept EULA
+    const eulaPath = path.join(serverPath, "eula.txt");
+    fs.writeFileSync(eulaPath, "eula=true\n", "utf-8");
+    onProgress?.("EULA accepted");
+
+    // Create server.properties
+    const serverPropertiesPath = path.join(serverPath, "server.properties");
+    const defaultProperties = `#Minecraft server properties
+#Generated by Pass the host
+server-port=25565
+gamemode=survival
+difficulty=normal
+max-players=20
+online-mode=true
+pvp=true
+level-name=world
+motd=A Minecraft Server
+enable-command-block=false
+spawn-protection=16
+max-world-size=29999984
+view-distance=10
+simulation-distance=10
+spawn-monsters=true
+spawn-animals=true
+spawn-npcs=true
+allow-nether=true
+`;
+    fs.writeFileSync(serverPropertiesPath, defaultProperties, "utf-8");
+    onProgress?.("server.properties created");
+
+    onProgress?.("Server created successfully!");
+    return true;
+  } catch (error) {
+    console.error(`Error creating server ${serverName}:`, error);
+    return false;
+  }
+}
