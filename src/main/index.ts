@@ -27,6 +27,8 @@ import {
   shouldDownloadServer,
   getServerStatistics,
   createMinecraftServer,
+  deleteServerFromR2,
+  deleteServerLocally,
 } from "./rclone";
 import { saveR2Config, loadConfig, saveUsername, saveRamConfig, saveLanguage } from "./config";
 import { ensureJavaForMinecraft, getInstalledJavaVersions, getRequiredJavaVersion } from "./java";
@@ -544,6 +546,14 @@ if (!gotTheLock) {
         event.sender.send("server:create-progress", message);
       };
       return await createMinecraftServer(serverName, version, serverType, progressCallback);
+    });
+
+    ipcMain.handle("server:delete-from-r2", async (_, config, serverId) => {
+      return await deleteServerFromR2(config, serverId);
+    });
+
+    ipcMain.handle("server:delete-locally", async (_, serverId) => {
+      return deleteServerLocally(serverId);
     });
 
     // System IPC handlers

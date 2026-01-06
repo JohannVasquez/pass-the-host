@@ -21,6 +21,7 @@ export const es = {
       syncToR2: "Sincronizar a R2",
       openServerFolder: "Abrir carpeta del servidor",
       editProperties: "Editar server.properties",
+      deleteServer: "Eliminar Servidor",
       r2NotConfigured:
         "Por favor configure los ajustes de R2 antes de usar los controles del servidor",
       usernameNotConfigured:
@@ -165,6 +166,23 @@ export const es = {
       creatingTitle: "Creando Servidor",
       preparing: "Preparando...",
       modalWarning: "Por favor espera, esto puede tardar unos minutos",
+    },
+    deleteServerModal: {
+      title: "Eliminar Servidor",
+      warning: "¿Estás seguro de que deseas eliminar este servidor?",
+      cloudOnly: "Esto eliminará el servidor de la nube (R2).",
+      alsoLocal: "También se eliminarán los archivos locales.",
+      deleteLocalFiles: "Eliminar también archivos locales",
+      confirmationText: "Para confirmar, escribe el nombre del servidor:",
+      placeholder: "Nombre del servidor",
+      error: "El nombre del servidor no coincide",
+      cancel: "Cancelar",
+      confirm: "Eliminar Servidor",
+      deleting: "Eliminando servidor...",
+      deletingFromR2: "Eliminando de R2...",
+      deletingLocally: "Eliminando archivos locales...",
+      success: "Servidor eliminado exitosamente",
+      failed: "Error al eliminar el servidor",
     },
   },
 };

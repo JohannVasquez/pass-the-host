@@ -114,6 +114,10 @@ const serverAPI = {
     ipcRenderer.on("server:create-progress", listener);
     return () => ipcRenderer.removeListener("server:create-progress", listener);
   },
+  deleteFromR2: (config: any, serverId: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("server:delete-from-r2", config, serverId),
+  deleteLocally: (serverId: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("server:delete-locally", serverId),
 };
 
 const javaAPI = {

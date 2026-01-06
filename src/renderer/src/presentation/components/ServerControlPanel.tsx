@@ -22,10 +22,12 @@ import {
   Edit as EditIcon,
   Add as AddIcon,
   FolderOpen as FolderOpenIcon,
+  DeleteForever as DeleteForeverIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 import { ServerStatus } from "../../domain/entities/ServerStatus";
 import { Server } from "../../domain/entities/Server";
+
 
 interface ServerControlPanelProps {
   status: ServerStatus;
@@ -38,6 +40,7 @@ interface ServerControlPanelProps {
   onSyncToR2: () => void;
   onEditProperties: () => void;
   onOpenServerFolder: () => void;
+  onDeleteServer: () => void;
   disabled?: boolean;
   serverStartTime: Date | null;
   username: string;
@@ -54,6 +57,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   onSyncToR2,
   onEditProperties,
   onOpenServerFolder,
+  onDeleteServer,
   disabled = false,
   serverStartTime,
   username,
@@ -215,6 +219,17 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           fullWidth
         >
           {t("serverControl.editProperties")}
+        </Button>
+
+        <Button
+          variant="outlined"
+          color="error"
+          startIcon={<DeleteForeverIcon />}
+          onClick={onDeleteServer}
+          disabled={disabled || !selectedServer || isRunning || isTransitioning}
+          fullWidth
+        >
+          {t("serverControl.deleteServer")}
         </Button>
       </Stack>
     </Paper>

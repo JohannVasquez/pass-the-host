@@ -26,6 +26,7 @@ import { DownloadProgressModal } from "./presentation/components/DownloadProgres
 import { TransferProgressModal } from "./presentation/components/TransferProgressModal";
 import { ServerStatisticsModal } from "./presentation/components/ServerStatisticsModal";
 import { CreateServerModal } from "./presentation/components/CreateServerModal";
+import { DeleteServerModal } from "./presentation/components/DeleteServerModal";
 import { ServerStatus } from "./domain/entities/ServerStatus";
 import { R2Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
@@ -100,6 +101,7 @@ function App(): React.JSX.Element {
   const [isCreateServerModalOpen, setIsCreateServerModalOpen] = React.useState<boolean>(false);
   const [isCreatingServer, setIsCreatingServer] = React.useState<boolean>(false);
   const [createServerProgress, setCreateServerProgress] = React.useState<string>("");
+  const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = React.useState<boolean>(false);
 
   // Load configuration from config.json on mount
   React.useEffect(() => {
@@ -1634,6 +1636,106 @@ function App(): React.JSX.Element {
     setIsCreateServerModalOpen(true);
   };
 
+  const handleDeleteServer = (): void => {
+    setIsDeleteServerModalOpen(true);
+  };
+
+  const handleConfirmDeleteServer = async (deleteLocally: boolean): Promise<void> => {
+    if (!selectedServer) return;
+
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: `Deleting server: ${selectedServer}...`,
+        type: "info",
+      },
+    ]);
+
+    // Delete from R2
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "Deleting from R2...",
+        type: "info",
+      },
+    ]);
+
+    const r2Result = await window.serverAPI.deleteFromR2(r2Config, selectedServer);
+    if (!r2Result.success) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: `Failed to delete from R2: ${r2Result.error || "Unknown error"}`,
+          type: "error",
+        },
+      ]);
+      return;
+    }
+
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "Deleted from R2 successfully",
+        type: "info",
+      },
+    ]);
+
+    // Delete locally if checkbox was checked
+    if (deleteLocally) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Deleting local files...",
+          type: "info",
+        },
+      ]);
+
+      const localResult = await window.serverAPI.deleteLocally(selectedServer);
+      if (!localResult.success) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Failed to delete local files: ${localResult.error || "Unknown error"}`,
+            type: "warning",
+          },
+        ]);
+      } else {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Local files deleted successfully",
+            type: "info",
+          },
+        ]);
+      }
+    }
+
+    // Refresh server list
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "Server deleted successfully",
+        type: "info",
+      },
+    ]);
+
+    // Clear selection
+    setSelectedServer(null);
+
+    // Reload servers from R2
+    await loadServersFromR2();
+    
+    setIsDeleteServerModalOpen(false);
+  };
+
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
@@ -1719,6 +1821,7 @@ function App(): React.JSX.Element {
               onSyncToR2={handleSyncToR2}
               onEditProperties={handleEditProperties}
               onOpenServerFolder={handleOpenServerFolder}
+              onDeleteServer={handleDeleteServer}
               disabled={!isR2Configured || !isRcloneReady}
               serverStartTime={serverStartTime}
               username={username}
@@ -1842,6 +1945,14 @@ function App(): React.JSX.Element {
           onConfirm={handleConfirmCreateServer}
           isCreating={isCreatingServer}
           progressMessage={createServerProgress}
+        />
+
+        {/* Delete Server Modal */}
+        <DeleteServerModal
+          open={isDeleteServerModalOpen}
+          serverName={selectedServer}
+          onClose={() => setIsDeleteServerModalOpen(false)}
+          onConfirm={handleConfirmDeleteServer}
         />
       </Box>
     </ThemeProvider>
