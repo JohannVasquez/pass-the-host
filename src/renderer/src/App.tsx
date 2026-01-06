@@ -979,12 +979,44 @@ function App(): React.JSX.Element {
             },
           ]);
         }
-        if (navigator.userAgent.includes("Windows")) {
-          startCmd = "cmd";
-          startArgs = ["/c", "run.bat", "nogui"];
-        } else {
-          startCmd = "/bin/bash";
-          startArgs = ["run.sh", "nogui"];
+        // Read JVM args from run.bat/run.sh and construct Java command directly
+        try {
+          const jvmArgs = await window.serverAPI.readForgeJvmArgs(selectedServer);
+          if (jvmArgs && jvmArgs.length > 0) {
+            startCmd = javaPath;
+            // The args from run.bat already include everything (JVM args, classpath, main class, and program args)
+            // Forge server launcher already handles nogui mode
+            startArgs = [...jvmArgs];
+          } else {
+            // Fallback to default args if file doesn't exist
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Warning: Could not read run.bat arguments, falling back to run.bat execution",
+                type: "warning",
+              },
+            ]);
+            // Fallback to original method using run.bat
+            if (navigator.userAgent.includes("Windows")) {
+              startCmd = "cmd";
+              startArgs = ["/c", "run.bat"];
+            } else {
+              startCmd = "/bin/bash";
+              startArgs = ["run.sh"];
+            }
+          }
+        } catch (e) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: `Error reading JVM args: ${e instanceof Error ? e.message : String(e)}`,
+              type: "error",
+            },
+          ]);
+          setServerStatus(ServerStatus.STOPPED);
+          return;
         }
       } else {
         setLogs((prev) => [
