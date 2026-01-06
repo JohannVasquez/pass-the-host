@@ -152,6 +152,68 @@ ipcMain.handle("server:edit-forge-jvm-args", async (_event, serverId, minRam, ma
   }
 });
 
+
+// Read Forge run.bat/run.sh and extract all JVM arguments
+ipcMain.handle("server:read-forge-jvm-args", async (_event, serverId) => {
+  try {
+    const serverPath = getLocalServerPath(serverId);
+    
+    // Determine which run script to parse based on platform
+    const isWindows = process.platform === "win32";
+    const runScriptPath = path.join(serverPath, isWindows ? "run.bat" : "run.sh");
+    
+    if (!fs.existsSync(runScriptPath)) {
+      console.error(`Run script not found: ${runScriptPath}`);
+      return null;
+    }
+    
+    const runScriptContent = fs.readFileSync(runScriptPath, "utf-8");
+    
+    // Find all @filename.txt references in the run script
+    // Pattern matches @path/to/file.txt or @filename.txt
+    const argFileMatches = runScriptContent.match(/@[^\s%]+\.txt/g);
+    
+    if (!argFileMatches || argFileMatches.length === 0) {
+      console.error("No argument files found in run script");
+      return null;
+    }
+    
+    const allArgs: string[] = [];
+    
+    // Read each argument file referenced in the run script
+    for (const argFileRef of argFileMatches) {
+      // Remove the @ prefix
+      const argFileName = argFileRef.substring(1);
+      const argFilePath = path.join(serverPath, argFileName);
+      
+      if (!fs.existsSync(argFilePath)) {
+        console.error(`Argument file not found: ${argFilePath}`);
+        continue;
+      }
+      
+      const fileContent = fs.readFileSync(argFilePath, "utf-8");
+      
+      // Parse the file content into individual arguments
+      const lines = fileContent.split("\n");
+      
+      for (const line of lines) {
+        const trimmed = line.trim();
+        // Skip empty lines and comments
+        if (!trimmed || trimmed.startsWith("#")) continue;
+        
+        // Split by spaces and add each non-empty argument
+        const lineArgs = trimmed.split(/\s+/).filter((arg) => arg.length > 0);
+        allArgs.push(...lineArgs);
+      }
+    }
+    
+    return allArgs.length > 0 ? allArgs : null;
+  } catch (e) {
+    console.error("Error reading Forge JVM args:", e);
+    return null;
+  }
+});
+
 ipcMain.handle("server:openFolder", async (_event, serverId: string) => {
   try {
     const serverPath = path.join(app.getPath("userData"), "servers", serverId);
