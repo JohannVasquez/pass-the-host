@@ -119,6 +119,8 @@ interface ServerAPI {
     serverType: "vanilla" | "forge"
   ) => Promise<boolean>;
   onCreateProgress: (callback: (message: string) => void) => () => void;
+  deleteFromR2: (config: any, serverId: string) => Promise<{ success: boolean; error?: string }>;
+  deleteLocally: (serverId: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 interface JavaAPI {

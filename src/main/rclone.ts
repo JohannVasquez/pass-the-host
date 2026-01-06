@@ -697,6 +697,57 @@ export async function deleteServerLock(
 }
 
 /**
+ * Deletes a server directory from R2
+ */
+export async function deleteServerFromR2(
+  config: {
+    endpoint: string;
+    access_key: string;
+    secret_key: string;
+    bucket_name: string;
+  },
+  serverId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Ensure rclone is configured
+    await ensureRcloneConfigured(config);
+
+    const r2ServerPath = `${RCLONE_CONFIG_NAME}:${config.bucket_name}/pass_the_host/${serverId}`;
+
+    // Delete the entire server directory from R2
+    const deleteCommand = `"${RCLONE_PATH}" purge ${r2ServerPath}`;
+
+    await execAsync(deleteCommand, { maxBuffer: 1024 * 1024 });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error(`Error deleting server ${serverId} from R2:`, error);
+    return { success: false, error: error.message || "Unknown error" };
+  }
+}
+
+/**
+ * Deletes a server directory from local storage
+ */
+export function deleteServerLocally(serverId: string): { success: boolean; error?: string } {
+  try {
+    const serverPath = getLocalServerPath(serverId);
+
+    if (!fs.existsSync(serverPath)) {
+      return { success: true }; // Already deleted or doesn't exist
+    }
+
+    // Delete the entire server directory
+    fs.rmSync(serverPath, { recursive: true, force: true });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error(`Error deleting server ${serverId} locally:`, error);
+    return { success: false, error: error.message || "Unknown error" };
+  }
+}
+
+/**
  * Uploads/syncs a server from local storage to R2
  */
 export async function uploadServerToR2(
