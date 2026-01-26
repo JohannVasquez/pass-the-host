@@ -22,33 +22,29 @@ export const SERVER_LIFECYCLE_TYPES = {
 // ============================================
 export const SERVER_RUNTIME_TYPES = {
   // Repositories
-  ServerProcessRepository: Symbol.for("ServerProcessRepository"),
+  ServerRuntimeRepository: Symbol.for("ServerRuntimeRepository"),
 
   // Use Cases
   StartServerUseCase: Symbol.for("StartServerUseCase"),
   StopServerUseCase: Symbol.for("StopServerUseCase"),
   ExecuteCommandUseCase: Symbol.for("ExecuteCommandUseCase"),
-  MonitorServerStatusUseCase: Symbol.for("MonitorServerStatusUseCase"),
-  GetServerLogsUseCase: Symbol.for("GetServerLogsUseCase"),
+  GetServerStatusUseCase: Symbol.for("GetServerStatusUseCase"),
 };
 
 // ============================================
 // CLOUD STORAGE CONTEXT
 // ============================================
 export const CLOUD_STORAGE_TYPES = {
-  // Services
-  R2Service: Symbol.for("R2Service"),
-
   // Repositories
-  R2ServerRepository: Symbol.for("R2ServerRepository"),
+  CloudStorageRepository: Symbol.for("CloudStorageRepository"),
 
   // Use Cases
   ConfigureR2UseCase: Symbol.for("ConfigureR2UseCase"),
   TestR2ConnectionUseCase: Symbol.for("TestR2ConnectionUseCase"),
+  ListRemoteServersUseCase: Symbol.for("ListRemoteServersUseCase"),
   DownloadServerUseCase: Symbol.for("DownloadServerUseCase"),
   UploadServerUseCase: Symbol.for("UploadServerUseCase"),
-  DeleteServerFromR2UseCase: Symbol.for("DeleteServerFromR2UseCase"),
-  ListR2ServersUseCase: Symbol.for("ListR2ServersUseCase"),
+  DeleteRemoteServerUseCase: Symbol.for("DeleteRemoteServerUseCase"),
 };
 
 // ============================================

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { appContainer } from "@shared/di";
 import { configureServerLifecycle } from "@server-lifecycle/di";
+import { configureServerRuntime } from "@server-runtime/di";
+import { configureCloudStorage } from "@cloud-storage/di";
 
 /**
  * Hook to get a dependency from the DI container
@@ -34,10 +36,11 @@ export function useContainerReady(): boolean {
       try {
         // Load all context configurations
         appContainer.loadModules(
-          configureServerLifecycle
+          configureServerLifecycle,
+          configureServerRuntime,
+          configureCloudStorage
           // Add other contexts here as they are implemented
-          // configureServerRuntime,
-          // configureCloudStorage,
+          // configureServerLocking,
           // etc.
         );
         setReady(true);

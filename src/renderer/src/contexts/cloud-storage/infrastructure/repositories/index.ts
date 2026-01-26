@@ -1,0 +1,1 @@
+export { CloudStorageRepository } from './CloudStorageRepository';

@@ -120,25 +120,56 @@ export class ServerLogReceivedEvent extends BaseDomainEvent {
 // ============================================
 
 export class R2ConfiguredEvent extends BaseDomainEvent {
-  constructor(
-    public readonly endpoint: string,
-    public readonly bucket: string
-  ) {
+  constructor(data: {
+    endpoint: string;
+    bucket: string;
+    region: string;
+  }) {
     super();
+    this.endpoint = data.endpoint;
+    this.bucket = data.bucket;
+    this.region = data.region;
   }
+
+  public readonly endpoint: string;
+  public readonly bucket: string;
+  public readonly region: string;
 
   get eventName(): string {
     return "r2.configured";
   }
 }
 
-export class ServerDownloadStartedEvent extends BaseDomainEvent {
-  constructor(
-    public readonly serverId: string,
-    public readonly serverName: string
-  ) {
-    super(serverId);
+export class R2ConnectionTestedEvent extends BaseDomainEvent {
+  constructor(data: {
+    success: boolean;
+    endpoint: string;
+  }) {
+    super();
+    this.success = data.success;
+    this.endpoint = data.endpoint;
   }
+
+  public readonly success: boolean;
+  public readonly endpoint: string;
+
+  get eventName(): string {
+    return "r2.connection.tested";
+  }
+}
+
+export class ServerDownloadStartedEvent extends BaseDomainEvent {
+  constructor(data: {
+    serverId: string;
+    serverName?: string;
+  }) {
+    super(data.serverId);
+    this.serverId = data.serverId;
+    this.serverName = data.serverName || data.serverId;
+  }
+
+  public readonly serverId: string;
+  public readonly serverName: string;
 
   get eventName(): string {
     return "server.download.started";
@@ -146,14 +177,23 @@ export class ServerDownloadStartedEvent extends BaseDomainEvent {
 }
 
 export class ServerDownloadProgressEvent extends BaseDomainEvent {
-  constructor(
-    public readonly serverId: string,
-    public readonly progress: number,
-    public readonly bytesTransferred: number,
-    public readonly totalBytes: number
-  ) {
-    super(serverId);
+  constructor(data: {
+    serverId: string;
+    progress: number;
+    bytesTransferred: number;
+    totalBytes: number;
+  }) {
+    super(data.serverId);
+    this.serverId = data.serverId;
+    this.progress = data.progress;
+    this.bytesTransferred = data.bytesTransferred;
+    this.totalBytes = data.totalBytes;
   }
+
+  public readonly serverId: string;
+  public readonly progress: number;
+  public readonly bytesTransferred: number;
+  public readonly totalBytes: number;
 
   get eventName(): string {
     return "server.download.progress";
@@ -161,25 +201,53 @@ export class ServerDownloadProgressEvent extends BaseDomainEvent {
 }
 
 export class ServerDownloadCompletedEvent extends BaseDomainEvent {
-  constructor(
-    public readonly serverId: string,
-    public readonly serverName: string
-  ) {
-    super(serverId);
+  constructor(data: {
+    serverId: string;
+    serverName?: string;
+  }) {
+    super(data.serverId);
+    this.serverId = data.serverId;
+    this.serverName = data.serverName || data.serverId;
   }
+
+  public readonly serverId: string;
+  public readonly serverName: string;
 
   get eventName(): string {
     return "server.download.completed";
   }
 }
 
-export class ServerUploadStartedEvent extends BaseDomainEvent {
-  constructor(
-    public readonly serverId: string,
-    public readonly serverName: string
-  ) {
-    super(serverId);
+export class ServerDownloadFailedEvent extends BaseDomainEvent {
+  constructor(data: {
+    serverId: string;
+    error: string;
+  }) {
+    super(data.serverId);
+    this.serverId = data.serverId;
+    this.error = data.error;
   }
+
+  public readonly serverId: string;
+  public readonly error: string;
+
+  get eventName(): string {
+    return "server.download.failed";
+  }
+}
+
+export class ServerUploadStartedEvent extends BaseDomainEvent {
+  constructor(data: {
+    serverId: string;
+    serverName?: string;
+  }) {
+    super(data.serverId);
+    this.serverId = data.serverId;
+    this.serverName = data.serverName || data.serverId;
+  }
+
+  public readonly serverId: string;
+  public readonly serverName: string;
 
   get eventName(): string {
     return "server.upload.started";
@@ -187,14 +255,23 @@ export class ServerUploadStartedEvent extends BaseDomainEvent {
 }
 
 export class ServerUploadProgressEvent extends BaseDomainEvent {
-  constructor(
-    public readonly serverId: string,
-    public readonly progress: number,
-    public readonly bytesTransferred: number,
-    public readonly totalBytes: number
-  ) {
-    super(serverId);
+  constructor(data: {
+    serverId: string;
+    progress: number;
+    bytesTransferred: number;
+    totalBytes: number;
+  }) {
+    super(data.serverId);
+    this.serverId = data.serverId;
+    this.progress = data.progress;
+    this.bytesTransferred = data.bytesTransferred;
+    this.totalBytes = data.totalBytes;
   }
+
+  public readonly serverId: string;
+  public readonly progress: number;
+  public readonly bytesTransferred: number;
+  public readonly totalBytes: number;
 
   get eventName(): string {
     return "server.upload.progress";
@@ -202,15 +279,53 @@ export class ServerUploadProgressEvent extends BaseDomainEvent {
 }
 
 export class ServerUploadCompletedEvent extends BaseDomainEvent {
-  constructor(
-    public readonly serverId: string,
-    public readonly serverName: string
-  ) {
-    super(serverId);
+  constructor(data: {
+    serverId: string;
+    serverName?: string;
+  }) {
+    super(data.serverId);
+    this.serverId = data.serverId;
+    this.serverName = data.serverName || data.serverId;
   }
+
+  public readonly serverId: string;
+  public readonly serverName: string;
 
   get eventName(): string {
     return "server.upload.completed";
+  }
+}
+
+export class ServerUploadFailedEvent extends BaseDomainEvent {
+  constructor(data: {
+    serverId: string;
+    error: string;
+  }) {
+    super(data.serverId);
+    this.serverId = data.serverId;
+    this.error = data.error;
+  }
+
+  public readonly serverId: string;
+  public readonly error: string;
+
+  get eventName(): string {
+    return "server.upload.failed";
+  }
+}
+
+export class ServerDeletedFromR2Event extends BaseDomainEvent {
+  constructor(data: {
+    serverId: string;
+  }) {
+    super(data.serverId);
+    this.serverId = data.serverId;
+  }
+
+  public readonly serverId: string;
+
+  get eventName(): string {
+    return "server.deletedFromR2";
   }
 }
 
