@@ -1,1 +1,1 @@
-export type { ServerLock, LockCheckResult, LockOperationResult } from './ServerLock';
+export type { ServerLock, LockCheckResult, LockOperationResult } from "./ServerLock";

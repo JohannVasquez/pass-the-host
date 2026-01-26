@@ -1,1 +1,1 @@
-export { ServerLockRepository } from './ServerLockRepository';
+export { ServerLockRepository } from "./ServerLockRepository";

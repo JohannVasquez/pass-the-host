@@ -1,8 +1,8 @@
-import { injectable, inject } from 'inversify';
-import type { IServerLockRepository } from '../../domain/repositories';
-import { SERVER_LOCKING_TYPES } from '@shared/di';
-import { EventBus } from '@shared/infrastructure/event-bus';
-import { ServerLockCreatedEvent } from '@shared/domain/DomainEvents';
+import { injectable, inject } from "inversify";
+import type { IServerLockRepository } from "../../domain/repositories";
+import { SERVER_LOCKING_TYPES } from "@shared/di";
+import { EventBus } from "@shared/infrastructure/event-bus";
+import { ServerLockCreatedEvent } from "@shared/domain/DomainEvents";
 
 /**
  * Create Server Lock Use Case
@@ -19,7 +19,7 @@ export class CreateServerLockUseCase {
 
   async execute(serverId: string, username: string): Promise<boolean> {
     if (!serverId || !username) {
-      throw new Error('ServerId and username are required');
+      throw new Error("ServerId and username are required");
     }
 
     const success = await this.repository.createLocalLock(serverId, username);
