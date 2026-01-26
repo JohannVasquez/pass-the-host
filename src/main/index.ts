@@ -1,6 +1,13 @@
-import { getLocalServerPath } from "./rclone";
-import { spawn, ChildProcessWithoutNullStreams } from "child_process";
-import * as fs from "fs";
+import { initializeMainContainer } from "./di/container";
+import { ServerRuntimeIPCHandlers } from "./contexts/server-runtime/infrastructure/ipc/ServerRuntimeIPCHandlers";
+import {
+  SpawnServerProcessUseCase,
+  SendCommandUseCase,
+  KillServerProcessUseCase,
+  ReadForgeJvmArgsUseCase,
+  EditForgeJvmArgsUseCase,
+  OpenServerFolderUseCase,
+} from "./contexts/server-runtime/application/use-cases";
 import * as path from "path";
 import { app, shell, BrowserWindow, ipcMain, Tray, nativeImage, Menu, dialog } from "electron";
 import { autoUpdater } from "electron-updater";
@@ -40,204 +47,21 @@ if (autoUpdater.logger && "transports" in autoUpdater.logger) {
   (autoUpdater.logger as typeof log).transports.file.level = "info";
 }
 
-const serverProcesses: Record<string, ChildProcessWithoutNullStreams> = {};
-
-// Get local server path
+// Get local server path (LEGACY - to be removed)
 ipcMain.handle("server:get-local-server-path", async (_event, serverId) => {
-  return getLocalServerPath(serverId);
+  const localServersDir = path.join(app.getPath("userData"), "servers");
+  return path.join(localServersDir, serverId);
 });
 
-// Spawn Minecraft server process
-ipcMain.handle(
-  "server:spawn-server-process",
-  async (event, serverId, command, args, workingDir) => {
-    return new Promise((resolve, reject) => {
-      try {
-        if (serverProcesses[serverId]) {
-          return reject(new Error("Server process already running"));
-        }
-
-        // Auto accept EULA
-        const eulaPath = path.join(workingDir, "eula.txt");
-        if (!fs.existsSync(eulaPath) || !fs.readFileSync(eulaPath, "utf-8").includes("eula=true")) {
-          try {
-            fs.writeFileSync(eulaPath, "eula=true");
-          } catch (e) {}
-        }
-
-        const proc = spawn(command, args, {
-          cwd: workingDir,
-          env: process.env,
-          stdio: ["pipe", "pipe", "pipe"],
-          windowsHide: true,
-        });
-
-        serverProcesses[serverId] = proc;
-
-        proc.stdout.on("data", (data) => {
-          if (!event.sender.isDestroyed()) {
-            // Convertimos buffer a string para enviarlo
-            event.sender.send("server:stdout", data.toString());
-          }
-        });
-
-        proc.stderr.on("data", (data) => {
-          if (!event.sender.isDestroyed()) {
-            event.sender.send("server:stdout", data.toString());
-          }
-        });
-
-        proc.on("close", (_code) => {
-          delete serverProcesses[serverId];
-        });
-
-        resolve(true);
-      } catch (e) {
-        reject(e);
-      }
-    });
-  }
-);
-
-// Send command to Minecraft server process
-ipcMain.handle("server:send-command", async (_event, serverId, command) => {
-  return new Promise((resolve, _) => {
-    const proc = serverProcesses[serverId];
-    if (!proc) return resolve(false);
-    try {
-      proc.stdin.write(`${command}\n`);
-      resolve(true);
-    } catch (e) {
-      resolve(false);
-    }
-  });
-});
-
-// Kill Minecraft server process (safe stop)
-ipcMain.handle("server:kill-server-process", async (_event, serverId) => {
-  return new Promise((resolve, _) => {
-    const proc = serverProcesses[serverId];
-    if (!proc) return resolve(false);
-    try {
-      // Send 'stop' command to stdin for safe shutdown
-      proc.stdin.write("stop\n");
-      setTimeout(() => {
-        if (!proc.killed) {
-          proc.kill();
-        }
-        delete serverProcesses[serverId];
-        resolve(true);
-      }, 8000); // Give it 8 seconds to shutdown gracefully
-    } catch (e) {
-      try {
-        proc.kill();
-      } catch {}
-      delete serverProcesses[serverId];
-      resolve(false);
-    }
-  });
-});
-
-// Edit Forge user_jvm_args.txt for RAM
-ipcMain.handle("server:edit-forge-jvm-args", async (_event, serverId, minRam, maxRam) => {
-  try {
-    const serverPath = getLocalServerPath(serverId);
-    const jvmArgsPath = path.join(serverPath, "user_jvm_args.txt");
-    if (!fs.existsSync(jvmArgsPath)) return false;
-    let content = fs.readFileSync(jvmArgsPath, "utf-8");
-    content = content.replace(/-Xms\d+[mMgG]/g, `-Xms${minRam}G`);
-    content = content.replace(/-Xmx\d+[mMgG]/g, `-Xmx${maxRam}G`);
-    fs.writeFileSync(jvmArgsPath, content, "utf-8");
-    return true;
-  } catch (e) {
-    return false;
-  }
-});
-
-
-// Read Forge run.bat/run.sh and extract all JVM arguments
-ipcMain.handle("server:read-forge-jvm-args", async (_event, serverId) => {
-  try {
-    const serverPath = getLocalServerPath(serverId);
-    
-    // Determine which run script to parse based on platform
-    const isWindows = process.platform === "win32";
-    const runScriptPath = path.join(serverPath, isWindows ? "run.bat" : "run.sh");
-    
-    if (!fs.existsSync(runScriptPath)) {
-      console.error(`Run script not found: ${runScriptPath}`);
-      return null;
-    }
-    
-    const runScriptContent = fs.readFileSync(runScriptPath, "utf-8");
-    
-    // Find all @filename.txt references in the run script
-    // Pattern matches @path/to/file.txt or @filename.txt
-    const argFileMatches = runScriptContent.match(/@[^\s%]+\.txt/g);
-    
-    if (!argFileMatches || argFileMatches.length === 0) {
-      console.error("No argument files found in run script");
-      return null;
-    }
-    
-    const allArgs: string[] = [];
-    
-    // Read each argument file referenced in the run script
-    for (const argFileRef of argFileMatches) {
-      // Remove the @ prefix
-      const argFileName = argFileRef.substring(1);
-      const argFilePath = path.join(serverPath, argFileName);
-      
-      if (!fs.existsSync(argFilePath)) {
-        console.error(`Argument file not found: ${argFilePath}`);
-        continue;
-      }
-      
-      const fileContent = fs.readFileSync(argFilePath, "utf-8");
-      
-      // Parse the file content into individual arguments
-      const lines = fileContent.split("\n");
-      
-      for (const line of lines) {
-        const trimmed = line.trim();
-        // Skip empty lines and comments
-        if (!trimmed || trimmed.startsWith("#")) continue;
-        
-        // Split by spaces and add each non-empty argument
-        const lineArgs = trimmed.split(/\s+/).filter((arg) => arg.length > 0);
-        allArgs.push(...lineArgs);
-      }
-    }
-    
-    return allArgs.length > 0 ? allArgs : null;
-  } catch (e) {
-    console.error("Error reading Forge JVM args:", e);
-    return null;
-  }
-});
-
-ipcMain.handle("server:openFolder", async (_event, serverId: string) => {
-  try {
-    const serverPath = path.join(app.getPath("userData"), "servers", serverId);
-
-    if (!fs.existsSync(serverPath)) {
-      console.error(`La carpeta del servidor no existe: ${serverPath}`);
-      return false;
-    }
-
-    const errorMessage = await shell.openPath(serverPath);
-
-    if (errorMessage) {
-      console.error("Error al abrir la carpeta:", errorMessage);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Excepción al abrir carpeta:", error);
-    return false;
-  }
-});
+// ===== SERVER RUNTIME HANDLERS - MOVED TO CONTEXT =====
+// All server process management has been moved to server-runtime context
+// The following handlers are now registered via ServerRuntimeIPCHandlers:
+// - server:spawn-server-process
+// - server:send-command
+// - server:kill-server-process
+// - server:edit-forge-jvm-args
+// - server:read-forge-jvm-args
+// - server:openFolder
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -419,6 +243,9 @@ if (!gotTheLock) {
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
   app.whenReady().then(() => {
+    // Initialize Inversify container and register all contexts
+    const container = initializeMainContainer();
+
     // Set app user model id for windows
     electronApp.setAppUserModelId("com.electron");
 
@@ -435,6 +262,17 @@ if (!gotTheLock) {
 
     // IPC test
     ipcMain.on("ping", () => console.debug("pong"));
+
+    // ========== SERVER RUNTIME CONTEXT IPC HANDLERS ==========
+    const serverRuntimeIPCHandlers = new ServerRuntimeIPCHandlers(
+      container.get(SpawnServerProcessUseCase),
+      container.get(SendCommandUseCase),
+      container.get(KillServerProcessUseCase),
+      container.get(ReadForgeJvmArgsUseCase),
+      container.get(EditForgeJvmArgsUseCase),
+      container.get(OpenServerFolderUseCase)
+    );
+    serverRuntimeIPCHandlers.register();
 
     // Config IPC handlers
     ipcMain.handle("config:load", async () => {
