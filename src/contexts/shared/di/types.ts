@@ -71,8 +71,8 @@ export const SESSION_TRACKING_TYPES = {
   // Use Cases
   CreateSessionUseCase: Symbol.for("CreateSessionUseCase"),
   EndSessionUseCase: Symbol.for("EndSessionUseCase"),
+  UploadSessionUseCase: Symbol.for("UploadSessionUseCase"),
   GetServerStatisticsUseCase: Symbol.for("GetServerStatisticsUseCase"),
-  GetSessionHistoryUseCase: Symbol.for("GetSessionHistoryUseCase"),
 };
 
 // ============================================
@@ -85,10 +85,6 @@ export const SYSTEM_RESOURCES_TYPES = {
   // Use Cases
   GetSystemMemoryUseCase: Symbol.for("GetSystemMemoryUseCase"),
   GetNetworkInterfacesUseCase: Symbol.for("GetNetworkInterfacesUseCase"),
-  ConfigureRamUseCase: Symbol.for("ConfigureRamUseCase"),
-  ConfigureNetworkUseCase: Symbol.for("ConfigureNetworkUseCase"),
-  GetJavaVersionsUseCase: Symbol.for("GetJavaVersionsUseCase"),
-  DownloadJavaUseCase: Symbol.for("DownloadJavaUseCase"),
 };
 
 // ============================================

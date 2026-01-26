@@ -371,13 +371,20 @@ export class ServerLockDetectedEvent extends BaseDomainEvent {
 // ============================================
 
 export class SessionStartedEvent extends BaseDomainEvent {
-  constructor(
-    public readonly serverId: string,
-    public readonly sessionId: string,
-    public readonly startTime: Date
-  ) {
-    super(serverId);
+  constructor(data: {
+    serverId: string;
+    username: string;
+    timestamp: Date;
+  }) {
+    super(data.serverId);
+    this.serverId = data.serverId;
+    this.username = data.username;
+    this.timestamp = data.timestamp;
   }
+
+  public readonly serverId: string;
+  public readonly username: string;
+  public readonly timestamp: Date;
 
   get eventName(): string {
     return "session.started";
@@ -385,17 +392,38 @@ export class SessionStartedEvent extends BaseDomainEvent {
 }
 
 export class SessionEndedEvent extends BaseDomainEvent {
-  constructor(
-    public readonly serverId: string,
-    public readonly sessionId: string,
-    public readonly endTime: Date,
-    public readonly duration: number
-  ) {
-    super(serverId);
+  constructor(data: {
+    serverId: string;
+    username: string;
+    timestamp: Date;
+  }) {
+    super(data.serverId);
+    this.serverId = data.serverId;
+    this.username = data.username;
+    this.timestamp = data.timestamp;
   }
+
+  public readonly serverId: string;
+  public readonly username: string;
+  public readonly timestamp: Date;
 
   get eventName(): string {
     return "session.ended";
+  }
+}
+
+export class SessionUploadedEvent extends BaseDomainEvent {
+  constructor(data: {
+    serverId: string;
+  }) {
+    super(data.serverId);
+    this.serverId = data.serverId;
+  }
+
+  public readonly serverId: string;
+
+  get eventName(): string {
+    return "session.uploaded";
   }
 }
 
