@@ -27,7 +27,13 @@ export class ServerRuntimeIPCHandlers {
     });
     ipcMain.handle(
       "server:spawn-server-process",
-      async (event: IpcMainInvokeEvent, serverId: string, command: string, args: string[], workingDir: string) => {
+      async (
+        event: IpcMainInvokeEvent,
+        serverId: string,
+        command: string,
+        args: string[],
+        workingDir: string
+      ) => {
         try {
           await this.spawnServerProcessUseCase.execute(
             serverId,

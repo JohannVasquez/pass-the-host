@@ -8,35 +8,35 @@ import {
   EditForgeJvmArgsUseCase,
   OpenServerFolderUseCase,
 } from "./contexts/server-runtime/application/use-cases";
+import { CloudStorageIPCHandlers } from "./contexts/cloud-storage/infrastructure/ipc/CloudStorageIPCHandlers";
+import {
+  CheckRcloneInstallationUseCase,
+  InstallRcloneUseCase,
+  TestR2ConnectionUseCase,
+  ListR2ServersUseCase,
+  DownloadServerFromR2UseCase,
+  UploadServerToR2UseCase,
+  DeleteServerFromR2UseCase,
+  ShouldDownloadServerUseCase,
+  CreateServerLockUseCase,
+  ReadServerLockUseCase,
+  UploadServerLockUseCase,
+  DeleteServerLockUseCase,
+  DeleteLocalServerLockUseCase,
+  CreateSessionUseCase,
+  UpdateSessionUseCase,
+  UploadSessionUseCase,
+  GetServerStatisticsUseCase,
+  ReadServerPortUseCase,
+  WriteServerPortUseCase,
+} from "./contexts/cloud-storage/application/use-cases";
 import * as path from "path";
 import { app, shell, BrowserWindow, ipcMain, Tray, nativeImage, Menu, dialog } from "electron";
 import { autoUpdater } from "electron-updater";
 import log from "electron-log";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
-import {
-  checkRcloneInstallation,
-  installRclone,
-  testR2Connection,
-  listR2Servers,
-  downloadServerFromR2,
-  uploadServerToR2,
-  createServerLock,
-  readServerLock,
-  uploadServerLock,
-  deleteServerLock,
-  deleteLocalServerLock,
-  readServerPort,
-  writeServerPort,
-  createSessionMetadata,
-  updateSessionMetadata,
-  uploadSessionMetadata,
-  shouldDownloadServer,
-  getServerStatistics,
-  createMinecraftServer,
-  deleteServerFromR2,
-  deleteServerLocally,
-} from "./rclone";
+import { createMinecraftServer, deleteServerLocally } from "./rclone";
 import { saveR2Config, loadConfig, saveUsername, saveRamConfig, saveLanguage } from "./config";
 import { ensureJavaForMinecraft, getInstalledJavaVersions, getRequiredJavaVersion } from "./java";
 import os from "os";
@@ -274,6 +274,41 @@ if (!gotTheLock) {
     );
     serverRuntimeIPCHandlers.register();
 
+    // ========== CLOUD STORAGE CONTEXT IPC HANDLERS ==========
+    const cloudStorageIPCHandlers = new CloudStorageIPCHandlers(
+      container.get(CheckRcloneInstallationUseCase),
+      container.get(InstallRcloneUseCase),
+      container.get(TestR2ConnectionUseCase),
+      container.get(ListR2ServersUseCase),
+      container.get(DownloadServerFromR2UseCase),
+      container.get(UploadServerToR2UseCase),
+      container.get(DeleteServerFromR2UseCase),
+      container.get(ShouldDownloadServerUseCase),
+      container.get(CreateServerLockUseCase),
+      container.get(ReadServerLockUseCase),
+      container.get(UploadServerLockUseCase),
+      container.get(DeleteServerLockUseCase),
+      container.get(DeleteLocalServerLockUseCase),
+      container.get(CreateSessionUseCase),
+      container.get(UpdateSessionUseCase),
+      container.get(UploadSessionUseCase),
+      container.get(GetServerStatisticsUseCase),
+      container.get(ReadServerPortUseCase),
+      container.get(WriteServerPortUseCase)
+    );
+    cloudStorageIPCHandlers.register();
+
+    // ===== CLOUD STORAGE HANDLERS - MOVED TO CONTEXT =====
+    // All rclone, R2, locks, sessions, and properties handlers moved to cloud-storage context
+    // The following handlers are now registered via CloudStorageIPCHandlers:
+    // - rclone:check-installation, rclone:install, rclone:test-r2-connection
+    // - rclone:list-servers, rclone:download-server, rclone:upload-server
+    // - server:create-lock, server:read-server-lock, server:upload-lock
+    // - server:delete-lock, server:delete-local-lock
+    // - server:read-port, server:write-port
+    // - server:create-session, server:update-session, server:upload-session
+    // - server:should-download, server:get-statistics, server:delete-from-r2
+
     // Config IPC handlers
     ipcMain.handle("config:load", async () => {
       return loadConfig();
@@ -295,100 +330,16 @@ if (!gotTheLock) {
       return saveLanguage(language);
     });
 
-    // Rclone IPC handlers
-    ipcMain.handle("rclone:check-installation", async () => {
-      return await checkRcloneInstallation();
-    });
-
-    ipcMain.handle("rclone:install", async (event) => {
-      const progressCallback = (message: string): void => {
-        event.sender.send("rclone:progress", message);
-      };
-      return await installRclone(progressCallback);
-    });
-
-    ipcMain.handle("rclone:test-r2-connection", async (_, config) => {
-      return await testR2Connection(config);
-    });
-
-    ipcMain.handle("rclone:list-servers", async (_, config) => {
-      return await listR2Servers(config);
-    });
-
-    ipcMain.handle("rclone:download-server", async (event, config, serverId) => {
-      const progressCallback = (percent: number, transferred: string, total: string): void => {
-        event.sender.send("rclone:transfer-progress", { percent, transferred, total });
-      };
-      return await downloadServerFromR2(config, serverId, progressCallback);
-    });
-
-    ipcMain.handle("rclone:upload-server", async (event, config, serverId) => {
-      const progressCallback = (percent: number, transferred: string, total: string): void => {
-        event.sender.send("rclone:transfer-progress", { percent, transferred, total });
-      };
-      return await uploadServerToR2(config, serverId, progressCallback);
-    });
-
-    ipcMain.handle("server:create-lock", async (_, serverId, username) => {
-      return createServerLock(serverId, username);
-    });
-
-    ipcMain.handle("server:read-server-lock", async (_, r2Config, serverId) => {
-      const result = await readServerLock(r2Config, serverId);
-      return result;
-    });
-
-    ipcMain.handle("server:upload-lock", async (_, config, serverId) => {
-      return await uploadServerLock(config, serverId);
-    });
-
-    ipcMain.handle("server:delete-lock", async (_, config, serverId) => {
-      return await deleteServerLock(config, serverId);
-    });
-
-    ipcMain.handle("server:delete-local-lock", async (_, serverId) => {
-      return deleteLocalServerLock(serverId);
-    });
-
-    ipcMain.handle("server:read-port", async (_, serverId) => {
-      return readServerPort(serverId);
-    });
-
-    ipcMain.handle("server:write-port", async (_, serverId, port) => {
-      return writeServerPort(serverId, port);
-    });
-
-    // Session metadata IPC handlers
-    ipcMain.handle("server:create-session", async (_, serverId, username) => {
-      return createSessionMetadata(serverId, username);
-    });
-
-    ipcMain.handle("server:update-session", async (_, serverId, username) => {
-      return updateSessionMetadata(serverId, username);
-    });
-
-    ipcMain.handle("server:upload-session", async (_, config, serverId) => {
-      return await uploadSessionMetadata(config, serverId);
-    });
-
-    ipcMain.handle("server:should-download", async (_, config, serverId) => {
-      return await shouldDownloadServer(config, serverId);
-    });
-
-    ipcMain.handle("server:get-statistics", async (_, serverId) => {
-      return getServerStatistics(serverId);
-    });
-
-    ipcMain.handle("server:create-minecraft-server", async (event, serverName, version, serverType) => {
-      const progressCallback = (message: string): void => {
-        event.sender.send("server:create-progress", message);
-      };
-      return await createMinecraftServer(serverName, version, serverType, progressCallback);
-    });
-
-    ipcMain.handle("server:delete-from-r2", async (_, config, serverId) => {
-      return await deleteServerFromR2(config, serverId);
-    });
+    // TODO: server:create-minecraft-server and server:delete-locally to be moved to server-lifecycle context
+    ipcMain.handle(
+      "server:create-minecraft-server",
+      async (event, serverName, version, serverType) => {
+        const progressCallback = (message: string): void => {
+          event.sender.send("server:create-progress", message);
+        };
+        return await createMinecraftServer(serverName, version, serverType, progressCallback);
+      }
+    );
 
     ipcMain.handle("server:delete-locally", async (_, serverId) => {
       return deleteServerLocally(serverId);

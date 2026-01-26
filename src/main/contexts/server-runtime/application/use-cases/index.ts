@@ -4,9 +4,7 @@ import { ServerProcess, ServerRuntimeConfig, ForgeJvmArgs } from "../../domain/e
 
 @injectable()
 export class SpawnServerProcessUseCase {
-  constructor(
-    private serverProcessRepository: IServerProcessRepository
-  ) {}
+  constructor(private serverProcessRepository: IServerProcessRepository) {}
 
   async execute(
     serverId: string,
@@ -27,9 +25,7 @@ export class SpawnServerProcessUseCase {
 
 @injectable()
 export class SendCommandUseCase {
-  constructor(
-    private serverProcessRepository: IServerProcessRepository
-  ) {}
+  constructor(private serverProcessRepository: IServerProcessRepository) {}
 
   async execute(serverId: string, command: string): Promise<boolean> {
     return await this.serverProcessRepository.sendCommand(serverId, command);
@@ -38,9 +34,7 @@ export class SendCommandUseCase {
 
 @injectable()
 export class KillServerProcessUseCase {
-  constructor(
-    private serverProcessRepository: IServerProcessRepository
-  ) {}
+  constructor(private serverProcessRepository: IServerProcessRepository) {}
 
   async execute(serverId: string): Promise<boolean> {
     return await this.serverProcessRepository.killProcess(serverId);
@@ -49,9 +43,7 @@ export class KillServerProcessUseCase {
 
 @injectable()
 export class ReadForgeJvmArgsUseCase {
-  constructor(
-    private serverProcessRepository: IServerProcessRepository
-  ) {}
+  constructor(private serverProcessRepository: IServerProcessRepository) {}
 
   async execute(serverId: string): Promise<ForgeJvmArgs | null> {
     return await this.serverProcessRepository.readForgeJvmArgs(serverId);
@@ -60,9 +52,7 @@ export class ReadForgeJvmArgsUseCase {
 
 @injectable()
 export class EditForgeJvmArgsUseCase {
-  constructor(
-    private serverProcessRepository: IServerProcessRepository
-  ) {}
+  constructor(private serverProcessRepository: IServerProcessRepository) {}
 
   async execute(serverId: string, minRam: number, maxRam: number): Promise<boolean> {
     return await this.serverProcessRepository.editForgeJvmArgs(serverId, minRam, maxRam);
@@ -71,9 +61,7 @@ export class EditForgeJvmArgsUseCase {
 
 @injectable()
 export class OpenServerFolderUseCase {
-  constructor(
-    private serverProcessRepository: IServerProcessRepository
-  ) {}
+  constructor(private serverProcessRepository: IServerProcessRepository) {}
 
   async execute(serverId: string): Promise<boolean> {
     return await this.serverProcessRepository.openServerFolder(serverId);
