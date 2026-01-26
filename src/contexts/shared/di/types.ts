@@ -56,9 +56,9 @@ export const SERVER_LOCKING_TYPES = {
 
   // Use Cases
   CreateServerLockUseCase: Symbol.for("CreateServerLockUseCase"),
-  ReleaseServerLockUseCase: Symbol.for("ReleaseServerLockUseCase"),
   CheckServerLockUseCase: Symbol.for("CheckServerLockUseCase"),
-  GetServerLockStatusUseCase: Symbol.for("GetServerLockStatusUseCase"),
+  UploadServerLockUseCase: Symbol.for("UploadServerLockUseCase"),
+  ReleaseServerLockUseCase: Symbol.for("ReleaseServerLockUseCase"),
 };
 
 // ============================================

@@ -3,6 +3,7 @@ import { appContainer } from "@shared/di";
 import { configureServerLifecycle } from "@server-lifecycle/di";
 import { configureServerRuntime } from "@server-runtime/di";
 import { configureCloudStorage } from "@cloud-storage/di";
+import { configureServerLocking } from "@server-locking/di";
 
 /**
  * Hook to get a dependency from the DI container
@@ -38,9 +39,10 @@ export function useContainerReady(): boolean {
         appContainer.loadModules(
           configureServerLifecycle,
           configureServerRuntime,
-          configureCloudStorage
+          configureCloudStorage,
+          configureServerLocking
           // Add other contexts here as they are implemented
-          // configureServerLocking,
+          // configureSessionTracking,
           // etc.
         );
         setReady(true);

@@ -1,6 +1,6 @@
-import { injectable } from 'inversify';
-import type { ICloudStorageRepository } from '../../domain/repositories';
-import type { R2Config, RemoteServer, TransferProgress } from '../../domain/entities';
+import { injectable } from "inversify";
+import type { ICloudStorageRepository } from "../../domain/repositories";
+import type { R2Config, RemoteServer, TransferProgress } from "../../domain/entities";
 
 /**
  * Cloud Storage Repository implementation using rclone IPC
@@ -12,7 +12,7 @@ export class CloudStorageRepository implements ICloudStorageRepository {
     try {
       return await window.rclone.testR2Connection(config);
     } catch (error) {
-      console.error('Error testing R2 connection:', error);
+      console.error("Error testing R2 connection:", error);
       return false;
     }
   }
@@ -27,7 +27,7 @@ export class CloudStorageRepository implements ICloudStorageRepository {
         type: server.type,
       }));
     } catch (error) {
-      console.error('Error listing servers from R2:', error);
+      console.error("Error listing servers from R2:", error);
       return [];
     }
   }
@@ -53,7 +53,7 @@ export class CloudStorageRepository implements ICloudStorageRepository {
       }
 
       const result = await window.rclone.downloadServer(config, serverId);
-      
+
       if (cleanup) cleanup();
       return result;
     } catch (error) {
@@ -83,7 +83,7 @@ export class CloudStorageRepository implements ICloudStorageRepository {
       }
 
       const result = await window.rclone.uploadServer(config, serverId);
-      
+
       if (cleanup) cleanup();
       return result;
     } catch (error) {
@@ -96,7 +96,7 @@ export class CloudStorageRepository implements ICloudStorageRepository {
     try {
       // Note: deleteServerFromR2 not available in current IPC API
       // This would need to be implemented in the main process
-      console.warn('Delete server from R2 not yet implemented in IPC API');
+      console.warn("Delete server from R2 not yet implemented in IPC API");
       return false;
     } catch (error) {
       console.error(`Error deleting server ${serverId} from R2:`, error);

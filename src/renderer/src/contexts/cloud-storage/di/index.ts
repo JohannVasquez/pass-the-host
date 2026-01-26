@@ -1,1 +1,1 @@
-export { configureCloudStorage } from './container';
+export { configureCloudStorage } from "./container";

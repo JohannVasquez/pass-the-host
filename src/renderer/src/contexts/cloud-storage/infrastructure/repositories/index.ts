@@ -1,1 +1,1 @@
-export { CloudStorageRepository } from './CloudStorageRepository';
+export { CloudStorageRepository } from "./CloudStorageRepository";

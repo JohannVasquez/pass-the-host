@@ -1,7 +1,7 @@
-import { injectable, inject } from 'inversify';
-import type { ICloudStorageRepository } from '../../domain/repositories';
-import type { R2Config, RemoteServer } from '../../domain/entities';
-import { CLOUD_STORAGE_TYPES } from '@shared/di';
+import { injectable, inject } from "inversify";
+import type { ICloudStorageRepository } from "../../domain/repositories";
+import type { R2Config, RemoteServer } from "../../domain/entities";
+import { CLOUD_STORAGE_TYPES } from "@shared/di";
 
 /**
  * List Remote Servers Use Case
