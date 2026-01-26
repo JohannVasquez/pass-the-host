@@ -1392,25 +1392,35 @@ export async function createMinecraftServer(
                   .get(response.headers.location, (redirectResponse) => {
                     redirectResponse.pipe(file);
                     file.on("finish", () => {
-                      file.close();
-                      resolve();
+                      file.close((err) => {
+                        if (err) reject(err);
+                        else resolve();
+                      });
                     });
                   })
                   .on("error", (err) => {
-                    fs.unlinkSync(serverJarPath);
+                    file.close();
+                    try {
+                      fs.unlinkSync(serverJarPath);
+                    } catch {}
                     reject(err);
                   });
+              } else {
+                reject(new Error("Redirect without location"));
               }
               return;
             }
 
             response.pipe(file);
             file.on("finish", () => {
-              file.close();
-              resolve();
+              file.close((err) => {
+                if (err) reject(err);
+                else resolve();
+              });
             });
           })
           .on("error", (err) => {
+            file.close();
             try {
               fs.unlinkSync(serverJarPath);
             } catch {}
@@ -1441,27 +1451,35 @@ export async function createMinecraftServer(
                   .get(response.headers.location, (redirectResponse) => {
                     redirectResponse.pipe(file);
                     file.on("finish", () => {
-                      file.close();
-                      resolve();
+                      file.close((err) => {
+                        if (err) reject(err);
+                        else resolve();
+                      });
                     });
                   })
                   .on("error", (err) => {
+                    file.close();
                     try {
                       fs.unlinkSync(forgeInstallerPath);
                     } catch {}
                     reject(err);
                   });
+              } else {
+                reject(new Error("Redirect without location"));
               }
               return;
             }
 
             response.pipe(file);
             file.on("finish", () => {
-              file.close();
-              resolve();
+              file.close((err) => {
+                if (err) reject(err);
+                else resolve();
+              });
             });
           })
           .on("error", (err) => {
+            file.close();
             try {
               fs.unlinkSync(forgeInstallerPath);
             } catch {}
