@@ -166,10 +166,9 @@ export class R2ServerRepository implements IR2ServerRepository {
 
   async shouldDownloadServer(config: R2Config, serverId: string): Promise<boolean> {
     try {
-      const SessionRepository = require("./SessionRepository").SessionRepository;
-      const sessionRepo = new SessionRepository(this.rcloneRepository);
-
-      const localSession = sessionRepo.readLocalSession(serverId);
+      // Read local session directly instead of using SessionRepository
+      const localSession = this.readLocalSession(serverId);
+      console.log(`[SESSION] Local session for ${serverId}:`, JSON.stringify(localSession, null, 2));
 
       await this.rcloneRepository.ensureConfigured(config);
       const rclonePath = this.rcloneRepository.getRclonePath();
@@ -181,8 +180,10 @@ export class R2ServerRepository implements IR2ServerRepository {
       try {
         const { stdout } = await execAsync(catCommand, { maxBuffer: 1024 * 1024 });
         r2Session = JSON.parse(stdout.trim());
-      } catch {
+        console.log(`[SESSION] R2 session for ${serverId}:`, JSON.stringify(r2Session, null, 2));
+      } catch (e) {
         // File doesn't exist in R2
+        console.log(`[SESSION] No R2 session file found for ${serverId}`);
       }
 
       if (!localSession) {
@@ -197,6 +198,8 @@ export class R2ServerRepository implements IR2ServerRepository {
 
       const localTimestamp = localSession.lastPlayedTimestamp;
       const r2Timestamp = r2Session.lastPlayedTimestamp;
+      
+      console.log(`[SESSION] Comparing timestamps - Local: ${localTimestamp}, R2: ${r2Timestamp}`);
 
       if (r2Timestamp > localTimestamp) {
         console.log(
@@ -212,6 +215,23 @@ export class R2ServerRepository implements IR2ServerRepository {
     } catch (error) {
       console.error(`Error checking if download is needed for ${serverId}:`, error);
       return true;
+    }
+  }
+
+  private readLocalSession(serverId: string): any {
+    try {
+      const serverPath = path.join(app.getPath("userData"), "servers", serverId);
+      const sessionFilePath = path.join(serverPath, "session.json");
+
+      if (!fs.existsSync(sessionFilePath)) {
+        return null;
+      }
+
+      const content = fs.readFileSync(sessionFilePath, "utf-8");
+      return JSON.parse(content);
+    } catch (error) {
+      console.error(`Error reading local session for ${serverId}:`, error);
+      return null;
     }
   }
 
