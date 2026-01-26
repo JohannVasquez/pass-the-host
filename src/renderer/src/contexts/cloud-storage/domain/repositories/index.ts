@@ -1,1 +1,1 @@
-export type { ICloudStorageRepository } from './ICloudStorageRepository';
+export type { ICloudStorageRepository } from "./ICloudStorageRepository";

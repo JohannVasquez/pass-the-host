@@ -1,4 +1,4 @@
-import type { R2Config, RemoteServer, TransferProgress } from '../entities';
+import type { R2Config, RemoteServer, TransferProgress } from "../entities";
 
 /**
  * Cloud Storage Repository interface

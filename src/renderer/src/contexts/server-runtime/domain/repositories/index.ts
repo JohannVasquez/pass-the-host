@@ -1,1 +1,1 @@
-export type { IServerRuntimeRepository } from './IServerRuntimeRepository'
+export type { IServerRuntimeRepository } from "./IServerRuntimeRepository";

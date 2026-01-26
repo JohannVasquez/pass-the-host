@@ -1,14 +1,14 @@
-import { injectable, inject } from 'inversify';
-import type { ICloudStorageRepository } from '../../domain/repositories';
-import type { R2Config, TransferProgress } from '../../domain/entities';
-import { CLOUD_STORAGE_TYPES } from '@shared/di';
-import { EventBus } from '@shared/infrastructure/event-bus';
+import { injectable, inject } from "inversify";
+import type { ICloudStorageRepository } from "../../domain/repositories";
+import type { R2Config, TransferProgress } from "../../domain/entities";
+import { CLOUD_STORAGE_TYPES } from "@shared/di";
+import { EventBus } from "@shared/infrastructure/event-bus";
 import {
   ServerDownloadStartedEvent,
   ServerDownloadProgressEvent,
   ServerDownloadCompletedEvent,
   ServerDownloadFailedEvent,
-} from '@shared/domain/DomainEvents';
+} from "@shared/domain/DomainEvents";
 
 /**
  * Download Server Use Case
@@ -48,7 +48,7 @@ export class DownloadServerUseCase {
         this.eventBus.publish(
           new ServerDownloadFailedEvent({
             serverId,
-            error: 'Download failed',
+            error: "Download failed",
           })
         );
       }
@@ -58,7 +58,7 @@ export class DownloadServerUseCase {
       this.eventBus.publish(
         new ServerDownloadFailedEvent({
           serverId,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: error instanceof Error ? error.message : "Unknown error",
         })
       );
       return false;

@@ -1,7 +1,7 @@
-import { injectable } from 'inversify';
-import type { R2Config } from '../../domain/entities';
-import { EventBus } from '@shared/infrastructure/event-bus';
-import { R2ConfiguredEvent } from '@shared/domain/DomainEvents';
+import { injectable } from "inversify";
+import type { R2Config } from "../../domain/entities";
+import { EventBus } from "@shared/infrastructure/event-bus";
+import { R2ConfiguredEvent } from "@shared/domain/DomainEvents";
 
 /**
  * Configure R2 Use Case
@@ -14,7 +14,7 @@ export class ConfigureR2UseCase {
   async execute(config: R2Config): Promise<void> {
     // Validate configuration
     if (!config.endpoint || !config.access_key || !config.secret_key || !config.bucket_name) {
-      throw new Error('R2 configuration is incomplete');
+      throw new Error("R2 configuration is incomplete");
     }
 
     // Configuration is valid, publish event

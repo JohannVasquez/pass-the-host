@@ -1,13 +1,13 @@
-import { Container } from 'inversify'
-import { SERVER_RUNTIME_TYPES } from '@shared/di/types'
-import type { IServerRuntimeRepository } from '@server-runtime/domain/repositories/IServerRuntimeRepository'
-import { ServerRuntimeRepository } from '@server-runtime/infrastructure/repositories/ServerRuntimeRepository'
+import { Container } from "inversify";
+import { SERVER_RUNTIME_TYPES } from "@shared/di/types";
+import type { IServerRuntimeRepository } from "@server-runtime/domain/repositories/IServerRuntimeRepository";
+import { ServerRuntimeRepository } from "@server-runtime/infrastructure/repositories/ServerRuntimeRepository";
 import {
   StartServerUseCase,
   StopServerUseCase,
   ExecuteCommandUseCase,
-  GetServerStatusUseCase
-} from '@server-runtime/application/use-cases'
+  GetServerStatusUseCase,
+} from "@server-runtime/application/use-cases";
 
 /**
  * Configure Server Runtime context dependencies
@@ -17,26 +17,26 @@ export function configureServerRuntime(container: Container): void {
   container
     .bind<IServerRuntimeRepository>(SERVER_RUNTIME_TYPES.ServerRuntimeRepository)
     .to(ServerRuntimeRepository)
-    .inSingletonScope()
+    .inSingletonScope();
 
   // Use Cases
   container
     .bind<StartServerUseCase>(SERVER_RUNTIME_TYPES.StartServerUseCase)
     .to(StartServerUseCase)
-    .inSingletonScope()
+    .inSingletonScope();
 
   container
     .bind<StopServerUseCase>(SERVER_RUNTIME_TYPES.StopServerUseCase)
     .to(StopServerUseCase)
-    .inSingletonScope()
+    .inSingletonScope();
 
   container
     .bind<ExecuteCommandUseCase>(SERVER_RUNTIME_TYPES.ExecuteCommandUseCase)
     .to(ExecuteCommandUseCase)
-    .inSingletonScope()
+    .inSingletonScope();
 
   container
     .bind<GetServerStatusUseCase>(SERVER_RUNTIME_TYPES.GetServerStatusUseCase)
     .to(GetServerStatusUseCase)
-    .inSingletonScope()
+    .inSingletonScope();
 }
