@@ -1,0 +1,1 @@
+export { configureCloudStorage } from './container';
