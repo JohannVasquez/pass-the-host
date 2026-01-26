@@ -1,8 +1,8 @@
-import type { Container } from 'inversify';
-import { SYSTEM_RESOURCES_TYPES } from '@shared/di';
-import type { ISystemResourcesRepository } from '../domain/repositories';
-import { SystemResourcesRepository } from '../infrastructure/repositories';
-import { GetSystemMemoryUseCase, GetNetworkInterfacesUseCase } from '../application/use-cases';
+import type { Container } from "inversify";
+import { SYSTEM_RESOURCES_TYPES } from "@shared/di";
+import type { ISystemResourcesRepository } from "../domain/repositories";
+import { SystemResourcesRepository } from "../infrastructure/repositories";
+import { GetSystemMemoryUseCase, GetNetworkInterfacesUseCase } from "../application/use-cases";
 
 /**
  * Configures the System Resources context in the DI container

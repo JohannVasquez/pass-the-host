@@ -371,11 +371,7 @@ export class ServerLockDetectedEvent extends BaseDomainEvent {
 // ============================================
 
 export class SessionStartedEvent extends BaseDomainEvent {
-  constructor(data: {
-    serverId: string;
-    username: string;
-    timestamp: Date;
-  }) {
+  constructor(data: { serverId: string; username: string; timestamp: Date }) {
     super(data.serverId);
     this.serverId = data.serverId;
     this.username = data.username;
@@ -392,11 +388,7 @@ export class SessionStartedEvent extends BaseDomainEvent {
 }
 
 export class SessionEndedEvent extends BaseDomainEvent {
-  constructor(data: {
-    serverId: string;
-    username: string;
-    timestamp: Date;
-  }) {
+  constructor(data: { serverId: string; username: string; timestamp: Date }) {
     super(data.serverId);
     this.serverId = data.serverId;
     this.username = data.username;
@@ -413,9 +405,7 @@ export class SessionEndedEvent extends BaseDomainEvent {
 }
 
 export class SessionUploadedEvent extends BaseDomainEvent {
-  constructor(data: {
-    serverId: string;
-  }) {
+  constructor(data: { serverId: string }) {
     super(data.serverId);
     this.serverId = data.serverId;
   }

@@ -1,1 +1,1 @@
-export type { ISystemResourcesRepository } from './ISystemResourcesRepository';
+export type { ISystemResourcesRepository } from "./ISystemResourcesRepository";

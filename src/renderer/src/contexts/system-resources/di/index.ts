@@ -1,1 +1,1 @@
-export { configureSystemResources } from './container';
+export { configureSystemResources } from "./container";

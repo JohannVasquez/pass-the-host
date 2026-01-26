@@ -1,7 +1,7 @@
-import { injectable, inject } from 'inversify';
-import type { ISessionRepository } from '../../domain/repositories';
-import type { ServerStatistics } from '../../domain/entities';
-import { SESSION_TRACKING_TYPES } from '@shared/di';
+import { injectable, inject } from "inversify";
+import type { ISessionRepository } from "../../domain/repositories";
+import type { ServerStatistics } from "../../domain/entities";
+import { SESSION_TRACKING_TYPES } from "@shared/di";
 
 /**
  * Get Server Statistics Use Case
@@ -16,7 +16,7 @@ export class GetServerStatisticsUseCase {
 
   async execute(serverId: string): Promise<ServerStatistics | null> {
     if (!serverId) {
-      throw new Error('ServerId is required');
+      throw new Error("ServerId is required");
     }
 
     return await this.repository.getStatistics(serverId);

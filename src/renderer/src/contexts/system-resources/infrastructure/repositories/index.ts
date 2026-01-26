@@ -1,1 +1,1 @@
-export { SystemResourcesRepository } from './SystemResourcesRepository';
+export { SystemResourcesRepository } from "./SystemResourcesRepository";

@@ -1,1 +1,1 @@
-export { configureSessionTracking } from './container';
+export { configureSessionTracking } from "./container";
