@@ -31,7 +31,6 @@ import { ServerStatus } from "./domain/entities/ServerStatus";
 import { R2Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
 import { Server } from "./domain/entities/Server";
-import { ServerType } from "./domain/entities/Server";
 import { R2ServerRepository } from "./infrastructure/repositories/R2ServerRepository";
 import { R2Service } from "./infrastructure/services/R2Service";
 import { useTranslation } from "react-i18next";
@@ -201,6 +200,17 @@ function App(): React.JSX.Element {
       setTransferPercent(progress.percent);
       setTransferTransferred(progress.transferred);
       setTransferTotal(progress.total);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  // Listen to server creation progress
+  React.useEffect(() => {
+    const unsubscribe = window.serverAPI.onCreateProgress((message) => {
+      setCreateServerProgress(message);
     });
 
     return () => {
@@ -995,7 +1005,8 @@ function App(): React.JSX.Element {
               ...prev,
               {
                 timestamp: new Date(),
-                message: "Warning: Could not read run.bat arguments, falling back to run.bat execution",
+                message:
+                  "Warning: Could not read run.bat arguments, falling back to run.bat execution",
                 type: "warning",
               },
             ]);
@@ -1275,14 +1286,51 @@ function App(): React.JSX.Element {
           },
         ]);
 
-        // Add server to local list (it will be synced on next operation)
-        const newServer: Server = {
-          id: serverName,
-          name: serverName,
-          version: version,
-          type: serverType === "vanilla" ? ServerType.VANILLA : ServerType.FORGE,
-        };
-        setServers((prev) => [...prev, newServer]);
+        // Upload the newly created server to R2
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Uploading server to R2...",
+            type: "info",
+          },
+        ]);
+
+        setIsTransferring(true);
+        setTransferType("upload");
+        setTransferPercent(0);
+        setTransferTransferred("0");
+        setTransferTotal("0");
+
+        const r2Service = new R2Service(r2Config);
+        const uploadSuccess = await r2Service.uploadServer(serverName);
+
+        setIsTransferring(false);
+
+        if (!uploadSuccess) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Warning: Failed to upload server to R2. You can sync it manually later.",
+              type: "warning",
+            },
+          ]);
+        } else {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Server uploaded to R2 successfully",
+              type: "info",
+            },
+          ]);
+        }
+
+        // Reload servers from R2
+        await loadServersFromR2();
+
+        // Select the newly created server
         setSelectedServer(serverName);
       } else {
         setLogs((prev) => [
@@ -1307,6 +1355,7 @@ function App(): React.JSX.Element {
     } finally {
       setIsCreatingServer(false);
       setCreateServerProgress("");
+      setIsCreateServerModalOpen(false);
     }
   };
 
@@ -1732,7 +1781,7 @@ function App(): React.JSX.Element {
 
     // Reload servers from R2
     await loadServersFromR2();
-    
+
     setIsDeleteServerModalOpen(false);
   };
 
