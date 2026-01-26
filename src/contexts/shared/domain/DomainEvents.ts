@@ -472,9 +472,12 @@ export class JavaDownloadCompletedEvent extends BaseDomainEvent {
 // ============================================
 
 export class LanguageChangedEvent extends BaseDomainEvent {
-  constructor(public readonly language: string) {
+  constructor(data: { language: string }) {
     super();
+    this.language = data.language;
   }
+
+  public readonly language: string;
 
   get eventName(): string {
     return "language.changed";
@@ -482,12 +485,30 @@ export class LanguageChangedEvent extends BaseDomainEvent {
 }
 
 export class UsernameChangedEvent extends BaseDomainEvent {
-  constructor(public readonly username: string) {
+  constructor(data: { username: string }) {
     super();
+    this.username = data.username;
   }
+
+  public readonly username: string;
 
   get eventName(): string {
     return "username.changed";
+  }
+}
+
+export class RamConfigChangedEvent extends BaseDomainEvent {
+  constructor(data: { minRam: number; maxRam: number }) {
+    super();
+    this.minRam = data.minRam;
+    this.maxRam = data.maxRam;
+  }
+
+  public readonly minRam: number;
+  public readonly maxRam: number;
+
+  get eventName(): string {
+    return "ramConfig.changed";
   }
 }
 
