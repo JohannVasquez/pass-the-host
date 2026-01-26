@@ -1,1 +1,1 @@
-export { configureServerLocking } from './container';
+export { configureServerLocking } from "./container";

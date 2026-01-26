@@ -1,1 +1,1 @@
-export type { IServerLockRepository } from './IServerLockRepository';
+export type { IServerLockRepository } from "./IServerLockRepository";

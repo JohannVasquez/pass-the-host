@@ -307,10 +307,7 @@ export class ServerDeletedFromR2Event extends BaseDomainEvent {
 // ============================================
 
 export class ServerLockCreatedEvent extends BaseDomainEvent {
-  constructor(data: {
-    serverId: string;
-    username: string;
-  }) {
+  constructor(data: { serverId: string; username: string }) {
     super(data.serverId);
     this.serverId = data.serverId;
     this.username = data.username;
@@ -327,9 +324,7 @@ export class ServerLockCreatedEvent extends BaseDomainEvent {
 }
 
 export class ServerLockUploadedEvent extends BaseDomainEvent {
-  constructor(data: {
-    serverId: string;
-  }) {
+  constructor(data: { serverId: string }) {
     super(data.serverId);
     this.serverId = data.serverId;
   }
@@ -342,9 +337,7 @@ export class ServerLockUploadedEvent extends BaseDomainEvent {
 }
 
 export class ServerLockReleasedEvent extends BaseDomainEvent {
-  constructor(data: {
-    serverId: string;
-  }) {
+  constructor(data: { serverId: string }) {
     super(data.serverId);
     this.serverId = data.serverId;
   }
@@ -357,11 +350,7 @@ export class ServerLockReleasedEvent extends BaseDomainEvent {
 }
 
 export class ServerLockDetectedEvent extends BaseDomainEvent {
-  constructor(data: {
-    serverId: string;
-    username: string;
-    timestamp: Date;
-  }) {
+  constructor(data: { serverId: string; username: string; timestamp: Date }) {
     super(data.serverId);
     this.serverId = data.serverId;
     this.username = data.username;

@@ -1,5 +1,5 @@
-import type { R2Config } from '@cloud-storage/domain/entities';
-import type { LockCheckResult, LockOperationResult } from '../entities';
+import type { R2Config } from "@cloud-storage/domain/entities";
+import type { LockCheckResult, LockOperationResult } from "../entities";
 
 /**
  * Server Lock Repository interface

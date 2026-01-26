@@ -1,10 +1,10 @@
-import { injectable, inject } from 'inversify';
-import type { IServerLockRepository } from '../../domain/repositories';
-import type { R2Config } from '@cloud-storage/domain/entities';
-import type { LockOperationResult } from '../../domain/entities';
-import { SERVER_LOCKING_TYPES } from '@shared/di';
-import { EventBus } from '@shared/infrastructure/event-bus';
-import { ServerLockReleasedEvent } from '@shared/domain/DomainEvents';
+import { injectable, inject } from "inversify";
+import type { IServerLockRepository } from "../../domain/repositories";
+import type { R2Config } from "@cloud-storage/domain/entities";
+import type { LockOperationResult } from "../../domain/entities";
+import { SERVER_LOCKING_TYPES } from "@shared/di";
+import { EventBus } from "@shared/infrastructure/event-bus";
+import { ServerLockReleasedEvent } from "@shared/domain/DomainEvents";
 
 /**
  * Release Server Lock Use Case
@@ -21,7 +21,7 @@ export class ReleaseServerLockUseCase {
 
   async execute(r2Config: R2Config, serverId: string): Promise<boolean> {
     if (!serverId) {
-      throw new Error('ServerId is required');
+      throw new Error("ServerId is required");
     }
 
     // Delete from both local and remote

@@ -1,7 +1,7 @@
-import { injectable } from 'inversify';
-import type { IServerLockRepository } from '../../domain/repositories';
-import type { R2Config } from '@cloud-storage/domain/entities';
-import type { ServerLock, LockCheckResult, LockOperationResult } from '../../domain/entities';
+import { injectable } from "inversify";
+import type { IServerLockRepository } from "../../domain/repositories";
+import type { R2Config } from "@cloud-storage/domain/entities";
+import type { ServerLock, LockCheckResult, LockOperationResult } from "../../domain/entities";
 
 /**
  * Server Lock Repository implementation using IPC
@@ -28,7 +28,7 @@ export class ServerLockRepository implements IServerLockRepository {
 
       const lock: ServerLock = {
         serverId,
-        username: result.username || 'Unknown',
+        username: result.username || "Unknown",
         startedAt: result.startedAt || new Date().toISOString(),
         timestamp: result.timestamp || Date.now(),
       };
