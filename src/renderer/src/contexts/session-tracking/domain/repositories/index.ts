@@ -1,1 +1,1 @@
-export type { ISessionRepository } from './ISessionRepository';
+export type { ISessionRepository } from "./ISessionRepository";

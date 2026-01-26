@@ -1,5 +1,5 @@
-import type { R2Config } from '@cloud-storage/domain/entities';
-import type { ServerStatistics } from '../entities';
+import type { R2Config } from "@cloud-storage/domain/entities";
+import type { ServerStatistics } from "../entities";
 
 /**
  * Session Repository interface

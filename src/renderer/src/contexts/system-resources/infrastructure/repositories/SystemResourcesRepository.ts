@@ -1,6 +1,6 @@
-import { injectable } from 'inversify';
-import type { ISystemResourcesRepository } from '../../domain/repositories';
-import type { SystemMemory, NetworkInterface } from '../../domain/entities';
+import { injectable } from "inversify";
+import type { ISystemResourcesRepository } from "../../domain/repositories";
+import type { SystemMemory, NetworkInterface } from "../../domain/entities";
 
 /**
  * System Resources Repository implementation using IPC
@@ -12,7 +12,7 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
     try {
       return await window.systemAPI.getTotalMemoryGB();
     } catch (error) {
-      console.error('Error getting total memory:', error);
+      console.error("Error getting total memory:", error);
       return 0;
     }
   }
@@ -24,7 +24,7 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
         totalGB,
       };
     } catch (error) {
-      console.error('Error getting system memory:', error);
+      console.error("Error getting system memory:", error);
       return {
         totalGB: 0,
       };
@@ -35,7 +35,7 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
     try {
       return await window.systemAPI.getNetworkInterfaces();
     } catch (error) {
-      console.error('Error getting network interfaces:', error);
+      console.error("Error getting network interfaces:", error);
       return [];
     }
   }

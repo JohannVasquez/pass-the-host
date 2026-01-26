@@ -1,8 +1,8 @@
-import { injectable, inject } from 'inversify';
-import type { ISessionRepository } from '../../domain/repositories';
-import { SESSION_TRACKING_TYPES } from '@shared/di';
-import { EventBus } from '@shared/infrastructure/event-bus';
-import { SessionStartedEvent } from '@shared/domain/DomainEvents';
+import { injectable, inject } from "inversify";
+import type { ISessionRepository } from "../../domain/repositories";
+import { SESSION_TRACKING_TYPES } from "@shared/di";
+import { EventBus } from "@shared/infrastructure/event-bus";
+import { SessionStartedEvent } from "@shared/domain/DomainEvents";
 
 /**
  * Create Session Use Case
@@ -19,7 +19,7 @@ export class CreateSessionUseCase {
 
   async execute(serverId: string, username: string): Promise<boolean> {
     if (!serverId || !username) {
-      throw new Error('ServerId and username are required');
+      throw new Error("ServerId and username are required");
     }
 
     const success = await this.repository.createSession(serverId, username);
