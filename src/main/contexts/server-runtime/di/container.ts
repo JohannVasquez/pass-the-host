@@ -18,40 +18,40 @@ export function configureServerRuntimeContext(container: Container): void {
     .to(ServerProcessRepository)
     .inSingletonScope();
 
-  // Use Cases - with factory injection
-  container.bind<SpawnServerProcessUseCase>(SpawnServerProcessUseCase).toDynamicValue((context) => {
+  // Use Cases - with factory injection using closure
+  container.bind<SpawnServerProcessUseCase>(SpawnServerProcessUseCase).toDynamicValue(() => {
     return new SpawnServerProcessUseCase(
-      context.container.get<IServerProcessRepository>(TYPES.ServerProcessRepository)
+      container.get<IServerProcessRepository>(TYPES.ServerProcessRepository)
     );
   });
 
-  container.bind<SendCommandUseCase>(SendCommandUseCase).toDynamicValue((context) => {
+  container.bind<SendCommandUseCase>(SendCommandUseCase).toDynamicValue(() => {
     return new SendCommandUseCase(
-      context.container.get<IServerProcessRepository>(TYPES.ServerProcessRepository)
+      container.get<IServerProcessRepository>(TYPES.ServerProcessRepository)
     );
   });
 
-  container.bind<KillServerProcessUseCase>(KillServerProcessUseCase).toDynamicValue((context) => {
+  container.bind<KillServerProcessUseCase>(KillServerProcessUseCase).toDynamicValue(() => {
     return new KillServerProcessUseCase(
-      context.container.get<IServerProcessRepository>(TYPES.ServerProcessRepository)
+      container.get<IServerProcessRepository>(TYPES.ServerProcessRepository)
     );
   });
 
-  container.bind<ReadForgeJvmArgsUseCase>(ReadForgeJvmArgsUseCase).toDynamicValue((context) => {
+  container.bind<ReadForgeJvmArgsUseCase>(ReadForgeJvmArgsUseCase).toDynamicValue(() => {
     return new ReadForgeJvmArgsUseCase(
-      context.container.get<IServerProcessRepository>(TYPES.ServerProcessRepository)
+      container.get<IServerProcessRepository>(TYPES.ServerProcessRepository)
     );
   });
 
-  container.bind<EditForgeJvmArgsUseCase>(EditForgeJvmArgsUseCase).toDynamicValue((context) => {
+  container.bind<EditForgeJvmArgsUseCase>(EditForgeJvmArgsUseCase).toDynamicValue(() => {
     return new EditForgeJvmArgsUseCase(
-      context.container.get<IServerProcessRepository>(TYPES.ServerProcessRepository)
+      container.get<IServerProcessRepository>(TYPES.ServerProcessRepository)
     );
   });
 
-  container.bind<OpenServerFolderUseCase>(OpenServerFolderUseCase).toDynamicValue((context) => {
+  container.bind<OpenServerFolderUseCase>(OpenServerFolderUseCase).toDynamicValue(() => {
     return new OpenServerFolderUseCase(
-      context.container.get<IServerProcessRepository>(TYPES.ServerProcessRepository)
+      container.get<IServerProcessRepository>(TYPES.ServerProcessRepository)
     );
   });
 }
