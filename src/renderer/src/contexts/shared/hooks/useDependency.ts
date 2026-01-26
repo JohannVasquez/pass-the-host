@@ -4,6 +4,8 @@ import { configureServerLifecycle } from "@server-lifecycle/di";
 import { configureServerRuntime } from "@server-runtime/di";
 import { configureCloudStorage } from "@cloud-storage/di";
 import { configureServerLocking } from "@server-locking/di";
+import { configureSystemResources } from "@system-resources/di";
+import { configureSessionTracking } from "@session-tracking/di";
 
 /**
  * Hook to get a dependency from the DI container
@@ -40,10 +42,11 @@ export function useContainerReady(): boolean {
           configureServerLifecycle,
           configureServerRuntime,
           configureCloudStorage,
-          configureServerLocking
+          configureServerLocking,
+          configureSystemResources,
+          configureSessionTracking
           // Add other contexts here as they are implemented
-          // configureSessionTracking,
-          // etc.
+          // configureAppConfiguration,
         );
         setReady(true);
       } catch (error) {
