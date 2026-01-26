@@ -92,13 +92,13 @@ export const SYSTEM_RESOURCES_TYPES = {
 // ============================================
 export const APP_CONFIGURATION_TYPES = {
   // Repositories
-  ConfigRepository: Symbol.for("ConfigRepository"),
+  ConfigurationRepository: Symbol.for("ConfigurationRepository"),
 
   // Use Cases
   LoadConfigurationUseCase: Symbol.for("LoadConfigurationUseCase"),
-  SaveConfigurationUseCase: Symbol.for("SaveConfigurationUseCase"),
-  ChangeLanguageUseCase: Symbol.for("ChangeLanguageUseCase"),
   SaveUsernameUseCase: Symbol.for("SaveUsernameUseCase"),
+  ChangeLanguageUseCase: Symbol.for("ChangeLanguageUseCase"),
+  SaveRamConfigUseCase: Symbol.for("SaveRamConfigUseCase"),
 };
 
 // ============================================

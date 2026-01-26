@@ -6,6 +6,7 @@ import { configureCloudStorage } from "@cloud-storage/di";
 import { configureServerLocking } from "@server-locking/di";
 import { configureSystemResources } from "@system-resources/di";
 import { configureSessionTracking } from "@session-tracking/di";
+import { configureAppConfiguration } from "@app-configuration/di";
 
 /**
  * Hook to get a dependency from the DI container
@@ -44,9 +45,8 @@ export function useContainerReady(): boolean {
           configureCloudStorage,
           configureServerLocking,
           configureSystemResources,
-          configureSessionTracking
-          // Add other contexts here as they are implemented
-          // configureAppConfiguration,
+          configureSessionTracking,
+          configureAppConfiguration
         );
         setReady(true);
       } catch (error) {
