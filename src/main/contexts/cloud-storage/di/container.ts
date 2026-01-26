@@ -36,15 +36,14 @@ import { TYPES } from "../application/use-cases/types";
 
 export function configureCloudStorageContext(container: Container): void {
   // Repositories
-  container
-    .bind<IRcloneRepository>(TYPES.RcloneRepository)
-    .to(RcloneRepository)
-    .inSingletonScope();
+  container.bind<IRcloneRepository>(TYPES.RcloneRepository).to(RcloneRepository).inSingletonScope();
 
   container
     .bind<IR2ServerRepository>(TYPES.R2ServerRepository)
     .toDynamicValue(() => {
-      const rcloneRepo = container.get<IRcloneRepository>(TYPES.RcloneRepository) as RcloneRepository;
+      const rcloneRepo = container.get<IRcloneRepository>(
+        TYPES.RcloneRepository
+      ) as RcloneRepository;
       return new R2ServerRepository(rcloneRepo);
     })
     .inSingletonScope();
@@ -52,7 +51,9 @@ export function configureCloudStorageContext(container: Container): void {
   container
     .bind<IServerLockRepository>(TYPES.ServerLockRepository)
     .toDynamicValue(() => {
-      const rcloneRepo = container.get<IRcloneRepository>(TYPES.RcloneRepository) as RcloneRepository;
+      const rcloneRepo = container.get<IRcloneRepository>(
+        TYPES.RcloneRepository
+      ) as RcloneRepository;
       return new ServerLockRepository(rcloneRepo);
     })
     .inSingletonScope();
@@ -60,7 +61,9 @@ export function configureCloudStorageContext(container: Container): void {
   container
     .bind<ISessionRepository>(TYPES.SessionRepository)
     .toDynamicValue(() => {
-      const rcloneRepo = container.get<IRcloneRepository>(TYPES.RcloneRepository) as RcloneRepository;
+      const rcloneRepo = container.get<IRcloneRepository>(
+        TYPES.RcloneRepository
+      ) as RcloneRepository;
       return new SessionRepository(rcloneRepo);
     })
     .inSingletonScope();
@@ -80,30 +83,22 @@ export function configureCloudStorageContext(container: Container): void {
     });
 
   container.bind<InstallRcloneUseCase>(InstallRcloneUseCase).toDynamicValue(() => {
-    return new InstallRcloneUseCase(
-      container.get<IRcloneRepository>(TYPES.RcloneRepository)
-    );
+    return new InstallRcloneUseCase(container.get<IRcloneRepository>(TYPES.RcloneRepository));
   });
 
   container.bind<TestR2ConnectionUseCase>(TestR2ConnectionUseCase).toDynamicValue(() => {
-    return new TestR2ConnectionUseCase(
-      container.get<IRcloneRepository>(TYPES.RcloneRepository)
-    );
+    return new TestR2ConnectionUseCase(container.get<IRcloneRepository>(TYPES.RcloneRepository));
   });
 
   container.bind<ListR2ServersUseCase>(ListR2ServersUseCase).toDynamicValue(() => {
-    return new ListR2ServersUseCase(
+    return new ListR2ServersUseCase(container.get<IR2ServerRepository>(TYPES.R2ServerRepository));
+  });
+
+  container.bind<DownloadServerFromR2UseCase>(DownloadServerFromR2UseCase).toDynamicValue(() => {
+    return new DownloadServerFromR2UseCase(
       container.get<IR2ServerRepository>(TYPES.R2ServerRepository)
     );
   });
-
-  container
-    .bind<DownloadServerFromR2UseCase>(DownloadServerFromR2UseCase)
-    .toDynamicValue(() => {
-      return new DownloadServerFromR2UseCase(
-        container.get<IR2ServerRepository>(TYPES.R2ServerRepository)
-      );
-    });
 
   container.bind<UploadServerToR2UseCase>(UploadServerToR2UseCase).toDynamicValue(() => {
     return new UploadServerToR2UseCase(
@@ -111,21 +106,17 @@ export function configureCloudStorageContext(container: Container): void {
     );
   });
 
-  container
-    .bind<DeleteServerFromR2UseCase>(DeleteServerFromR2UseCase)
-    .toDynamicValue(() => {
-      return new DeleteServerFromR2UseCase(
-        container.get<IR2ServerRepository>(TYPES.R2ServerRepository)
-      );
-    });
+  container.bind<DeleteServerFromR2UseCase>(DeleteServerFromR2UseCase).toDynamicValue(() => {
+    return new DeleteServerFromR2UseCase(
+      container.get<IR2ServerRepository>(TYPES.R2ServerRepository)
+    );
+  });
 
-  container
-    .bind<ShouldDownloadServerUseCase>(ShouldDownloadServerUseCase)
-    .toDynamicValue(() => {
-      return new ShouldDownloadServerUseCase(
-        container.get<IR2ServerRepository>(TYPES.R2ServerRepository)
-      );
-    });
+  container.bind<ShouldDownloadServerUseCase>(ShouldDownloadServerUseCase).toDynamicValue(() => {
+    return new ShouldDownloadServerUseCase(
+      container.get<IR2ServerRepository>(TYPES.R2ServerRepository)
+    );
+  });
 
   container.bind<CreateServerLockUseCase>(CreateServerLockUseCase).toDynamicValue(() => {
     return new CreateServerLockUseCase(
@@ -151,39 +142,29 @@ export function configureCloudStorageContext(container: Container): void {
     );
   });
 
-  container
-    .bind<DeleteLocalServerLockUseCase>(DeleteLocalServerLockUseCase)
-    .toDynamicValue(() => {
-      return new DeleteLocalServerLockUseCase(
-        container.get<IServerLockRepository>(TYPES.ServerLockRepository)
-      );
-    });
+  container.bind<DeleteLocalServerLockUseCase>(DeleteLocalServerLockUseCase).toDynamicValue(() => {
+    return new DeleteLocalServerLockUseCase(
+      container.get<IServerLockRepository>(TYPES.ServerLockRepository)
+    );
+  });
 
   container.bind<CreateSessionUseCase>(CreateSessionUseCase).toDynamicValue(() => {
-    return new CreateSessionUseCase(
-      container.get<ISessionRepository>(TYPES.SessionRepository)
-    );
+    return new CreateSessionUseCase(container.get<ISessionRepository>(TYPES.SessionRepository));
   });
 
   container.bind<UpdateSessionUseCase>(UpdateSessionUseCase).toDynamicValue(() => {
-    return new UpdateSessionUseCase(
-      container.get<ISessionRepository>(TYPES.SessionRepository)
-    );
+    return new UpdateSessionUseCase(container.get<ISessionRepository>(TYPES.SessionRepository));
   });
 
   container.bind<UploadSessionUseCase>(UploadSessionUseCase).toDynamicValue(() => {
-    return new UploadSessionUseCase(
+    return new UploadSessionUseCase(container.get<ISessionRepository>(TYPES.SessionRepository));
+  });
+
+  container.bind<GetServerStatisticsUseCase>(GetServerStatisticsUseCase).toDynamicValue(() => {
+    return new GetServerStatisticsUseCase(
       container.get<ISessionRepository>(TYPES.SessionRepository)
     );
   });
-
-  container
-    .bind<GetServerStatisticsUseCase>(GetServerStatisticsUseCase)
-    .toDynamicValue(() => {
-      return new GetServerStatisticsUseCase(
-        container.get<ISessionRepository>(TYPES.SessionRepository)
-      );
-    });
 
   container.bind<ReadServerPortUseCase>(ReadServerPortUseCase).toDynamicValue(() => {
     return new ReadServerPortUseCase(

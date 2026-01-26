@@ -110,12 +110,7 @@ export class R2ServerRepository implements IR2ServerRepository {
       console.log(`[RCLONE] Starting download from ${r2ServerPath} to ${localServerPath}`);
       onProgress?.({ percent: 0, transferred: "0 B", total: "0 B" });
 
-      return await this.syncWithProgress(
-        rclonePath,
-        r2ServerPath,
-        localServerPath,
-        onProgress
-      );
+      return await this.syncWithProgress(rclonePath, r2ServerPath, localServerPath, onProgress);
     } catch (error) {
       console.error(`Error downloading server ${serverId} from R2:`, error);
       return false;
@@ -141,19 +136,17 @@ export class R2ServerRepository implements IR2ServerRepository {
       console.log(`[RCLONE] Starting upload from ${localServerPath} to ${r2ServerPath}`);
       onProgress?.({ percent: 0, transferred: "0 B", total: "0 B" });
 
-      return await this.syncWithProgress(
-        rclonePath,
-        localServerPath,
-        r2ServerPath,
-        onProgress
-      );
+      return await this.syncWithProgress(rclonePath, localServerPath, r2ServerPath, onProgress);
     } catch (error) {
       console.error(`Error uploading server ${serverId} to R2:`, error);
       return false;
     }
   }
 
-  async deleteServer(config: R2Config, serverId: string): Promise<{ success: boolean; error?: string }> {
+  async deleteServer(
+    config: R2Config,
+    serverId: string
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       await this.rcloneRepository.ensureConfigured(config);
 

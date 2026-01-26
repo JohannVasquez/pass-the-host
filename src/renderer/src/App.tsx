@@ -112,15 +112,17 @@ function App(): React.JSX.Element {
           throw new Error("Failed to load config");
         }
 
-        // Parse memory values (e.g., "2G" -> 2)
-        const memMin = parseInt(config.server.memory_min.replace(/[^0-9]/g, ""), 10);
-        const memMax = parseInt(config.server.memory_max.replace(/[^0-9]/g, ""), 10);
+        // Parse memory values (e.g., "2G" -> 2) with safe defaults
+        const memMinStr = config.server?.memory_min || "2G";
+        const memMaxStr = config.server?.memory_max || "4G";
+        const memMin = parseInt(memMinStr.replace(/[^0-9]/g, ""), 10) || 2;
+        const memMax = parseInt(memMaxStr.replace(/[^0-9]/g, ""), 10) || 4;
 
         setR2Config({
-          endpoint: config.r2.endpoint || "",
-          access_key: config.r2.access_key || "",
-          secret_key: config.r2.secret_key || "",
-          bucket_name: config.r2.bucket_name || "",
+          endpoint: config.r2?.endpoint || "",
+          access_key: config.r2?.access_key || "",
+          secret_key: config.r2?.secret_key || "",
+          bucket_name: config.r2?.bucket_name || "",
         });
 
         setRamConfig({

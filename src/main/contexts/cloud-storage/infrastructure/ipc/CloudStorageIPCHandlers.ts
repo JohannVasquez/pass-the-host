@@ -67,19 +67,33 @@ export class CloudStorageIPCHandlers {
       return await this.listR2ServersUseCase.execute(config);
     });
 
-    ipcMain.handle("rclone:download-server", async (event: IpcMainInvokeEvent, config: R2Config, serverId: string) => {
-      const progressCallback = (progress: { percent: number; transferred: string; total: string }): void => {
-        event.sender.send("rclone:transfer-progress", progress);
-      };
-      return await this.downloadServerFromR2UseCase.execute(config, serverId, progressCallback);
-    });
+    ipcMain.handle(
+      "rclone:download-server",
+      async (event: IpcMainInvokeEvent, config: R2Config, serverId: string) => {
+        const progressCallback = (progress: {
+          percent: number;
+          transferred: string;
+          total: string;
+        }): void => {
+          event.sender.send("rclone:transfer-progress", progress);
+        };
+        return await this.downloadServerFromR2UseCase.execute(config, serverId, progressCallback);
+      }
+    );
 
-    ipcMain.handle("rclone:upload-server", async (event: IpcMainInvokeEvent, config: R2Config, serverId: string) => {
-      const progressCallback = (progress: { percent: number; transferred: string; total: string }): void => {
-        event.sender.send("rclone:transfer-progress", progress);
-      };
-      return await this.uploadServerToR2UseCase.execute(config, serverId, progressCallback);
-    });
+    ipcMain.handle(
+      "rclone:upload-server",
+      async (event: IpcMainInvokeEvent, config: R2Config, serverId: string) => {
+        const progressCallback = (progress: {
+          percent: number;
+          transferred: string;
+          total: string;
+        }): void => {
+          event.sender.send("rclone:transfer-progress", progress);
+        };
+        return await this.uploadServerToR2UseCase.execute(config, serverId, progressCallback);
+      }
+    );
 
     ipcMain.handle("server:delete-from-r2", async (_event, config: R2Config, serverId: string) => {
       return await this.deleteServerFromR2UseCase.execute(config, serverId);
@@ -94,9 +108,12 @@ export class CloudStorageIPCHandlers {
       return this.createServerLockUseCase.execute(serverId, username);
     });
 
-    ipcMain.handle("server:read-server-lock", async (_event, r2Config: R2Config, serverId: string) => {
-      return await this.readServerLockUseCase.execute(r2Config, serverId);
-    });
+    ipcMain.handle(
+      "server:read-server-lock",
+      async (_event, r2Config: R2Config, serverId: string) => {
+        return await this.readServerLockUseCase.execute(r2Config, serverId);
+      }
+    );
 
     ipcMain.handle("server:upload-lock", async (_event, config: R2Config, serverId: string) => {
       return await this.uploadServerLockUseCase.execute(config, serverId);

@@ -30,28 +30,23 @@ import {
   ReadServerPortUseCase,
   WriteServerPortUseCase,
 } from "./contexts/cloud-storage/application/use-cases";
-import * as path from "path";
+import { registerServerLifecycleIPCHandlers } from "./contexts/server-lifecycle/infrastructure/ipc";
+import { registerSystemResourcesIPCHandlers } from "./contexts/system-resources/infrastructure/ipc";
+import { registerAppConfigurationIPCHandlers } from "./contexts/app-configuration/infrastructure/ipc";
+import { LoadConfigUseCase } from "./contexts/app-configuration/application/use-cases";
+import { TYPES as ConfigTYPES } from "./contexts/app-configuration/application/use-cases/types";
+import { Container } from "inversify";
 import { app, shell, BrowserWindow, ipcMain, Tray, nativeImage, Menu, dialog } from "electron";
 import { autoUpdater } from "electron-updater";
 import log from "electron-log";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
-import { createMinecraftServer, deleteServerLocally } from "./rclone";
-import { saveR2Config, loadConfig, saveUsername, saveRamConfig, saveLanguage } from "./config";
-import { ensureJavaForMinecraft, getInstalledJavaVersions, getRequiredJavaVersion } from "./java";
-import os from "os";
 
 // Configure electron-log for autoUpdater
 autoUpdater.logger = log;
 if (autoUpdater.logger && "transports" in autoUpdater.logger) {
   (autoUpdater.logger as typeof log).transports.file.level = "info";
 }
-
-// Get local server path (LEGACY - to be removed)
-ipcMain.handle("server:get-local-server-path", async (_event, serverId) => {
-  const localServersDir = path.join(app.getPath("userData"), "servers");
-  return path.join(localServersDir, serverId);
-});
 
 // ===== SERVER RUNTIME HANDLERS - MOVED TO CONTEXT =====
 // All server process management has been moved to server-runtime context
@@ -69,10 +64,13 @@ let isQuitting = false;
 const icon = nativeImage.createFromPath(join(__dirname, "../../resources/icon.png"));
 
 // Auto-updater functions
-function setupAutoUpdater(): void {
+function setupAutoUpdater(container: Container): void {
   // Handle update-downloaded event
-  autoUpdater.on("update-downloaded", (event) => {
-    const language = loadConfig()?.app?.language || "en";
+  autoUpdater.on("update-downloaded", async (event) => {
+    // Get language from config
+    const loadConfigUseCase = container.get<LoadConfigUseCase>(ConfigTYPES.LoadConfigUseCase);
+    const config = await loadConfigUseCase.execute();
+    const language = config?.app?.language || "en";
 
     // Messages in different languages
     const messages: {
@@ -258,7 +256,7 @@ if (!gotTheLock) {
 
     createWindow();
     createTray();
-    setupAutoUpdater();
+    setupAutoUpdater(container);
 
     // IPC test
     ipcMain.on("ping", () => console.debug("pong"));
@@ -309,91 +307,14 @@ if (!gotTheLock) {
     // - server:create-session, server:update-session, server:upload-session
     // - server:should-download, server:get-statistics, server:delete-from-r2
 
-    // Config IPC handlers
-    ipcMain.handle("config:load", async () => {
-      return loadConfig();
-    });
+    // ===== APP CONFIGURATION HANDLERS =====
+    registerAppConfigurationIPCHandlers(container);
 
-    ipcMain.handle("config:save-r2", async (_, r2Config) => {
-      return saveR2Config(r2Config);
-    });
+    // ===== SERVER LIFECYCLE HANDLERS =====
+    registerServerLifecycleIPCHandlers(container);
 
-    ipcMain.handle("config:save-username", async (_, username) => {
-      return saveUsername(username);
-    });
-
-    ipcMain.handle("config:save-ram", async (_, minRam, maxRam) => {
-      return saveRamConfig(minRam, maxRam);
-    });
-
-    ipcMain.handle("config:save-language", async (_, language) => {
-      return saveLanguage(language);
-    });
-
-    // TODO: server:create-minecraft-server and server:delete-locally to be moved to server-lifecycle context
-    ipcMain.handle(
-      "server:create-minecraft-server",
-      async (event, serverName, version, serverType) => {
-        const progressCallback = (message: string): void => {
-          event.sender.send("server:create-progress", message);
-        };
-        return await createMinecraftServer(serverName, version, serverType, progressCallback);
-      }
-    );
-
-    ipcMain.handle("server:delete-locally", async (_, serverId) => {
-      return deleteServerLocally(serverId);
-    });
-
-    // System IPC handlers
-    ipcMain.handle("system:get-total-memory", async () => {
-      const totalMemoryBytes = os.totalmem();
-      const totalMemoryGB = Math.floor(totalMemoryBytes / 1024 ** 3);
-      return totalMemoryGB;
-    });
-
-    ipcMain.handle("system:get-network-interfaces", async () => {
-      const interfaces = os.networkInterfaces();
-      const networkList: Array<{ name: string; ip: string }> = [];
-
-      for (const [name, addresses] of Object.entries(interfaces)) {
-        if (!addresses) continue;
-
-        for (const addr of addresses) {
-          // Filter only IPv4 addresses
-          if (addr.family === "IPv4" && !addr.internal) {
-            networkList.push({
-              name: name,
-              ip: addr.address,
-            });
-          }
-        }
-      }
-
-      // Add localhost
-      networkList.push({
-        name: "Localhost",
-        ip: "127.0.0.1",
-      });
-
-      return networkList;
-    });
-
-    // Java IPC handlers
-    ipcMain.handle("java:ensure-for-minecraft", async (event, minecraftVersion: string) => {
-      const progressCallback = (message: string): void => {
-        event.sender.send("java:progress", message);
-      };
-      return await ensureJavaForMinecraft(minecraftVersion, progressCallback);
-    });
-
-    ipcMain.handle("java:get-installed-versions", async () => {
-      return getInstalledJavaVersions();
-    });
-
-    ipcMain.handle("java:get-required-version", async (_, minecraftVersion: string) => {
-      return getRequiredJavaVersion(minecraftVersion);
-    });
+    // ===== SYSTEM RESOURCES HANDLERS =====
+    registerSystemResourcesIPCHandlers(container);
 
     app.on("activate", function () {
       // On macOS it's common to re-create a window in the app when the
