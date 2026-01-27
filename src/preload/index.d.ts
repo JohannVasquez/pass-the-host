@@ -93,6 +93,7 @@ interface ServerAPI {
   ) => Promise<any>;
   killServerProcess: (serverId: string) => Promise<void>;
   editForgeJvmArgs: (serverId: string, minRam: number, maxRam: number) => Promise<void>;
+  readForgeJvmArgs: (serverId: string) => Promise<{ allArgs: string[] } | null>;
   onStdout: (callback: (data: string) => void) => () => void;
   sendCommand: (serverId: string, command: string) => Promise<boolean>;
   openServerFolder: (serverId: string) => Promise<boolean>;
@@ -112,6 +113,14 @@ interface ServerAPI {
       duration?: number;
     }>;
   } | null>;
+  createMinecraftServer: (
+    serverName: string,
+    version: string,
+    serverType: "vanilla" | "forge"
+  ) => Promise<boolean>;
+  onCreateProgress: (callback: (message: string) => void) => () => void;
+  deleteFromR2: (config: any, serverId: string) => Promise<{ success: boolean; error?: string }>;
+  deleteLocally: (serverId: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 interface JavaAPI {

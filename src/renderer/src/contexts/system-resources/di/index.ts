@@ -1,0 +1,1 @@
+export { configureSystemResources } from "./container";

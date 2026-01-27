@@ -1,35 +1,46 @@
-import { getLocalServerPath } from "./rclone";
-import { spawn, ChildProcessWithoutNullStreams } from "child_process";
-import * as fs from "fs";
-import * as path from "path";
+import { initializeMainContainer } from "./di/container";
+import { ServerRuntimeIPCHandlers } from "./contexts/server-runtime/infrastructure/ipc/ServerRuntimeIPCHandlers";
+import {
+  SpawnServerProcessUseCase,
+  SendCommandUseCase,
+  KillServerProcessUseCase,
+  ReadForgeJvmArgsUseCase,
+  EditForgeJvmArgsUseCase,
+  OpenServerFolderUseCase,
+} from "./contexts/server-runtime/application/use-cases";
+import { CloudStorageIPCHandlers } from "./contexts/cloud-storage/infrastructure/ipc/CloudStorageIPCHandlers";
+import {
+  CheckRcloneInstallationUseCase,
+  InstallRcloneUseCase,
+  TestR2ConnectionUseCase,
+  ListR2ServersUseCase,
+  DownloadServerFromR2UseCase,
+  UploadServerToR2UseCase,
+  DeleteServerFromR2UseCase,
+  ShouldDownloadServerUseCase,
+  CreateServerLockUseCase,
+  ReadServerLockUseCase,
+  UploadServerLockUseCase,
+  DeleteServerLockUseCase,
+  DeleteLocalServerLockUseCase,
+  CreateSessionUseCase,
+  UpdateSessionUseCase,
+  UploadSessionUseCase,
+  GetServerStatisticsUseCase,
+  ReadServerPortUseCase,
+  WriteServerPortUseCase,
+} from "./contexts/cloud-storage/application/use-cases";
+import { registerServerLifecycleIPCHandlers } from "./contexts/server-lifecycle/infrastructure/ipc";
+import { registerSystemResourcesIPCHandlers } from "./contexts/system-resources/infrastructure/ipc";
+import { registerAppConfigurationIPCHandlers } from "./contexts/app-configuration/infrastructure/ipc";
+import { LoadConfigUseCase } from "./contexts/app-configuration/application/use-cases";
+import { TYPES as ConfigTYPES } from "./contexts/app-configuration/application/use-cases/types";
+import { Container } from "inversify";
 import { app, shell, BrowserWindow, ipcMain, Tray, nativeImage, Menu, dialog } from "electron";
 import { autoUpdater } from "electron-updater";
 import log from "electron-log";
 import { join } from "path";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
-import {
-  checkRcloneInstallation,
-  installRclone,
-  testR2Connection,
-  listR2Servers,
-  downloadServerFromR2,
-  uploadServerToR2,
-  createServerLock,
-  readServerLock,
-  uploadServerLock,
-  deleteServerLock,
-  deleteLocalServerLock,
-  readServerPort,
-  writeServerPort,
-  createSessionMetadata,
-  updateSessionMetadata,
-  uploadSessionMetadata,
-  shouldDownloadServer,
-  getServerStatistics,
-} from "./rclone";
-import { saveR2Config, loadConfig, saveUsername, saveRamConfig, saveLanguage } from "./config";
-import { ensureJavaForMinecraft, getInstalledJavaVersions, getRequiredJavaVersion } from "./java";
-import os from "os";
 
 // Configure electron-log for autoUpdater
 autoUpdater.logger = log;
@@ -37,142 +48,15 @@ if (autoUpdater.logger && "transports" in autoUpdater.logger) {
   (autoUpdater.logger as typeof log).transports.file.level = "info";
 }
 
-const serverProcesses: Record<string, ChildProcessWithoutNullStreams> = {};
-
-// Get local server path
-ipcMain.handle("server:get-local-server-path", async (_event, serverId) => {
-  return getLocalServerPath(serverId);
-});
-
-// Spawn Minecraft server process
-ipcMain.handle(
-  "server:spawn-server-process",
-  async (event, serverId, command, args, workingDir) => {
-    return new Promise((resolve, reject) => {
-      try {
-        if (serverProcesses[serverId]) {
-          return reject(new Error("Server process already running"));
-        }
-
-        // Auto accept EULA
-        const eulaPath = path.join(workingDir, "eula.txt");
-        if (!fs.existsSync(eulaPath) || !fs.readFileSync(eulaPath, "utf-8").includes("eula=true")) {
-          try {
-            fs.writeFileSync(eulaPath, "eula=true");
-          } catch (e) {}
-        }
-
-        const proc = spawn(command, args, {
-          cwd: workingDir,
-          env: process.env,
-          stdio: ["pipe", "pipe", "pipe"],
-          windowsHide: true,
-        });
-
-        serverProcesses[serverId] = proc;
-
-        proc.stdout.on("data", (data) => {
-          if (!event.sender.isDestroyed()) {
-            // Convertimos buffer a string para enviarlo
-            event.sender.send("server:stdout", data.toString());
-          }
-        });
-
-        proc.stderr.on("data", (data) => {
-          if (!event.sender.isDestroyed()) {
-            event.sender.send("server:stdout", data.toString());
-          }
-        });
-
-        proc.on("close", (_code) => {
-          delete serverProcesses[serverId];
-        });
-
-        resolve(true);
-      } catch (e) {
-        reject(e);
-      }
-    });
-  }
-);
-
-// Send command to Minecraft server process
-ipcMain.handle("server:send-command", async (_event, serverId, command) => {
-  return new Promise((resolve, _) => {
-    const proc = serverProcesses[serverId];
-    if (!proc) return resolve(false);
-    try {
-      proc.stdin.write(`${command}\n`);
-      resolve(true);
-    } catch (e) {
-      resolve(false);
-    }
-  });
-});
-
-// Kill Minecraft server process (safe stop)
-ipcMain.handle("server:kill-server-process", async (_event, serverId) => {
-  return new Promise((resolve, _) => {
-    const proc = serverProcesses[serverId];
-    if (!proc) return resolve(false);
-    try {
-      // Send 'stop' command to stdin for safe shutdown
-      proc.stdin.write("stop\n");
-      setTimeout(() => {
-        if (!proc.killed) {
-          proc.kill();
-        }
-        delete serverProcesses[serverId];
-        resolve(true);
-      }, 8000); // Give it 8 seconds to shutdown gracefully
-    } catch (e) {
-      try {
-        proc.kill();
-      } catch {}
-      delete serverProcesses[serverId];
-      resolve(false);
-    }
-  });
-});
-
-// Edit Forge user_jvm_args.txt for RAM
-ipcMain.handle("server:edit-forge-jvm-args", async (_event, serverId, minRam, maxRam) => {
-  try {
-    const serverPath = getLocalServerPath(serverId);
-    const jvmArgsPath = path.join(serverPath, "user_jvm_args.txt");
-    if (!fs.existsSync(jvmArgsPath)) return false;
-    let content = fs.readFileSync(jvmArgsPath, "utf-8");
-    content = content.replace(/-Xms\d+[mMgG]/g, `-Xms${minRam}G`);
-    content = content.replace(/-Xmx\d+[mMgG]/g, `-Xmx${maxRam}G`);
-    fs.writeFileSync(jvmArgsPath, content, "utf-8");
-    return true;
-  } catch (e) {
-    return false;
-  }
-});
-
-ipcMain.handle("server:openFolder", async (_event, serverId: string) => {
-  try {
-    const serverPath = path.join(app.getPath("userData"), "servers", serverId);
-
-    if (!fs.existsSync(serverPath)) {
-      console.error(`La carpeta del servidor no existe: ${serverPath}`);
-      return false;
-    }
-
-    const errorMessage = await shell.openPath(serverPath);
-
-    if (errorMessage) {
-      console.error("Error al abrir la carpeta:", errorMessage);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Excepción al abrir carpeta:", error);
-    return false;
-  }
-});
+// ===== SERVER RUNTIME HANDLERS - MOVED TO CONTEXT =====
+// All server process management has been moved to server-runtime context
+// The following handlers are now registered via ServerRuntimeIPCHandlers:
+// - server:spawn-server-process
+// - server:send-command
+// - server:kill-server-process
+// - server:edit-forge-jvm-args
+// - server:read-forge-jvm-args
+// - server:openFolder
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -180,10 +64,13 @@ let isQuitting = false;
 const icon = nativeImage.createFromPath(join(__dirname, "../../resources/icon.png"));
 
 // Auto-updater functions
-function setupAutoUpdater(): void {
+function setupAutoUpdater(container: Container): void {
   // Handle update-downloaded event
-  autoUpdater.on("update-downloaded", (event) => {
-    const language = loadConfig()?.app?.language || "en";
+  autoUpdater.on("update-downloaded", async (event) => {
+    // Get language from config
+    const loadConfigUseCase = container.get<LoadConfigUseCase>(ConfigTYPES.LoadConfigUseCase);
+    const config = await loadConfigUseCase.execute();
+    const language = config?.app?.language || "en";
 
     // Messages in different languages
     const messages: {
@@ -354,6 +241,9 @@ if (!gotTheLock) {
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
   app.whenReady().then(() => {
+    // Initialize Inversify container and register all contexts
+    const container = initializeMainContainer();
+
     // Set app user model id for windows
     electronApp.setAppUserModelId("com.electron");
 
@@ -366,165 +256,65 @@ if (!gotTheLock) {
 
     createWindow();
     createTray();
-    setupAutoUpdater();
+    setupAutoUpdater(container);
 
     // IPC test
     ipcMain.on("ping", () => console.debug("pong"));
 
-    // Config IPC handlers
-    ipcMain.handle("config:load", async () => {
-      return loadConfig();
-    });
+    // ========== SERVER RUNTIME CONTEXT IPC HANDLERS ==========
+    const serverRuntimeIPCHandlers = new ServerRuntimeIPCHandlers(
+      container.get(SpawnServerProcessUseCase),
+      container.get(SendCommandUseCase),
+      container.get(KillServerProcessUseCase),
+      container.get(ReadForgeJvmArgsUseCase),
+      container.get(EditForgeJvmArgsUseCase),
+      container.get(OpenServerFolderUseCase)
+    );
+    serverRuntimeIPCHandlers.register();
 
-    ipcMain.handle("config:save-r2", async (_, r2Config) => {
-      return saveR2Config(r2Config);
-    });
+    // ========== CLOUD STORAGE CONTEXT IPC HANDLERS ==========
+    const cloudStorageIPCHandlers = new CloudStorageIPCHandlers(
+      container.get(CheckRcloneInstallationUseCase),
+      container.get(InstallRcloneUseCase),
+      container.get(TestR2ConnectionUseCase),
+      container.get(ListR2ServersUseCase),
+      container.get(DownloadServerFromR2UseCase),
+      container.get(UploadServerToR2UseCase),
+      container.get(DeleteServerFromR2UseCase),
+      container.get(ShouldDownloadServerUseCase),
+      container.get(CreateServerLockUseCase),
+      container.get(ReadServerLockUseCase),
+      container.get(UploadServerLockUseCase),
+      container.get(DeleteServerLockUseCase),
+      container.get(DeleteLocalServerLockUseCase),
+      container.get(CreateSessionUseCase),
+      container.get(UpdateSessionUseCase),
+      container.get(UploadSessionUseCase),
+      container.get(GetServerStatisticsUseCase),
+      container.get(ReadServerPortUseCase),
+      container.get(WriteServerPortUseCase)
+    );
+    cloudStorageIPCHandlers.register();
 
-    ipcMain.handle("config:save-username", async (_, username) => {
-      return saveUsername(username);
-    });
+    // ===== CLOUD STORAGE HANDLERS - MOVED TO CONTEXT =====
+    // All rclone, R2, locks, sessions, and properties handlers moved to cloud-storage context
+    // The following handlers are now registered via CloudStorageIPCHandlers:
+    // - rclone:check-installation, rclone:install, rclone:test-r2-connection
+    // - rclone:list-servers, rclone:download-server, rclone:upload-server
+    // - server:create-lock, server:read-server-lock, server:upload-lock
+    // - server:delete-lock, server:delete-local-lock
+    // - server:read-port, server:write-port
+    // - server:create-session, server:update-session, server:upload-session
+    // - server:should-download, server:get-statistics, server:delete-from-r2
 
-    ipcMain.handle("config:save-ram", async (_, minRam, maxRam) => {
-      return saveRamConfig(minRam, maxRam);
-    });
+    // ===== APP CONFIGURATION HANDLERS =====
+    registerAppConfigurationIPCHandlers(container);
 
-    ipcMain.handle("config:save-language", async (_, language) => {
-      return saveLanguage(language);
-    });
+    // ===== SERVER LIFECYCLE HANDLERS =====
+    registerServerLifecycleIPCHandlers(container);
 
-    // Rclone IPC handlers
-    ipcMain.handle("rclone:check-installation", async () => {
-      return await checkRcloneInstallation();
-    });
-
-    ipcMain.handle("rclone:install", async (event) => {
-      const progressCallback = (message: string): void => {
-        event.sender.send("rclone:progress", message);
-      };
-      return await installRclone(progressCallback);
-    });
-
-    ipcMain.handle("rclone:test-r2-connection", async (_, config) => {
-      return await testR2Connection(config);
-    });
-
-    ipcMain.handle("rclone:list-servers", async (_, config) => {
-      return await listR2Servers(config);
-    });
-
-    ipcMain.handle("rclone:download-server", async (event, config, serverId) => {
-      const progressCallback = (percent: number, transferred: string, total: string): void => {
-        event.sender.send("rclone:transfer-progress", { percent, transferred, total });
-      };
-      return await downloadServerFromR2(config, serverId, progressCallback);
-    });
-
-    ipcMain.handle("rclone:upload-server", async (event, config, serverId) => {
-      const progressCallback = (percent: number, transferred: string, total: string): void => {
-        event.sender.send("rclone:transfer-progress", { percent, transferred, total });
-      };
-      return await uploadServerToR2(config, serverId, progressCallback);
-    });
-
-    ipcMain.handle("server:create-lock", async (_, serverId, username) => {
-      return createServerLock(serverId, username);
-    });
-
-    ipcMain.handle("server:read-server-lock", async (_, r2Config, serverId) => {
-      const result = await readServerLock(r2Config, serverId);
-      return result;
-    });
-
-    ipcMain.handle("server:upload-lock", async (_, config, serverId) => {
-      return await uploadServerLock(config, serverId);
-    });
-
-    ipcMain.handle("server:delete-lock", async (_, config, serverId) => {
-      return await deleteServerLock(config, serverId);
-    });
-
-    ipcMain.handle("server:delete-local-lock", async (_, serverId) => {
-      return deleteLocalServerLock(serverId);
-    });
-
-    ipcMain.handle("server:read-port", async (_, serverId) => {
-      return readServerPort(serverId);
-    });
-
-    ipcMain.handle("server:write-port", async (_, serverId, port) => {
-      return writeServerPort(serverId, port);
-    });
-
-    // Session metadata IPC handlers
-    ipcMain.handle("server:create-session", async (_, serverId, username) => {
-      return createSessionMetadata(serverId, username);
-    });
-
-    ipcMain.handle("server:update-session", async (_, serverId, username) => {
-      return updateSessionMetadata(serverId, username);
-    });
-
-    ipcMain.handle("server:upload-session", async (_, config, serverId) => {
-      return await uploadSessionMetadata(config, serverId);
-    });
-
-    ipcMain.handle("server:should-download", async (_, config, serverId) => {
-      return await shouldDownloadServer(config, serverId);
-    });
-
-    ipcMain.handle("server:get-statistics", async (_, serverId) => {
-      return getServerStatistics(serverId);
-    });
-
-    // System IPC handlers
-    ipcMain.handle("system:get-total-memory", async () => {
-      const totalMemoryBytes = os.totalmem();
-      const totalMemoryGB = Math.floor(totalMemoryBytes / 1024 ** 3);
-      return totalMemoryGB;
-    });
-
-    ipcMain.handle("system:get-network-interfaces", async () => {
-      const interfaces = os.networkInterfaces();
-      const networkList: Array<{ name: string; ip: string }> = [];
-
-      for (const [name, addresses] of Object.entries(interfaces)) {
-        if (!addresses) continue;
-
-        for (const addr of addresses) {
-          // Filter only IPv4 addresses
-          if (addr.family === "IPv4" && !addr.internal) {
-            networkList.push({
-              name: name,
-              ip: addr.address,
-            });
-          }
-        }
-      }
-
-      // Add localhost
-      networkList.push({
-        name: "Localhost",
-        ip: "127.0.0.1",
-      });
-
-      return networkList;
-    });
-
-    // Java IPC handlers
-    ipcMain.handle("java:ensure-for-minecraft", async (event, minecraftVersion: string) => {
-      const progressCallback = (message: string): void => {
-        event.sender.send("java:progress", message);
-      };
-      return await ensureJavaForMinecraft(minecraftVersion, progressCallback);
-    });
-
-    ipcMain.handle("java:get-installed-versions", async () => {
-      return getInstalledJavaVersions();
-    });
-
-    ipcMain.handle("java:get-required-version", async (_, minecraftVersion: string) => {
-      return getRequiredJavaVersion(minecraftVersion);
-    });
+    // ===== SYSTEM RESOURCES HANDLERS =====
+    registerSystemResourcesIPCHandlers(container);
 
     app.on("activate", function () {
       // On macOS it's common to re-create a window in the app when the
