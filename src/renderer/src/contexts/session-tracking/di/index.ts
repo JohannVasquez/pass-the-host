@@ -1,0 +1,1 @@
+export { configureSessionTracking } from "./container";

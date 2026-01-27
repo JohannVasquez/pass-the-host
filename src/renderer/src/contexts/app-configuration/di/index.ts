@@ -1,0 +1,1 @@
+export { configureAppConfiguration } from "./container";

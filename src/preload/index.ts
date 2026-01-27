@@ -83,6 +83,8 @@ const serverAPI = {
     ipcRenderer.invoke("server:kill-server-process", serverId),
   editForgeJvmArgs: (serverId: string, minRam: number, maxRam: number): Promise<boolean> =>
     ipcRenderer.invoke("server:edit-forge-jvm-args", serverId, minRam, maxRam),
+  readForgeJvmArgs: (serverId: string): Promise<{ allArgs: string[] } | null> =>
+    ipcRenderer.invoke("server:read-forge-jvm-args", serverId),
   onStdout: (callback: (data: string) => void): (() => void) => {
     const listener = (_event: any, data: string): void => callback(data);
     ipcRenderer.on("server:stdout", listener);
@@ -101,6 +103,21 @@ const serverAPI = {
     ipcRenderer.invoke("server:should-download", config, serverId),
   getStatistics: (serverId: string): Promise<any> =>
     ipcRenderer.invoke("server:get-statistics", serverId),
+  createMinecraftServer: (
+    serverName: string,
+    version: string,
+    serverType: "vanilla" | "forge"
+  ): Promise<boolean> =>
+    ipcRenderer.invoke("server:create-minecraft-server", serverName, version, serverType),
+  onCreateProgress: (callback: (message: string) => void): (() => void) => {
+    const listener = (_event: any, message: string): void => callback(message);
+    ipcRenderer.on("server:create-progress", listener);
+    return () => ipcRenderer.removeListener("server:create-progress", listener);
+  },
+  deleteFromR2: (config: any, serverId: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("server:delete-from-r2", config, serverId),
+  deleteLocally: (serverId: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke("server:delete-locally", serverId),
 };
 
 const javaAPI = {

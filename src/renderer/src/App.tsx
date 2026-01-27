@@ -25,6 +25,8 @@ import { ServerLockedModal } from "./presentation/components/ServerLockedModal";
 import { DownloadProgressModal } from "./presentation/components/DownloadProgressModal";
 import { TransferProgressModal } from "./presentation/components/TransferProgressModal";
 import { ServerStatisticsModal } from "./presentation/components/ServerStatisticsModal";
+import { CreateServerModal } from "./presentation/components/CreateServerModal";
+import { DeleteServerModal } from "./presentation/components/DeleteServerModal";
 import { ServerStatus } from "./domain/entities/ServerStatus";
 import { R2Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
@@ -95,6 +97,10 @@ function App(): React.JSX.Element {
   const [serverStartTime, setServerStartTime] = React.useState<Date | null>(null);
   const [isStatisticsModalOpen, setIsStatisticsModalOpen] = React.useState<boolean>(false);
   const [serverStatistics, setServerStatistics] = React.useState<any>(null);
+  const [isCreateServerModalOpen, setIsCreateServerModalOpen] = React.useState<boolean>(false);
+  const [isCreatingServer, setIsCreatingServer] = React.useState<boolean>(false);
+  const [createServerProgress, setCreateServerProgress] = React.useState<string>("");
+  const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = React.useState<boolean>(false);
 
   // Load configuration from config.json on mount
   React.useEffect(() => {
@@ -106,15 +112,17 @@ function App(): React.JSX.Element {
           throw new Error("Failed to load config");
         }
 
-        // Parse memory values (e.g., "2G" -> 2)
-        const memMin = parseInt(config.server.memory_min.replace(/[^0-9]/g, ""), 10);
-        const memMax = parseInt(config.server.memory_max.replace(/[^0-9]/g, ""), 10);
+        // Parse memory values (e.g., "2G" -> 2) with safe defaults
+        const memMinStr = config.server?.memory_min || "2G";
+        const memMaxStr = config.server?.memory_max || "4G";
+        const memMin = parseInt(memMinStr.replace(/[^0-9]/g, ""), 10) || 2;
+        const memMax = parseInt(memMaxStr.replace(/[^0-9]/g, ""), 10) || 4;
 
         setR2Config({
-          endpoint: config.r2.endpoint || "",
-          access_key: config.r2.access_key || "",
-          secret_key: config.r2.secret_key || "",
-          bucket_name: config.r2.bucket_name || "",
+          endpoint: config.r2?.endpoint || "",
+          access_key: config.r2?.access_key || "",
+          secret_key: config.r2?.secret_key || "",
+          bucket_name: config.r2?.bucket_name || "",
         });
 
         setRamConfig({
@@ -166,6 +174,17 @@ function App(): React.JSX.Element {
     };
   }, []);
 
+  // Listen to server creation progress
+  React.useEffect(() => {
+    const unsubscribe = window.serverAPI.onCreateProgress((message: string) => {
+      setCreateServerProgress(message);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   // Listen to Rclone download progress
   React.useEffect(() => {
     const unsubscribe = window.rclone.onProgress((message: string) => {
@@ -183,6 +202,17 @@ function App(): React.JSX.Element {
       setTransferPercent(progress.percent);
       setTransferTransferred(progress.transferred);
       setTransferTotal(progress.total);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  // Listen to server creation progress
+  React.useEffect(() => {
+    const unsubscribe = window.serverAPI.onCreateProgress((message) => {
+      setCreateServerProgress(message);
     });
 
     return () => {
@@ -878,7 +908,7 @@ function App(): React.JSX.Element {
           },
         ]);
       }
-      
+
       // Create session metadata
       setLogs((prev) => [
         ...prev,
@@ -963,12 +993,45 @@ function App(): React.JSX.Element {
             },
           ]);
         }
-        if (navigator.userAgent.includes("Windows")) {
-          startCmd = "cmd";
-          startArgs = ["/c", "run.bat", "nogui"];
-        } else {
-          startCmd = "/bin/bash";
-          startArgs = ["run.sh", "nogui"];
+        // Read JVM args from run.bat/run.sh and construct Java command directly
+        try {
+          const jvmArgsResult = await window.serverAPI.readForgeJvmArgs(selectedServer);
+          if (jvmArgsResult && jvmArgsResult.allArgs && jvmArgsResult.allArgs.length > 0) {
+            startCmd = javaPath;
+            // The args from run.bat already include everything (JVM args, classpath, main class, and program args)
+            // Add nogui at the end to prevent the GUI window from opening
+            startArgs = [...jvmArgsResult.allArgs, "nogui"];
+          } else {
+            // Fallback to default args if file doesn't exist
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message:
+                  "Warning: Could not read run.bat arguments, falling back to run.bat execution",
+                type: "warning",
+              },
+            ]);
+            // Fallback to original method using run.bat
+            if (navigator.userAgent.includes("Windows")) {
+              startCmd = "cmd";
+              startArgs = ["/c", "run.bat"];
+            } else {
+              startCmd = "/bin/bash";
+              startArgs = ["run.sh"];
+            }
+          }
+        } catch (e) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: `Error reading JVM args: ${e instanceof Error ? e.message : String(e)}`,
+              type: "error",
+            },
+          ]);
+          setServerStatus(ServerStatus.STOPPED);
+          return;
         }
       } else {
         setLogs((prev) => [
@@ -1192,6 +1255,109 @@ function App(): React.JSX.Element {
           type: "error",
         },
       ]);
+    }
+  };
+
+  const handleConfirmCreateServer = async (
+    serverName: string,
+    version: string,
+    serverType: "vanilla" | "forge"
+  ): Promise<void> => {
+    setIsCreatingServer(true);
+    setCreateServerProgress("");
+
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: `Creating server: ${serverName} (${serverType} ${version})`,
+        type: "info",
+      },
+    ]);
+
+    try {
+      const success = await window.serverAPI.createMinecraftServer(serverName, version, serverType);
+
+      if (success) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Server ${serverName} created successfully!`,
+            type: "success",
+          },
+        ]);
+
+        // Upload the newly created server to R2
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Uploading server to R2...",
+            type: "info",
+          },
+        ]);
+
+        setIsTransferring(true);
+        setTransferType("upload");
+        setTransferPercent(0);
+        setTransferTransferred("0");
+        setTransferTotal("0");
+
+        const r2Service = new R2Service(r2Config);
+        const uploadSuccess = await r2Service.uploadServer(serverName);
+
+        setIsTransferring(false);
+
+        if (!uploadSuccess) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Warning: Failed to upload server to R2. You can sync it manually later.",
+              type: "warning",
+            },
+          ]);
+        } else {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Server uploaded to R2 successfully",
+              type: "info",
+            },
+          ]);
+        }
+
+        // Reload servers from R2
+        await loadServersFromR2();
+
+        // Select the newly created server
+        setSelectedServer(serverName);
+      } else {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Failed to create server ${serverName}`,
+            type: "error",
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error("Error creating server:", error);
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Error creating server",
+          type: "error",
+        },
+      ]);
+    } finally {
+      setIsCreatingServer(false);
+      setCreateServerProgress("");
+      setIsCreateServerModalOpen(false);
     }
   };
 
@@ -1518,7 +1684,107 @@ function App(): React.JSX.Element {
   };
 
   const handleCreateServer = (): void => {
-    console.debug("Creating new server...");
+    setIsCreateServerModalOpen(true);
+  };
+
+  const handleDeleteServer = (): void => {
+    setIsDeleteServerModalOpen(true);
+  };
+
+  const handleConfirmDeleteServer = async (deleteLocally: boolean): Promise<void> => {
+    if (!selectedServer) return;
+
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: `Deleting server: ${selectedServer}...`,
+        type: "info",
+      },
+    ]);
+
+    // Delete from R2
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "Deleting from R2...",
+        type: "info",
+      },
+    ]);
+
+    const r2Result = await window.serverAPI.deleteFromR2(r2Config, selectedServer);
+    if (!r2Result.success) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: `Failed to delete from R2: ${r2Result.error || "Unknown error"}`,
+          type: "error",
+        },
+      ]);
+      return;
+    }
+
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "Deleted from R2 successfully",
+        type: "info",
+      },
+    ]);
+
+    // Delete locally if checkbox was checked
+    if (deleteLocally) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Deleting local files...",
+          type: "info",
+        },
+      ]);
+
+      const localResult = await window.serverAPI.deleteLocally(selectedServer);
+      if (!localResult.success) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Failed to delete local files: ${localResult.error || "Unknown error"}`,
+            type: "warning",
+          },
+        ]);
+      } else {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Local files deleted successfully",
+            type: "info",
+          },
+        ]);
+      }
+    }
+
+    // Refresh server list
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "Server deleted successfully",
+        type: "info",
+      },
+    ]);
+
+    // Clear selection
+    setSelectedServer(null);
+
+    // Reload servers from R2
+    await loadServersFromR2();
+
+    setIsDeleteServerModalOpen(false);
   };
 
   return (
@@ -1606,6 +1872,7 @@ function App(): React.JSX.Element {
               onSyncToR2={handleSyncToR2}
               onEditProperties={handleEditProperties}
               onOpenServerFolder={handleOpenServerFolder}
+              onDeleteServer={handleDeleteServer}
               disabled={!isR2Configured || !isRcloneReady}
               serverStartTime={serverStartTime}
               username={username}
@@ -1720,6 +1987,23 @@ function App(): React.JSX.Element {
           onClose={() => setIsStatisticsModalOpen(false)}
           serverName={selectedServer}
           statistics={serverStatistics}
+        />
+
+        {/* Create Server Modal */}
+        <CreateServerModal
+          open={isCreateServerModalOpen}
+          onClose={() => setIsCreateServerModalOpen(false)}
+          onConfirm={handleConfirmCreateServer}
+          isCreating={isCreatingServer}
+          progressMessage={createServerProgress}
+        />
+
+        {/* Delete Server Modal */}
+        <DeleteServerModal
+          open={isDeleteServerModalOpen}
+          serverName={selectedServer}
+          onClose={() => setIsDeleteServerModalOpen(false)}
+          onConfirm={handleConfirmDeleteServer}
         />
       </Box>
     </ThemeProvider>

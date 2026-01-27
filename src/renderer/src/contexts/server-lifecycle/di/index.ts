@@ -1,0 +1,1 @@
+export { configureServerLifecycle } from "./container";
