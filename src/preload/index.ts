@@ -83,7 +83,7 @@ const serverAPI = {
     ipcRenderer.invoke("server:kill-server-process", serverId),
   editForgeJvmArgs: (serverId: string, minRam: number, maxRam: number): Promise<boolean> =>
     ipcRenderer.invoke("server:edit-forge-jvm-args", serverId, minRam, maxRam),
-  readForgeJvmArgs: (serverId: string): Promise<string[] | null> =>
+  readForgeJvmArgs: (serverId: string): Promise<{ allArgs: string[] } | null> =>
     ipcRenderer.invoke("server:read-forge-jvm-args", serverId),
   onStdout: (callback: (data: string) => void): (() => void) => {
     const listener = (_event: any, data: string): void => callback(data);
