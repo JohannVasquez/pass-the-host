@@ -93,7 +93,7 @@ interface ServerAPI {
   ) => Promise<any>;
   killServerProcess: (serverId: string) => Promise<void>;
   editForgeJvmArgs: (serverId: string, minRam: number, maxRam: number) => Promise<void>;
-  readForgeJvmArgs: (serverId: string) => Promise<string[] | null>;
+  readForgeJvmArgs: (serverId: string) => Promise<{ allArgs: string[] } | null>;
   onStdout: (callback: (data: string) => void) => () => void;
   sendCommand: (serverId: string, command: string) => Promise<boolean>;
   openServerFolder: (serverId: string) => Promise<boolean>;

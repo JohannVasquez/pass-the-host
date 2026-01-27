@@ -995,12 +995,12 @@ function App(): React.JSX.Element {
         }
         // Read JVM args from run.bat/run.sh and construct Java command directly
         try {
-          const jvmArgs = await window.serverAPI.readForgeJvmArgs(selectedServer);
-          if (jvmArgs && jvmArgs.length > 0) {
+          const jvmArgsResult = await window.serverAPI.readForgeJvmArgs(selectedServer);
+          if (jvmArgsResult && jvmArgsResult.allArgs && jvmArgsResult.allArgs.length > 0) {
             startCmd = javaPath;
             // The args from run.bat already include everything (JVM args, classpath, main class, and program args)
-            // Forge server launcher already handles nogui mode
-            startArgs = [...jvmArgs];
+            // Add nogui at the end to prevent the GUI window from opening
+            startArgs = [...jvmArgsResult.allArgs, "nogui"];
           } else {
             // Fallback to default args if file doesn't exist
             setLogs((prev) => [

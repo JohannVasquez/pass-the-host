@@ -168,7 +168,10 @@ export class R2ServerRepository implements IR2ServerRepository {
     try {
       // Read local session directly instead of using SessionRepository
       const localSession = this.readLocalSession(serverId);
-      console.log(`[SESSION] Local session for ${serverId}:`, JSON.stringify(localSession, null, 2));
+      console.log(
+        `[SESSION] Local session for ${serverId}:`,
+        JSON.stringify(localSession, null, 2)
+      );
 
       await this.rcloneRepository.ensureConfigured(config);
       const rclonePath = this.rcloneRepository.getRclonePath();
@@ -198,7 +201,7 @@ export class R2ServerRepository implements IR2ServerRepository {
 
       const localTimestamp = localSession.lastPlayedTimestamp;
       const r2Timestamp = r2Session.lastPlayedTimestamp;
-      
+
       console.log(`[SESSION] Comparing timestamps - Local: ${localTimestamp}, R2: ${r2Timestamp}`);
 
       if (r2Timestamp > localTimestamp) {
