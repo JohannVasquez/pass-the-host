@@ -1,5 +1,5 @@
 import { injectable } from "inversify";
-import type { R2Config } from "../../domain/entities";
+import type { R2Config } from "@cloud-storage/domain/entities";
 import { EventBus } from "@shared/infrastructure/event-bus";
 import { R2ConfiguredEvent } from "@shared/domain/DomainEvents";
 

@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
-import type { IServerLockRepository } from "../../domain/repositories";
-import type { LockCheckResult } from "../../domain/entities";
+import type { IServerLockRepository } from "@server-locking/domain/repositories";
+import type { LockCheckResult } from "@server-locking/domain/entities";
 import type { R2Config } from "@cloud-storage/domain/entities";
 import { SERVER_LOCKING_TYPES } from "@shared/di";
 

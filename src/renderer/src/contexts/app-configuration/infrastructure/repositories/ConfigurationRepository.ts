@@ -1,6 +1,6 @@
 import { injectable } from "inversify";
-import type { IConfigurationRepository } from "../../domain/repositories";
-import type { AppConfig } from "../../domain/entities";
+import type { IConfigurationRepository } from "@app-configuration/domain/repositories";
+import type { AppConfig } from "@app-configuration/domain/entities";
 
 /**
  * Configuration Repository implementation using IPC

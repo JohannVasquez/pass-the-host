@@ -1,13 +1,13 @@
 import type { Container } from "inversify";
 import { SESSION_TRACKING_TYPES } from "@shared/di";
-import type { ISessionRepository } from "../domain/repositories";
-import { SessionRepository } from "../infrastructure/repositories";
+import type { ISessionRepository } from "@session-tracking/domain/repositories";
+import { SessionRepository } from "@session-tracking/infrastructure/repositories";
 import {
   CreateSessionUseCase,
   EndSessionUseCase,
   UploadSessionUseCase,
   GetServerStatisticsUseCase,
-} from "../application/use-cases";
+} from "@session-tracking/application/use-cases";
 
 /**
  * Configures the Session Tracking context in the DI container

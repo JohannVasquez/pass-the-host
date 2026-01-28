@@ -6,14 +6,14 @@ import * as https from "https";
 import * as os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { ISystemResourcesRepository } from "../../domain/repositories";
-import {
+import type { ISystemResourcesRepository } from "@main/contexts/system-resources/domain/repositories";
+import type {
   JavaVersion,
   JavaRequirement,
   JavaInstallationResult,
   SystemMemoryInfo,
   NetworkInterface,
-} from "../../domain/entities";
+} from "@main/contexts/system-resources/domain/entities";
 
 const execAsync = promisify(exec);
 const JAVA_RUNTIME_DIR = path.join(app.getPath("userData"), "java_runtime");

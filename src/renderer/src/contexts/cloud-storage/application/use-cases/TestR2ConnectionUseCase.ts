@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
-import type { ICloudStorageRepository } from "../../domain/repositories";
-import type { R2Config } from "../../domain/entities";
+import type { ICloudStorageRepository } from "@cloud-storage/domain/repositories";
+import type { R2Config } from "@cloud-storage/domain/entities";
 import { CLOUD_STORAGE_TYPES } from "@shared/di";
 import { EventBus } from "@shared/infrastructure/event-bus";
 import { R2ConnectionTestedEvent } from "@shared/domain/DomainEvents";

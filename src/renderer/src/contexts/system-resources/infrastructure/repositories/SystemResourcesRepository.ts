@@ -1,6 +1,6 @@
 import { injectable } from "inversify";
-import type { ISystemResourcesRepository } from "../../domain/repositories";
-import type { SystemMemory, NetworkInterface } from "../../domain/entities";
+import type { ISystemResourcesRepository } from "@system-resources/domain/repositories";
+import type { SystemMemory, NetworkInterface } from "@system-resources/domain/entities";
 
 /**
  * System Resources Repository implementation using IPC

@@ -1,7 +1,11 @@
 import { injectable } from "inversify";
-import type { IServerLockRepository } from "../../domain/repositories";
+import type { IServerLockRepository } from "@server-locking/domain/repositories";
 import type { R2Config } from "@cloud-storage/domain/entities";
-import type { ServerLock, LockCheckResult, LockOperationResult } from "../../domain/entities";
+import type {
+  ServerLock,
+  LockCheckResult,
+  LockOperationResult,
+} from "@server-locking/domain/entities";
 
 /**
  * Server Lock Repository implementation using IPC

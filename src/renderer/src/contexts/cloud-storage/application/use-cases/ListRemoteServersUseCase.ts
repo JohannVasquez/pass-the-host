@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
-import type { ICloudStorageRepository } from "../../domain/repositories";
-import type { R2Config, RemoteServer } from "../../domain/entities";
+import type { ICloudStorageRepository } from "@cloud-storage/domain/repositories";
+import type { R2Config, RemoteServer } from "@cloud-storage/domain/entities";
 import { CLOUD_STORAGE_TYPES } from "@shared/di";
 
 /**

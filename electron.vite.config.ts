@@ -3,7 +3,14 @@ import { defineConfig } from "electron-vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  main: {},
+  main: {
+    resolve: {
+      alias: {
+        "@main": resolve("src/main"),
+        "@shared": resolve("src/contexts/shared"),
+      },
+    },
+  },
   preload: {},
   renderer: {
     resolve: {

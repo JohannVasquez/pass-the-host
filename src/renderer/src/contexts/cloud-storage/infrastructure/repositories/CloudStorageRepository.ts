@@ -1,6 +1,6 @@
 import { injectable } from "inversify";
-import type { ICloudStorageRepository } from "../../domain/repositories";
-import type { R2Config, RemoteServer, TransferProgress } from "../../domain/entities";
+import type { ICloudStorageRepository } from "@cloud-storage/domain/repositories";
+import type { R2Config, RemoteServer, TransferProgress } from "@cloud-storage/domain/entities";
 
 /**
  * Cloud Storage Repository implementation using rclone IPC
