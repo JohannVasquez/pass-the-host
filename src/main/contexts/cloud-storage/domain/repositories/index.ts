@@ -31,7 +31,7 @@ export interface IR2ServerRepository {
   downloadServer(
     config: R2Config,
     serverId: string,
-    onProgress?: (progress: TransferProgress) => void
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean>;
 
   /**
@@ -40,7 +40,7 @@ export interface IR2ServerRepository {
   uploadServer(
     config: R2Config,
     serverId: string,
-    onProgress?: (progress: TransferProgress) => void
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean>;
 
   /**

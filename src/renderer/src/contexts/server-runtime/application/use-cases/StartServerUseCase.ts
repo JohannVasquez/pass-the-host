@@ -10,7 +10,7 @@ import { eventBus, ServerStartedEvent, ServerStartingEvent } from "@shared/index
 export class StartServerUseCase {
   constructor(
     @inject(SERVER_RUNTIME_TYPES.ServerRuntimeRepository)
-    private readonly runtimeRepository: IServerRuntimeRepository
+    private readonly runtimeRepository: IServerRuntimeRepository,
   ) {}
 
   /**

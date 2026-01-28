@@ -11,7 +11,7 @@ import { CLOUD_STORAGE_TYPES } from "@shared/di";
 export class ListRemoteServersUseCase {
   constructor(
     @inject(CLOUD_STORAGE_TYPES.CloudStorageRepository)
-    private repository: ICloudStorageRepository
+    private repository: ICloudStorageRepository,
   ) {}
 
   async execute(config: R2Config): Promise<RemoteServer[]> {

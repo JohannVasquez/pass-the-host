@@ -15,7 +15,7 @@ export class DeleteRemoteServerUseCase {
 
   constructor(
     @inject(CLOUD_STORAGE_TYPES.CloudStorageRepository)
-    private repository: ICloudStorageRepository
+    private repository: ICloudStorageRepository,
   ) {}
 
   async execute(config: R2Config, serverId: string): Promise<boolean> {

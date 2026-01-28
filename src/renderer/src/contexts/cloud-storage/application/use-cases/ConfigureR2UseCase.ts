@@ -23,7 +23,7 @@ export class ConfigureR2UseCase {
         endpoint: config.endpoint,
         bucket: config.bucket_name,
         region: config.region,
-      })
+      }),
     );
   }
 }

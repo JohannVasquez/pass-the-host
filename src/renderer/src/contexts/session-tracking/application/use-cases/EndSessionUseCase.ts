@@ -14,7 +14,7 @@ export class EndSessionUseCase {
 
   constructor(
     @inject(SESSION_TRACKING_TYPES.SessionRepository)
-    private repository: ISessionRepository
+    private repository: ISessionRepository,
   ) {}
 
   async execute(serverId: string, username: string): Promise<boolean> {
@@ -30,7 +30,7 @@ export class EndSessionUseCase {
           serverId,
           username,
           timestamp: new Date(),
-        })
+        }),
       );
     }
 

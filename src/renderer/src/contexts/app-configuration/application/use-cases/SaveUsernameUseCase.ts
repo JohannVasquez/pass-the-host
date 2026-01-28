@@ -14,7 +14,7 @@ export class SaveUsernameUseCase {
 
   constructor(
     @inject(APP_CONFIGURATION_TYPES.ConfigurationRepository)
-    private repository: IConfigurationRepository
+    private repository: IConfigurationRepository,
   ) {}
 
   async execute(username: string): Promise<boolean> {
@@ -28,7 +28,7 @@ export class SaveUsernameUseCase {
       this.eventBus.publish(
         new UsernameChangedEvent({
           username,
-        })
+        }),
       );
     }
 

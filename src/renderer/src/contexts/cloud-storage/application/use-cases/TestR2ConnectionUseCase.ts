@@ -15,7 +15,7 @@ export class TestR2ConnectionUseCase {
 
   constructor(
     @inject(CLOUD_STORAGE_TYPES.CloudStorageRepository)
-    private repository: ICloudStorageRepository
+    private repository: ICloudStorageRepository,
   ) {}
 
   async execute(config: R2Config): Promise<boolean> {
@@ -25,7 +25,7 @@ export class TestR2ConnectionUseCase {
       new R2ConnectionTestedEvent({
         success,
         endpoint: config.endpoint,
-      })
+      }),
     );
 
     return success;

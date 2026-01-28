@@ -28,7 +28,6 @@ import { useTranslation } from "react-i18next";
 import { ServerStatus } from "../../domain/entities/ServerStatus";
 import { Server } from "../../domain/entities/Server";
 
-
 interface ServerControlPanelProps {
   status: ServerStatus;
   selectedServer: string | null;
@@ -80,7 +79,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-      
+
       const formatted = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
       setUptime(formatted);
     };

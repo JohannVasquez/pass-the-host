@@ -199,7 +199,7 @@ async function extractTarGz(tarPath: string, destDir: string): Promise<void> {
  */
 export async function downloadJava(
   javaVersion: number,
-  onProgress?: (message: string) => void
+  onProgress?: (message: string) => void,
 ): Promise<boolean> {
   try {
     onProgress?.(`Downloading Java ${javaVersion}...`);
@@ -286,7 +286,7 @@ export async function downloadJava(
  */
 export async function ensureJavaForMinecraft(
   minecraftVersion: string,
-  onProgress?: (message: string) => void
+  onProgress?: (message: string) => void,
 ): Promise<{ success: boolean; javaPath: string; javaVersion: number }> {
   try {
     const requiredJava = getRequiredJavaVersion(minecraftVersion);

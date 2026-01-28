@@ -57,7 +57,7 @@ export class DownloadServerFromR2UseCase {
   async execute(
     config: R2Config,
     serverId: string,
-    onProgress?: (progress: TransferProgress) => void
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean> {
     return await this.r2ServerRepository.downloadServer(config, serverId, onProgress);
   }
@@ -70,7 +70,7 @@ export class UploadServerToR2UseCase {
   async execute(
     config: R2Config,
     serverId: string,
-    onProgress?: (progress: TransferProgress) => void
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean> {
     return await this.r2ServerRepository.uploadServer(config, serverId, onProgress);
   }
@@ -129,7 +129,7 @@ export class DeleteServerLockUseCase {
 
   async execute(
     config: R2Config,
-    serverId: string
+    serverId: string,
   ): Promise<{ success: boolean; existed: boolean }> {
     return await this.serverLockRepository.deleteLock(config, serverId);
   }

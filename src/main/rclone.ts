@@ -260,7 +260,7 @@ export async function listR2Servers(config: {
           version: version,
           type: type,
         };
-      })
+      }),
     );
 
     return servers;
@@ -275,7 +275,7 @@ export async function listR2Servers(config: {
  */
 async function detectServerVersionAndType(
   serverPath: string,
-  serverName: string
+  serverName: string,
 ): Promise<{ version: string; type: string }> {
   try {
     // List all files in the server directory
@@ -378,7 +378,7 @@ export async function downloadServerFromR2(
     bucket_name: string;
   },
   serverId: string,
-  onProgress?: (percent: number, transferred: string, total: string) => void
+  onProgress?: (percent: number, transferred: string, total: string) => void,
 ): Promise<boolean> {
   try {
     // Ensure rclone is configured
@@ -399,7 +399,7 @@ export async function downloadServerFromR2(
       while (!deleted && attempts < maxAttempts) {
         try {
           console.log(
-            `[RCLONE] Attempting to delete existing folder (attempt ${attempts + 1}/${maxAttempts})...`
+            `[RCLONE] Attempting to delete existing folder (attempt ${attempts + 1}/${maxAttempts})...`,
           );
           fs.rmSync(localServerPath, { recursive: true, force: true });
           deleted = true;
@@ -412,7 +412,7 @@ export async function downloadServerFromR2(
               await new Promise((resolve) => setTimeout(resolve, 2000));
             } else {
               console.log(
-                `[RCLONE] Could not delete folder after ${maxAttempts} attempts, will use rclone sync (may take longer)`
+                `[RCLONE] Could not delete folder after ${maxAttempts} attempts, will use rclone sync (may take longer)`,
               );
               // Don't throw error, just continue with sync
             }
@@ -444,7 +444,7 @@ export async function downloadServerFromR2(
           "--transfers",
           "8",
         ],
-        { shell: true }
+        { shell: true },
       );
 
       let lastProgress = "";
@@ -456,7 +456,7 @@ export async function downloadServerFromR2(
         // Pattern to match: "Transferred:   	   25.983 MiB / 1.164 GiB, 2%, ..."
         // This handles tabs, multiple spaces, and different units (MiB, GiB, etc.)
         const match = line.match(
-          /Transferred:\s+([0-9.]+\s*[KMGT]?i?B)\s*\/\s*([0-9.]+\s*[KMGT]?i?B),\s*(\d+)%/
+          /Transferred:\s+([0-9.]+\s*[KMGT]?i?B)\s*\/\s*([0-9.]+\s*[KMGT]?i?B),\s*(\d+)%/,
         );
 
         if (match) {
@@ -535,7 +535,7 @@ export function getLocalServerPath(serverId: string): string {
  */
 export async function readServerLock(
   config: R2Config,
-  serverId: string
+  serverId: string,
 ): Promise<{
   exists: boolean;
   username?: string;
@@ -605,7 +605,7 @@ export async function uploadServerLock(
     secret_key: string;
     bucket_name: string;
   },
-  serverId: string
+  serverId: string,
 ): Promise<boolean> {
   try {
     // Ensure rclone is configured
@@ -667,7 +667,7 @@ export async function deleteServerLock(
     secret_key: string;
     bucket_name: string;
   },
-  serverId: string
+  serverId: string,
 ): Promise<{ success: boolean; existed: boolean }> {
   try {
     // Ensure rclone is configured
@@ -706,7 +706,7 @@ export async function deleteServerFromR2(
     secret_key: string;
     bucket_name: string;
   },
-  serverId: string
+  serverId: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Ensure rclone is configured
@@ -758,7 +758,7 @@ export async function uploadServerToR2(
     bucket_name: string;
   },
   serverId: string,
-  onProgress?: (percent: number, transferred: string, total: string) => void
+  onProgress?: (percent: number, transferred: string, total: string) => void,
 ): Promise<boolean> {
   try {
     // Ensure rclone is configured
@@ -786,7 +786,7 @@ export async function uploadServerToR2(
           "--transfers",
           "8",
         ],
-        { shell: true }
+        { shell: true },
       );
 
       let lastProgress = "";
@@ -798,7 +798,7 @@ export async function uploadServerToR2(
         // Pattern to match: "Transferred:   	   25.983 MiB / 1.164 GiB, 2%, ..."
         // This handles tabs, multiple spaces, and different units (MiB, GiB, etc.)
         const match = line.match(
-          /Transferred:\s+([0-9.]+\s*[KMGT]?i?B)\s*\/\s*([0-9.]+\s*[KMGT]?i?B),\s*(\d+)%/
+          /Transferred:\s+([0-9.]+\s*[KMGT]?i?B)\s*\/\s*([0-9.]+\s*[KMGT]?i?B),\s*(\d+)%/,
         );
 
         if (match) {
@@ -1082,7 +1082,7 @@ export function updateSessionMetadata(serverId: string, username: string): boole
         const durationMinutes = Math.floor(duration / 60000);
         const durationSeconds = Math.floor((duration % 60000) / 1000);
         console.log(
-          `[SESSION] Updated session metadata for ${serverId} (user: ${username}, duration: ${durationMinutes}m ${durationSeconds}s)`
+          `[SESSION] Updated session metadata for ${serverId} (user: ${username}, duration: ${durationMinutes}m ${durationSeconds}s)`,
         );
       }
     }
@@ -1163,7 +1163,7 @@ export function getServerStatistics(serverId: string): {
  */
 export async function readR2SessionMetadata(
   config: R2Config,
-  serverId: string
+  serverId: string,
 ): Promise<SessionMetadata | null> {
   try {
     await ensureRcloneConfigured(config);
@@ -1240,12 +1240,12 @@ export async function shouldDownloadServer(config: R2Config, serverId: string): 
 
     if (r2Timestamp > localTimestamp) {
       console.log(
-        `[SESSION] R2 files are newer for ${serverId} (R2: ${r2Session.lastPlayed}, Local: ${localSession.lastPlayed}), download needed`
+        `[SESSION] R2 files are newer for ${serverId} (R2: ${r2Session.lastPlayed}, Local: ${localSession.lastPlayed}), download needed`,
       );
       return true;
     } else {
       console.log(
-        `[SESSION] Local files are up to date for ${serverId} (R2: ${r2Session.lastPlayed}, Local: ${localSession.lastPlayed}), skipping download`
+        `[SESSION] Local files are up to date for ${serverId} (R2: ${r2Session.lastPlayed}, Local: ${localSession.lastPlayed}), skipping download`,
       );
       return false;
     }
@@ -1298,7 +1298,7 @@ async function getMinecraftServerJarUrl(version: string): Promise<string> {
                       const versionManifest = JSON.parse(versionData);
                       // Find version in manifest
                       const versionInfo = versionManifest.versions.find(
-                        (v: any) => v.id === version
+                        (v: any) => v.id === version,
                       );
 
                       if (!versionInfo) {
@@ -1347,7 +1347,7 @@ export async function createMinecraftServer(
   serverName: string,
   version: string,
   serverType: "vanilla" | "forge",
-  onProgress?: (message: string) => void
+  onProgress?: (message: string) => void,
 ): Promise<boolean> {
   try {
     const serverPath = getLocalServerPath(serverName);

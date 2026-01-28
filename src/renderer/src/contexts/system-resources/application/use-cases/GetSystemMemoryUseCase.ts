@@ -10,7 +10,7 @@ import { SYSTEM_RESOURCES_TYPES } from "@shared/di";
 export class GetSystemMemoryUseCase {
   constructor(
     @inject(SYSTEM_RESOURCES_TYPES.SystemResourcesRepository)
-    private repository: ISystemResourcesRepository
+    private repository: ISystemResourcesRepository,
   ) {}
 
   async execute(): Promise<number> {

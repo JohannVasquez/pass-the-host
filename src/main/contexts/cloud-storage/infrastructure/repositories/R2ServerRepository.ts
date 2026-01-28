@@ -36,7 +36,7 @@ export class R2ServerRepository implements IR2ServerRepository {
           const { version, type } = await this.detectServerVersionAndType(
             rclonePath,
             serverPath,
-            serverName
+            serverName,
           );
 
           return {
@@ -45,7 +45,7 @@ export class R2ServerRepository implements IR2ServerRepository {
             version: version,
             type: type,
           };
-        })
+        }),
       );
 
       return servers;
@@ -58,7 +58,7 @@ export class R2ServerRepository implements IR2ServerRepository {
   async downloadServer(
     config: R2Config,
     serverId: string,
-    onProgress?: (progress: TransferProgress) => void
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean> {
     try {
       await this.rcloneRepository.ensureConfigured(config);
@@ -80,7 +80,7 @@ export class R2ServerRepository implements IR2ServerRepository {
         while (!deleted && attempts < maxAttempts) {
           try {
             console.log(
-              `[RCLONE] Attempting to delete existing folder (attempt ${attempts + 1}/${maxAttempts})...`
+              `[RCLONE] Attempting to delete existing folder (attempt ${attempts + 1}/${maxAttempts})...`,
             );
             fs.rmSync(localServerPath, { recursive: true, force: true });
             deleted = true;
@@ -93,7 +93,7 @@ export class R2ServerRepository implements IR2ServerRepository {
                 await new Promise((resolve) => setTimeout(resolve, 2000));
               } else {
                 console.log(
-                  `[RCLONE] Could not delete folder after ${maxAttempts} attempts, will use rclone sync (may take longer)`
+                  `[RCLONE] Could not delete folder after ${maxAttempts} attempts, will use rclone sync (may take longer)`,
                 );
               }
             } else {
@@ -120,7 +120,7 @@ export class R2ServerRepository implements IR2ServerRepository {
   async uploadServer(
     config: R2Config,
     serverId: string,
-    onProgress?: (progress: TransferProgress) => void
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean> {
     try {
       await this.rcloneRepository.ensureConfigured(config);
@@ -145,7 +145,7 @@ export class R2ServerRepository implements IR2ServerRepository {
 
   async deleteServer(
     config: R2Config,
-    serverId: string
+    serverId: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       await this.rcloneRepository.ensureConfigured(config);
@@ -170,7 +170,7 @@ export class R2ServerRepository implements IR2ServerRepository {
       const localSession = this.readLocalSession(serverId);
       console.log(
         `[SESSION] Local session for ${serverId}:`,
-        JSON.stringify(localSession, null, 2)
+        JSON.stringify(localSession, null, 2),
       );
 
       await this.rcloneRepository.ensureConfigured(config);
@@ -206,12 +206,12 @@ export class R2ServerRepository implements IR2ServerRepository {
 
       if (r2Timestamp > localTimestamp) {
         console.log(
-          `[SESSION] R2 files are newer for ${serverId} (R2: ${r2Session.lastPlayed}, Local: ${localSession.lastPlayed}), download needed`
+          `[SESSION] R2 files are newer for ${serverId} (R2: ${r2Session.lastPlayed}, Local: ${localSession.lastPlayed}), download needed`,
         );
         return true;
       } else {
         console.log(
-          `[SESSION] Local files are up to date for ${serverId} (R2: ${r2Session.lastPlayed}, Local: ${localSession.lastPlayed}), skipping download`
+          `[SESSION] Local files are up to date for ${serverId} (R2: ${r2Session.lastPlayed}, Local: ${localSession.lastPlayed}), skipping download`,
         );
         return false;
       }
@@ -241,7 +241,7 @@ export class R2ServerRepository implements IR2ServerRepository {
   private async detectServerVersionAndType(
     rclonePath: string,
     serverPath: string,
-    serverName: string
+    serverName: string,
   ): Promise<{ version: string; type: string }> {
     try {
       const listCommand = `"${rclonePath}" lsf ${serverPath}`;
@@ -325,13 +325,13 @@ export class R2ServerRepository implements IR2ServerRepository {
     rclonePath: string,
     source: string,
     destination: string,
-    onProgress?: (progress: TransferProgress) => void
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean> {
     return new Promise<boolean>((resolve, reject) => {
       const rcloneProcess = spawn(
         rclonePath,
         ["sync", source, destination, "--progress", "--stats", "500ms", "--transfers", "8"],
-        { shell: true }
+        { shell: true },
       );
 
       let lastProgress = "";
@@ -340,7 +340,7 @@ export class R2ServerRepository implements IR2ServerRepository {
 
       const parseProgress = (line: string): void => {
         const match = line.match(
-          /Transferred:\s+([0-9.]+\s*[KMGT]?i?B)\s*\/\s*([0-9.]+\s*[KMGT]?i?B),\s*(\d+)%/
+          /Transferred:\s+([0-9.]+\s*[KMGT]?i?B)\s*\/\s*([0-9.]+\s*[KMGT]?i?B),\s*(\d+)%/,
         );
 
         if (match) {

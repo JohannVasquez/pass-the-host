@@ -16,7 +16,7 @@ export interface IServerProcessRepository {
     config: ServerRuntimeConfig,
     onStdout?: (data: string) => void,
     onStderr?: (data: string) => void,
-    onClose?: (code: number | null) => void
+    onClose?: (code: number | null) => void,
   ): Promise<ServerProcess>;
 
   /**

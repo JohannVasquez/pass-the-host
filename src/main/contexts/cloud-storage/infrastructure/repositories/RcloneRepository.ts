@@ -76,7 +76,7 @@ export class RcloneRepository implements IRcloneRepository {
 
       const extractedDir = path.join(
         this.RCLONE_DIR,
-        `rclone-${this.RCLONE_VERSION}-${osType}-${archType}`
+        `rclone-${this.RCLONE_VERSION}-${osType}-${archType}`,
       );
       const extractedExecutable = path.join(extractedDir, this.RCLONE_EXECUTABLE);
 

@@ -83,7 +83,7 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
 
   async ensureJavaForMinecraft(
     minecraftVersion: string,
-    onProgress?: (message: string) => void
+    onProgress?: (message: string) => void,
   ): Promise<JavaInstallationResult> {
     try {
       const requiredJava = this.getRequiredJavaVersion(minecraftVersion);
@@ -281,7 +281,7 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
 
   private async downloadJava(
     javaVersion: number,
-    onProgress?: (message: string) => void
+    onProgress?: (message: string) => void,
   ): Promise<boolean> {
     try {
       onProgress?.(`Downloading Java ${javaVersion}...`);

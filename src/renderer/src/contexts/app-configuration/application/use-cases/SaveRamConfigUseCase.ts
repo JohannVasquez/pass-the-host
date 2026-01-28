@@ -14,7 +14,7 @@ export class SaveRamConfigUseCase {
 
   constructor(
     @inject(APP_CONFIGURATION_TYPES.ConfigurationRepository)
-    private repository: IConfigurationRepository
+    private repository: IConfigurationRepository,
   ) {}
 
   async execute(minRam: number, maxRam: number): Promise<boolean> {
@@ -33,7 +33,7 @@ export class SaveRamConfigUseCase {
         new RamConfigChangedEvent({
           minRam,
           maxRam,
-        })
+        }),
       );
     }
 

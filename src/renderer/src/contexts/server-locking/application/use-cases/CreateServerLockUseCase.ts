@@ -14,7 +14,7 @@ export class CreateServerLockUseCase {
 
   constructor(
     @inject(SERVER_LOCKING_TYPES.ServerLockRepository)
-    private repository: IServerLockRepository
+    private repository: IServerLockRepository,
   ) {}
 
   async execute(serverId: string, username: string): Promise<boolean> {
@@ -29,7 +29,7 @@ export class CreateServerLockUseCase {
         new ServerLockCreatedEvent({
           serverId,
           username,
-        })
+        }),
       );
     }
 

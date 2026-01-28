@@ -11,7 +11,7 @@ const rcloneAPI = {
   testR2Connection: (config: any): Promise<boolean> =>
     ipcRenderer.invoke("rclone:test-r2-connection", config),
   listServers: (
-    config: any
+    config: any,
   ): Promise<Array<{ id: string; name: string; version: string; type: string }>> =>
     ipcRenderer.invoke("rclone:list-servers", config),
   downloadServer: (config: any, serverId: string): Promise<boolean> =>
@@ -24,11 +24,11 @@ const rcloneAPI = {
     return () => ipcRenderer.removeListener("rclone:progress", listener);
   },
   onTransferProgress: (
-    callback: (progress: { percent: number; transferred: string; total: string }) => void
+    callback: (progress: { percent: number; transferred: string; total: string }) => void,
   ): (() => void) => {
     const listener = (
       _event: any,
-      progress: { percent: number; transferred: string; total: string }
+      progress: { percent: number; transferred: string; total: string },
     ): void => callback(progress);
     ipcRenderer.on("rclone:transfer-progress", listener);
     return () => ipcRenderer.removeListener("rclone:transfer-progress", listener);
@@ -57,7 +57,7 @@ const serverAPI = {
     ipcRenderer.invoke("server:create-lock", serverId, username),
   readLock: (
     r2Config: any,
-    serverId: string
+    serverId: string,
   ): Promise<{ exists: boolean; username?: string; startedAt?: string; timestamp?: number }> => {
     return ipcRenderer.invoke("server:read-server-lock", r2Config, serverId);
   },
@@ -76,7 +76,7 @@ const serverAPI = {
     serverId: string,
     command: string,
     args: string[],
-    workingDir: string
+    workingDir: string,
   ): Promise<boolean> =>
     ipcRenderer.invoke("server:spawn-server-process", serverId, command, args, workingDir),
   killServerProcess: (serverId: string): Promise<boolean> =>
@@ -106,7 +106,7 @@ const serverAPI = {
   createMinecraftServer: (
     serverName: string,
     version: string,
-    serverType: "vanilla" | "forge"
+    serverType: "vanilla" | "forge",
   ): Promise<boolean> =>
     ipcRenderer.invoke("server:create-minecraft-server", serverName, version, serverType),
   onCreateProgress: (callback: (message: string) => void): (() => void) => {
@@ -122,7 +122,7 @@ const serverAPI = {
 
 const javaAPI = {
   ensureForMinecraft: (
-    minecraftVersion: string
+    minecraftVersion: string,
   ): Promise<{ success: boolean; javaPath: string; javaVersion: number }> =>
     ipcRenderer.invoke("java:ensure-for-minecraft", minecraftVersion),
   getInstalledVersions: (): Promise<Array<{ version: number; path: string }>> =>

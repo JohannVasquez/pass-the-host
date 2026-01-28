@@ -16,7 +16,7 @@ export class ServerRuntimeIPCHandlers {
     private killServerProcessUseCase: KillServerProcessUseCase,
     private readForgeJvmArgsUseCase: ReadForgeJvmArgsUseCase,
     private editForgeJvmArgsUseCase: EditForgeJvmArgsUseCase,
-    private openServerFolderUseCase: OpenServerFolderUseCase
+    private openServerFolderUseCase: OpenServerFolderUseCase,
   ) {}
 
   register(): void {
@@ -32,7 +32,7 @@ export class ServerRuntimeIPCHandlers {
         serverId: string,
         command: string,
         args: string[],
-        workingDir: string
+        workingDir: string,
       ) => {
         try {
           await this.spawnServerProcessUseCase.execute(
@@ -55,14 +55,14 @@ export class ServerRuntimeIPCHandlers {
             },
             () => {
               // Process closed
-            }
+            },
           );
           return true;
         } catch (e) {
           console.error("Error spawning server process:", e);
           throw e;
         }
-      }
+      },
     );
 
     ipcMain.handle("server:send-command", async (_event, serverId: string, command: string) => {
@@ -81,7 +81,7 @@ export class ServerRuntimeIPCHandlers {
       "server:edit-forge-jvm-args",
       async (_event, serverId: string, minRam: number, maxRam: number) => {
         return await this.editForgeJvmArgsUseCase.execute(serverId, minRam, maxRam);
-      }
+      },
     );
 
     ipcMain.handle("server:openFolder", async (_event, serverId: string) => {

@@ -12,7 +12,7 @@ import { SERVER_LOCKING_TYPES } from "@shared/di";
 export class CheckServerLockUseCase {
   constructor(
     @inject(SERVER_LOCKING_TYPES.ServerLockRepository)
-    private repository: IServerLockRepository
+    private repository: IServerLockRepository,
   ) {}
 
   async execute(r2Config: R2Config, serverId: string): Promise<LockCheckResult> {

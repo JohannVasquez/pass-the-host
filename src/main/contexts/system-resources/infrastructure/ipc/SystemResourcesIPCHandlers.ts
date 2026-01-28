@@ -13,7 +13,7 @@ export function registerSystemResourcesIPCHandlers(container: Container): void {
   // Java handlers
   ipcMain.handle("java:ensure-for-minecraft", async (event, minecraftVersion: string) => {
     const useCase = container.get<EnsureJavaForMinecraftUseCase>(
-      TYPES.EnsureJavaForMinecraftUseCase
+      TYPES.EnsureJavaForMinecraftUseCase,
     );
     const progressCallback = (message: string): void => {
       event.sender.send("java:progress", message);
@@ -23,14 +23,14 @@ export function registerSystemResourcesIPCHandlers(container: Container): void {
 
   ipcMain.handle("java:get-installed-versions", async () => {
     const useCase = container.get<GetInstalledJavaVersionsUseCase>(
-      TYPES.GetInstalledJavaVersionsUseCase
+      TYPES.GetInstalledJavaVersionsUseCase,
     );
     return useCase.execute();
   });
 
   ipcMain.handle("java:get-required-version", async (_, minecraftVersion: string) => {
     const useCase = container.get<GetRequiredJavaVersionUseCase>(
-      TYPES.GetRequiredJavaVersionUseCase
+      TYPES.GetRequiredJavaVersionUseCase,
     );
     return useCase.execute(minecraftVersion);
   });

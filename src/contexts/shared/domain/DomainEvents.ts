@@ -8,7 +8,7 @@ export class ServerCreatedEvent extends BaseDomainEvent {
   constructor(
     public readonly serverId: string,
     public readonly serverName: string,
-    public readonly serverType: string
+    public readonly serverType: string,
   ) {
     super(serverId);
   }
@@ -21,7 +21,7 @@ export class ServerCreatedEvent extends BaseDomainEvent {
 export class ServerDeletedEvent extends BaseDomainEvent {
   constructor(
     public readonly serverId: string,
-    public readonly serverName: string
+    public readonly serverName: string,
   ) {
     super(serverId);
   }
@@ -34,7 +34,7 @@ export class ServerDeletedEvent extends BaseDomainEvent {
 export class ServerSelectedEvent extends BaseDomainEvent {
   constructor(
     public readonly serverId: string,
-    public readonly serverName: string
+    public readonly serverName: string,
   ) {
     super(serverId);
   }
@@ -91,7 +91,7 @@ export class ServerStoppedEvent extends BaseDomainEvent {
 export class ServerCommandExecutedEvent extends BaseDomainEvent {
   constructor(
     public readonly serverId: string,
-    public readonly command: string
+    public readonly command: string,
   ) {
     super(serverId);
   }
@@ -105,7 +105,7 @@ export class ServerLogReceivedEvent extends BaseDomainEvent {
   constructor(
     public readonly serverId: string,
     public readonly message: string,
-    public readonly type: "info" | "warning" | "error" | "success"
+    public readonly type: "info" | "warning" | "error" | "success",
   ) {
     super(serverId);
   }
@@ -424,7 +424,7 @@ export class SessionUploadedEvent extends BaseDomainEvent {
 export class RamConfiguredEvent extends BaseDomainEvent {
   constructor(
     public readonly minRam: number,
-    public readonly maxRam: number
+    public readonly maxRam: number,
   ) {
     super();
   }
@@ -437,7 +437,7 @@ export class RamConfiguredEvent extends BaseDomainEvent {
 export class NetworkConfiguredEvent extends BaseDomainEvent {
   constructor(
     public readonly ip: string,
-    public readonly port: number
+    public readonly port: number,
   ) {
     super();
   }

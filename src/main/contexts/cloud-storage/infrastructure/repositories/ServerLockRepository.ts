@@ -89,7 +89,7 @@ export class ServerLockRepository implements IServerLockRepository {
 
   async deleteLock(
     config: R2Config,
-    serverId: string
+    serverId: string,
   ): Promise<{ success: boolean; existed: boolean }> {
     try {
       await this.rcloneRepository.ensureConfigured(config);
