@@ -14,7 +14,7 @@ export class ChangeLanguageUseCase {
 
   constructor(
     @inject(APP_CONFIGURATION_TYPES.ConfigurationRepository)
-    private repository: IConfigurationRepository
+    private repository: IConfigurationRepository,
   ) {}
 
   async execute(language: string): Promise<boolean> {
@@ -28,7 +28,7 @@ export class ChangeLanguageUseCase {
       this.eventBus.publish(
         new LanguageChangedEvent({
           language,
-        })
+        }),
       );
     }
 

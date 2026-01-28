@@ -11,7 +11,7 @@ import { SYSTEM_RESOURCES_TYPES } from "@shared/di";
 export class GetNetworkInterfacesUseCase {
   constructor(
     @inject(SYSTEM_RESOURCES_TYPES.SystemResourcesRepository)
-    private repository: ISystemResourcesRepository
+    private repository: ISystemResourcesRepository,
   ) {}
 
   async execute(): Promise<NetworkInterface[]> {

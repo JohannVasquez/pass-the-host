@@ -42,7 +42,7 @@ export class CloudStorageIPCHandlers {
     private uploadSessionUseCase: UploadSessionUseCase,
     private getServerStatisticsUseCase: GetServerStatisticsUseCase,
     private readServerPortUseCase: ReadServerPortUseCase,
-    private writeServerPortUseCase: WriteServerPortUseCase
+    private writeServerPortUseCase: WriteServerPortUseCase,
   ) {}
 
   register(): void {
@@ -78,7 +78,7 @@ export class CloudStorageIPCHandlers {
           event.sender.send("rclone:transfer-progress", progress);
         };
         return await this.downloadServerFromR2UseCase.execute(config, serverId, progressCallback);
-      }
+      },
     );
 
     ipcMain.handle(
@@ -92,7 +92,7 @@ export class CloudStorageIPCHandlers {
           event.sender.send("rclone:transfer-progress", progress);
         };
         return await this.uploadServerToR2UseCase.execute(config, serverId, progressCallback);
-      }
+      },
     );
 
     ipcMain.handle("server:delete-from-r2", async (_event, config: R2Config, serverId: string) => {
@@ -112,7 +112,7 @@ export class CloudStorageIPCHandlers {
       "server:read-server-lock",
       async (_event, r2Config: R2Config, serverId: string) => {
         return await this.readServerLockUseCase.execute(r2Config, serverId);
-      }
+      },
     );
 
     ipcMain.handle("server:upload-lock", async (_event, config: R2Config, serverId: string) => {

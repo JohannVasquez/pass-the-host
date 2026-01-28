@@ -20,7 +20,7 @@ export function configureServerLifecycleContainer(container: Container): void {
     .bind<CreateMinecraftServerUseCase>(TYPES.CreateMinecraftServerUseCase)
     .toDynamicValue(() => {
       const repository = container.get<IServerLifecycleRepository>(
-        TYPES.IServerLifecycleRepository
+        TYPES.IServerLifecycleRepository,
       );
       return new CreateMinecraftServerUseCase(repository);
     })
@@ -30,7 +30,7 @@ export function configureServerLifecycleContainer(container: Container): void {
     .bind<DeleteServerLocallyUseCase>(TYPES.DeleteServerLocallyUseCase)
     .toDynamicValue(() => {
       const repository = container.get<IServerLifecycleRepository>(
-        TYPES.IServerLifecycleRepository
+        TYPES.IServerLifecycleRepository,
       );
       return new DeleteServerLocallyUseCase(repository);
     })
@@ -40,7 +40,7 @@ export function configureServerLifecycleContainer(container: Container): void {
     .bind<GetLocalServerPathUseCase>(TYPES.GetLocalServerPathUseCase)
     .toDynamicValue(() => {
       const repository = container.get<IServerLifecycleRepository>(
-        TYPES.IServerLifecycleRepository
+        TYPES.IServerLifecycleRepository,
       );
       return new GetLocalServerPathUseCase(repository);
     })

@@ -15,7 +15,7 @@ export class UploadSessionUseCase {
 
   constructor(
     @inject(SESSION_TRACKING_TYPES.SessionRepository)
-    private repository: ISessionRepository
+    private repository: ISessionRepository,
   ) {}
 
   async execute(r2Config: R2Config, serverId: string): Promise<boolean> {
@@ -29,7 +29,7 @@ export class UploadSessionUseCase {
       this.eventBus.publish(
         new SessionUploadedEvent({
           serverId,
-        })
+        }),
       );
     }
 

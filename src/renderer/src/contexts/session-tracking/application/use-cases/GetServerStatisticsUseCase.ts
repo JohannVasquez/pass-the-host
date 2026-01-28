@@ -11,7 +11,7 @@ import { SESSION_TRACKING_TYPES } from "@shared/di";
 export class GetServerStatisticsUseCase {
   constructor(
     @inject(SESSION_TRACKING_TYPES.SessionRepository)
-    private repository: ISessionRepository
+    private repository: ISessionRepository,
   ) {}
 
   async execute(serverId: string): Promise<ServerStatistics | null> {

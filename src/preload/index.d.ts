@@ -17,7 +17,7 @@ interface RcloneAPI {
   }) => Promise<Array<{ id: string; name: string; version: string; type: string }>>;
   onProgress: (callback: (message: string) => void) => () => void;
   onTransferProgress: (
-    callback: (progress: { percent: number; transferred: string; total: string }) => void
+    callback: (progress: { percent: number; transferred: string; total: string }) => void,
   ) => () => void;
   downloadServer: (
     config: {
@@ -26,7 +26,7 @@ interface RcloneAPI {
       secret_key: string;
       bucket_name: string;
     },
-    serverId: string
+    serverId: string,
   ) => Promise<boolean>;
   uploadServer: (
     config: {
@@ -35,7 +35,7 @@ interface RcloneAPI {
       secret_key: string;
       bucket_name: string;
     },
-    serverId: string
+    serverId: string,
   ) => Promise<boolean>;
 }
 
@@ -61,7 +61,7 @@ interface ServerAPI {
   createLock: (serverId: string, username: string) => Promise<boolean>;
   readLock: (
     r2Config: any,
-    serverId: string
+    serverId: string,
   ) => Promise<{ exists: boolean; username?: string; startedAt?: string; timestamp?: number }>;
   uploadLock: (
     config: {
@@ -70,7 +70,7 @@ interface ServerAPI {
       secret_key: string;
       bucket_name: string;
     },
-    serverId: string
+    serverId: string,
   ) => Promise<boolean>;
   deleteLock: (
     config: {
@@ -79,7 +79,7 @@ interface ServerAPI {
       secret_key: string;
       bucket_name: string;
     },
-    serverId: string
+    serverId: string,
   ) => Promise<{ success: boolean; existed: boolean }>;
   deleteLocalLock: (serverId: string) => Promise<{ success: boolean; existed: boolean }>;
   readPort: (serverId: string) => Promise<number>;
@@ -89,7 +89,7 @@ interface ServerAPI {
     serverId: string,
     command: string,
     args: string[],
-    workingDir: string
+    workingDir: string,
   ) => Promise<any>;
   killServerProcess: (serverId: string) => Promise<void>;
   editForgeJvmArgs: (serverId: string, minRam: number, maxRam: number) => Promise<void>;
@@ -116,7 +116,7 @@ interface ServerAPI {
   createMinecraftServer: (
     serverName: string,
     version: string,
-    serverType: "vanilla" | "forge"
+    serverType: "vanilla" | "forge",
   ) => Promise<boolean>;
   onCreateProgress: (callback: (message: string) => void) => () => void;
   deleteFromR2: (config: any, serverId: string) => Promise<{ success: boolean; error?: string }>;
@@ -125,7 +125,7 @@ interface ServerAPI {
 
 interface JavaAPI {
   ensureForMinecraft: (
-    minecraftVersion: string
+    minecraftVersion: string,
   ) => Promise<{ success: boolean; javaPath: string; javaVersion: number }>;
   getInstalledVersions: () => Promise<Array<{ version: number; path: string }>>;
   getRequiredVersion: (minecraftVersion: string) => Promise<number>;

@@ -35,7 +35,7 @@ export class CloudStorageRepository implements ICloudStorageRepository {
   async downloadServer(
     config: R2Config,
     serverId: string,
-    onProgress?: (progress: TransferProgress) => void
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean> {
     try {
       // Setup progress listener if callback provided
@@ -65,7 +65,7 @@ export class CloudStorageRepository implements ICloudStorageRepository {
   async uploadServer(
     config: R2Config,
     serverId: string,
-    onProgress?: (progress: TransferProgress) => void
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean> {
     try {
       // Setup progress listener if callback provided

@@ -268,7 +268,7 @@ if (!gotTheLock) {
       container.get(KillServerProcessUseCase),
       container.get(ReadForgeJvmArgsUseCase),
       container.get(EditForgeJvmArgsUseCase),
-      container.get(OpenServerFolderUseCase)
+      container.get(OpenServerFolderUseCase),
     );
     serverRuntimeIPCHandlers.register();
 
@@ -292,7 +292,7 @@ if (!gotTheLock) {
       container.get(UploadSessionUseCase),
       container.get(GetServerStatisticsUseCase),
       container.get(ReadServerPortUseCase),
-      container.get(WriteServerPortUseCase)
+      container.get(WriteServerPortUseCase),
     );
     cloudStorageIPCHandlers.register();
 

@@ -20,7 +20,7 @@ export class UploadServerUseCase {
 
   constructor(
     @inject(CLOUD_STORAGE_TYPES.CloudStorageRepository)
-    private repository: ICloudStorageRepository
+    private repository: ICloudStorageRepository,
   ) {}
 
   async execute(config: R2Config, serverId: string): Promise<boolean> {
@@ -37,9 +37,9 @@ export class UploadServerUseCase {
               progress: progress.percentage,
               bytesTransferred: progress.bytesTransferred,
               totalBytes: progress.totalBytes,
-            })
+            }),
           );
-        }
+        },
       );
 
       if (success) {
@@ -49,7 +49,7 @@ export class UploadServerUseCase {
           new ServerUploadFailedEvent({
             serverId,
             error: "Upload failed",
-          })
+          }),
         );
       }
 
@@ -59,7 +59,7 @@ export class UploadServerUseCase {
         new ServerUploadFailedEvent({
           serverId,
           error: error instanceof Error ? error.message : "Unknown error",
-        })
+        }),
       );
       return false;
     }

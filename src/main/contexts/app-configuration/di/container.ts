@@ -22,7 +22,7 @@ export function configureAppConfigurationContext(container: Container): void {
     .bind<LoadConfigUseCase>(TYPES.LoadConfigUseCase)
     .toDynamicValue(() => {
       const repository = container.get<IAppConfigurationRepository>(
-        TYPES.IAppConfigurationRepository
+        TYPES.IAppConfigurationRepository,
       );
       return new LoadConfigUseCase(repository);
     })
@@ -32,7 +32,7 @@ export function configureAppConfigurationContext(container: Container): void {
     .bind<SaveR2ConfigUseCase>(TYPES.SaveR2ConfigUseCase)
     .toDynamicValue(() => {
       const repository = container.get<IAppConfigurationRepository>(
-        TYPES.IAppConfigurationRepository
+        TYPES.IAppConfigurationRepository,
       );
       return new SaveR2ConfigUseCase(repository);
     })
@@ -42,7 +42,7 @@ export function configureAppConfigurationContext(container: Container): void {
     .bind<SaveUsernameUseCase>(TYPES.SaveUsernameUseCase)
     .toDynamicValue(() => {
       const repository = container.get<IAppConfigurationRepository>(
-        TYPES.IAppConfigurationRepository
+        TYPES.IAppConfigurationRepository,
       );
       return new SaveUsernameUseCase(repository);
     })
@@ -52,7 +52,7 @@ export function configureAppConfigurationContext(container: Container): void {
     .bind<SaveRamConfigUseCase>(TYPES.SaveRamConfigUseCase)
     .toDynamicValue(() => {
       const repository = container.get<IAppConfigurationRepository>(
-        TYPES.IAppConfigurationRepository
+        TYPES.IAppConfigurationRepository,
       );
       return new SaveRamConfigUseCase(repository);
     })
@@ -62,7 +62,7 @@ export function configureAppConfigurationContext(container: Container): void {
     .bind<SaveLanguageUseCase>(TYPES.SaveLanguageUseCase)
     .toDynamicValue(() => {
       const repository = container.get<IAppConfigurationRepository>(
-        TYPES.IAppConfigurationRepository
+        TYPES.IAppConfigurationRepository,
       );
       return new SaveLanguageUseCase(repository);
     })

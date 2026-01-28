@@ -16,7 +16,7 @@ export class ReleaseServerLockUseCase {
 
   constructor(
     @inject(SERVER_LOCKING_TYPES.ServerLockRepository)
-    private repository: IServerLockRepository
+    private repository: IServerLockRepository,
   ) {}
 
   async execute(r2Config: R2Config, serverId: string): Promise<boolean> {
@@ -27,7 +27,7 @@ export class ReleaseServerLockUseCase {
     // Delete from both local and remote
     const remoteResult: LockOperationResult = await this.repository.deleteRemoteLock(
       r2Config,
-      serverId
+      serverId,
     );
     const localResult: LockOperationResult = await this.repository.deleteLocalLock(serverId);
 
@@ -37,7 +37,7 @@ export class ReleaseServerLockUseCase {
       this.eventBus.publish(
         new ServerLockReleasedEvent({
           serverId,
-        })
+        }),
       );
     }
 

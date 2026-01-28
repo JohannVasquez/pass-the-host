@@ -46,7 +46,7 @@ export function useContainerReady(): boolean {
           configureServerLocking,
           configureSystemResources,
           configureSessionTracking,
-          configureAppConfiguration
+          configureAppConfiguration,
         );
         setReady(true);
       } catch (error) {

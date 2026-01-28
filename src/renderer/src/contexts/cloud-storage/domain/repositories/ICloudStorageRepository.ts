@@ -21,7 +21,7 @@ export interface ICloudStorageRepository {
   downloadServer(
     config: R2Config,
     serverId: string,
-    onProgress?: (progress: TransferProgress) => void
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean>;
 
   /**
@@ -30,7 +30,7 @@ export interface ICloudStorageRepository {
   uploadServer(
     config: R2Config,
     serverId: string,
-    onProgress?: (progress: TransferProgress) => void
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean>;
 
   /**

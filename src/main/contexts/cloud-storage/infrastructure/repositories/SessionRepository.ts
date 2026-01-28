@@ -96,7 +96,7 @@ export class SessionRepository implements ISessionRepository {
           const durationMinutes = Math.floor(duration / 60000);
           const durationSeconds = Math.floor((duration % 60000) / 1000);
           console.log(
-            `[SESSION] Updated session metadata for ${serverId} (user: ${username}, duration: ${durationMinutes}m ${durationSeconds}s)`
+            `[SESSION] Updated session metadata for ${serverId} (user: ${username}, duration: ${durationMinutes}m ${durationSeconds}s)`,
           );
         }
       }

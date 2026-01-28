@@ -82,9 +82,7 @@ export const DeleteServerModal: React.FC<DeleteServerModalProps> = ({
               {t("deleteServerModal.warning")}
             </Typography>
             <Typography variant="body2">
-              {deleteLocally
-                ? t("deleteServerModal.alsoLocal")
-                : t("deleteServerModal.cloudOnly")}
+              {deleteLocally ? t("deleteServerModal.alsoLocal") : t("deleteServerModal.cloudOnly")}
             </Typography>
           </Alert>
 
@@ -147,7 +145,11 @@ export const DeleteServerModal: React.FC<DeleteServerModalProps> = ({
           color="error"
           disabled={!inputValue || isDeleting}
         >
-          {isDeleting ? <CircularProgress size={20} color="inherit" /> : t("deleteServerModal.confirm")}
+          {isDeleting ? (
+            <CircularProgress size={20} color="inherit" />
+          ) : (
+            t("deleteServerModal.confirm")
+          )}
         </Button>
       </DialogActions>
     </Dialog>

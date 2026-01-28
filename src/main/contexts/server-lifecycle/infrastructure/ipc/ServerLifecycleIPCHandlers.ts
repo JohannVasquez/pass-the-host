@@ -13,16 +13,16 @@ export function registerServerLifecycleIPCHandlers(container: Container): void {
       event: IpcMainInvokeEvent,
       serverName: string,
       version: string,
-      serverType: "vanilla" | "forge"
+      serverType: "vanilla" | "forge",
     ) => {
       const useCase = container.get<CreateMinecraftServerUseCase>(
-        TYPES.CreateMinecraftServerUseCase
+        TYPES.CreateMinecraftServerUseCase,
       );
       const progressCallback = (message: string): void => {
         event.sender.send("server:create-progress", message);
       };
       return useCase.execute({ serverName, version, serverType }, progressCallback);
-    }
+    },
   );
 
   ipcMain.handle("server:delete-locally", async (_event, serverId) => {

@@ -15,7 +15,7 @@ export class UploadServerLockUseCase {
 
   constructor(
     @inject(SERVER_LOCKING_TYPES.ServerLockRepository)
-    private repository: IServerLockRepository
+    private repository: IServerLockRepository,
   ) {}
 
   async execute(r2Config: R2Config, serverId: string): Promise<boolean> {
@@ -29,7 +29,7 @@ export class UploadServerLockUseCase {
       this.eventBus.publish(
         new ServerLockUploadedEvent({
           serverId,
-        })
+        }),
       );
     }
 

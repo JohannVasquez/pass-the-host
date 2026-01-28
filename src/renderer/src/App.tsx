@@ -916,7 +916,7 @@ function App(): React.JSX.Element {
       ]);
       const sessionCreateSuccess = await window.serverAPI.createSession(
         selectedServer,
-        username || "Unknown"
+        username || "Unknown",
       );
       if (sessionCreateSuccess) {
         setLogs((prev) => [
@@ -945,7 +945,7 @@ function App(): React.JSX.Element {
       // Prepare command and args
       let startCmd = "";
       let startArgs: string[] = [];
-      let workingDir = localServerPath;
+      const workingDir = localServerPath;
       let javaPath = "";
       try {
         const javaResult = await window.javaAPI.ensureForMinecraft(server.version);
@@ -1050,7 +1050,7 @@ function App(): React.JSX.Element {
           selectedServer,
           startCmd,
           startArgs,
-          workingDir
+          workingDir,
         );
         serverProcessRef.current = proc;
         setLogs((prev) => [
@@ -1165,12 +1165,12 @@ function App(): React.JSX.Element {
 
             const sessionUpdateSuccess = await window.serverAPI.updateSession(
               selectedServer,
-              username || "Unknown"
+              username || "Unknown",
             );
             if (sessionUpdateSuccess) {
               const sessionUploadSuccess = await window.serverAPI.uploadSession(
                 r2Config,
-                selectedServer
+                selectedServer,
               );
               if (sessionUploadSuccess) {
                 setLogs((prev) => [
@@ -1261,7 +1261,7 @@ function App(): React.JSX.Element {
   const handleConfirmCreateServer = async (
     serverName: string,
     version: string,
-    serverType: "vanilla" | "forge"
+    serverType: "vanilla" | "forge",
   ): Promise<void> => {
     setIsCreatingServer(true);
     setCreateServerProgress("");
@@ -1554,7 +1554,7 @@ function App(): React.JSX.Element {
 
       const sessionUpdateSuccess = await window.serverAPI.updateSession(
         selectedServer,
-        username || "Unknown"
+        username || "Unknown",
       );
       if (sessionUpdateSuccess) {
         const sessionUploadSuccess = await window.serverAPI.uploadSession(r2Config, selectedServer);

@@ -14,7 +14,7 @@ import {
 export class ServerLifecycleRepository implements IServerLifecycleRepository {
   async createServer(
     config: MinecraftServerConfig,
-    onProgress?: (message: string) => void
+    onProgress?: (message: string) => void,
   ): Promise<ServerCreationResult> {
     try {
       const serverPath = this.getLocalServerPath(config.serverName);
@@ -78,7 +78,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
   private async createVanillaServer(
     serverPath: string,
     version: string,
-    onProgress?: (message: string) => void
+    onProgress?: (message: string) => void,
   ): Promise<void> {
     onProgress?.(`Fetching Minecraft ${version} server information...`);
     let downloadUrl: string;
@@ -102,7 +102,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
   private async createForgeServer(
     serverPath: string,
     version: string,
-    onProgress?: (message: string) => void
+    onProgress?: (message: string) => void,
   ): Promise<void> {
     onProgress?.(`Setting up Forge ${version} server...`);
 
@@ -139,7 +139,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
                     try {
                       const versionManifest = JSON.parse(versionData);
                       const versionInfo = versionManifest.versions.find(
-                        (v: any) => v.id === version
+                        (v: any) => v.id === version,
                       );
 
                       if (!versionInfo) {
