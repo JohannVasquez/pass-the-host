@@ -1,10 +1,10 @@
 import "reflect-metadata";
 import { Container } from "inversify";
-import { configureServerRuntimeContext } from "../contexts/server-runtime/di/container";
-import { configureCloudStorageContext } from "../contexts/cloud-storage/di/container";
-import { configureServerLifecycleContainer } from "../contexts/server-lifecycle/di/container";
-import { configureSystemResourcesContext } from "../contexts/system-resources/di/container";
-import { configureAppConfigurationContext } from "../contexts/app-configuration/di/container";
+import { configureServerRuntimeContext } from "@main/contexts/server-runtime/di/container";
+import { configureCloudStorageContext } from "@main/contexts/cloud-storage/di/container";
+import { configureServerLifecycleContainer } from "@main/contexts/server-lifecycle/di/container";
+import { configureSystemResourcesContext } from "@main/contexts/system-resources/di/container";
+import { configureAppConfigurationContext } from "@main/contexts/app-configuration/di/container";
 
 const mainContainer = new Container();
 

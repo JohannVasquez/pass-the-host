@@ -1,5 +1,5 @@
-import { initializeMainContainer } from "./di/container";
-import { ServerRuntimeIPCHandlers } from "./contexts/server-runtime/infrastructure/ipc/ServerRuntimeIPCHandlers";
+import { initializeMainContainer } from "@main/di/container";
+import { ServerRuntimeIPCHandlers } from "@main/contexts/server-runtime/infrastructure/ipc/ServerRuntimeIPCHandlers";
 import {
   SpawnServerProcessUseCase,
   SendCommandUseCase,
@@ -7,8 +7,8 @@ import {
   ReadForgeJvmArgsUseCase,
   EditForgeJvmArgsUseCase,
   OpenServerFolderUseCase,
-} from "./contexts/server-runtime/application/use-cases";
-import { CloudStorageIPCHandlers } from "./contexts/cloud-storage/infrastructure/ipc/CloudStorageIPCHandlers";
+} from "@main/contexts/server-runtime/application/use-cases";
+import { CloudStorageIPCHandlers } from "@main/contexts/cloud-storage/infrastructure/ipc/CloudStorageIPCHandlers";
 import {
   CheckRcloneInstallationUseCase,
   InstallRcloneUseCase,
@@ -29,23 +29,34 @@ import {
   GetServerStatisticsUseCase,
   ReadServerPortUseCase,
   WriteServerPortUseCase,
-} from "./contexts/cloud-storage/application/use-cases";
-import { registerServerLifecycleIPCHandlers } from "./contexts/server-lifecycle/infrastructure/ipc";
-import { registerSystemResourcesIPCHandlers } from "./contexts/system-resources/infrastructure/ipc";
-import { registerAppConfigurationIPCHandlers } from "./contexts/app-configuration/infrastructure/ipc";
-import { LoadConfigUseCase } from "./contexts/app-configuration/application/use-cases";
-import { TYPES as ConfigTYPES } from "./contexts/app-configuration/application/use-cases/types";
+} from "@main/contexts/cloud-storage/application/use-cases";
+import { registerServerLifecycleIPCHandlers } from "@main/contexts/server-lifecycle/infrastructure/ipc";
+import { registerSystemResourcesIPCHandlers } from "@main/contexts/system-resources/infrastructure/ipc";
+import { registerAppConfigurationIPCHandlers } from "@main/contexts/app-configuration/infrastructure/ipc";
+import { LoadConfigUseCase } from "@main/contexts/app-configuration/application/use-cases";
+import { TYPES as ConfigTYPES } from "@main/contexts/app-configuration/application/use-cases/types";
 import { Container } from "inversify";
 import { app, shell, BrowserWindow, ipcMain, Tray, nativeImage, Menu, dialog } from "electron";
 import { autoUpdater } from "electron-updater";
-import log from "electron-log";
 import { join } from "path";
-import { electronApp, optimizer, is } from "@electron-toolkit/utils";
+import { electronApp, is } from "@electron-toolkit/utils";
+import { logger } from "@shared/infrastructure/logger";
+
+/**
+ * Extended logger interface for electron-updater
+ */
+interface UpdaterLogger {
+  transports: {
+    file: {
+      level: string | false;
+    };
+  };
+}
 
 // Configure electron-log for autoUpdater
-autoUpdater.logger = log;
+autoUpdater.logger = logger.getLog();
 if (autoUpdater.logger && "transports" in autoUpdater.logger) {
-  (autoUpdater.logger as typeof log).transports.file.level = "info";
+  (autoUpdater.logger as unknown as UpdaterLogger).transports.file.level = "info";
 }
 
 // ===== SERVER RUNTIME HANDLERS - MOVED TO CONTEXT =====
@@ -120,23 +131,25 @@ function setupAutoUpdater(container: Container): void {
 
   // Optional: Log update events
   autoUpdater.on("checking-for-update", () => {
-    log.info("Checking for updates...");
+    logger.info("Checking for updates...");
   });
 
   autoUpdater.on("update-available", (info) => {
-    log.info("Update available:", info);
+    logger.info("Update available:", info);
   });
 
   autoUpdater.on("update-not-available", (info) => {
-    log.info("Update not available:", info);
+    logger.info("Update not available:", info);
   });
 
   autoUpdater.on("error", (err) => {
-    log.error("Error in auto-updater:", err);
+    logger.error("Error in auto-updater:", err);
   });
 
   autoUpdater.on("download-progress", (progressObj) => {
-    log.info(`Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}%`);
+    logger.info(
+      `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}%`,
+    );
   });
 }
 
@@ -221,6 +234,7 @@ const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
   // Another instance is already running, quit this one
+  logger.warn("Another instance is already running. Quitting...");
   app.quit();
 } else {
   // Handle when user tries to run a second instance
@@ -241,22 +255,29 @@ if (!gotTheLock) {
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
   app.whenReady().then(() => {
+    logger.info("=".repeat(60));
+    logger.info("Application starting...");
+    logger.info(`Version: ${app.getVersion()}`);
+    logger.info(`Platform: ${process.platform}`);
+    logger.info(`Node: ${process.versions.node}`);
+    logger.info(`Electron: ${process.versions.electron}`);
+    logger.info("=".repeat(60));
+
     // Initialize Inversify container and register all contexts
     const container = initializeMainContainer();
+    logger.info("DI Container initialized");
 
     // Set app user model id for windows
     electronApp.setAppUserModelId("com.electron");
 
-    // Default open or close DevTools by F12 in development
-    // and ignore CommandOrControl + R in production.
-    // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-    app.on("browser-window-created", (_, window) => {
-      optimizer.watchWindowShortcuts(window);
-    });
-
     createWindow();
+    logger.info("Main window created");
+
     createTray();
+    logger.info("System tray created");
+
     setupAutoUpdater(container);
+    logger.info("Auto-updater configured");
 
     // IPC test
     ipcMain.on("ping", () => console.debug("pong"));
@@ -295,26 +316,21 @@ if (!gotTheLock) {
       container.get(WriteServerPortUseCase),
     );
     cloudStorageIPCHandlers.register();
-
-    // ===== CLOUD STORAGE HANDLERS - MOVED TO CONTEXT =====
-    // All rclone, R2, locks, sessions, and properties handlers moved to cloud-storage context
-    // The following handlers are now registered via CloudStorageIPCHandlers:
-    // - rclone:check-installation, rclone:install, rclone:test-r2-connection
-    // - rclone:list-servers, rclone:download-server, rclone:upload-server
-    // - server:create-lock, server:read-server-lock, server:upload-lock
-    // - server:delete-lock, server:delete-local-lock
-    // - server:read-port, server:write-port
-    // - server:create-session, server:update-session, server:upload-session
-    // - server:should-download, server:get-statistics, server:delete-from-r2
-
-    // ===== APP CONFIGURATION HANDLERS =====
-    registerAppConfigurationIPCHandlers(container);
+    logger.info("Cloud Storage IPC handlers registered");
 
     // ===== SERVER LIFECYCLE HANDLERS =====
     registerServerLifecycleIPCHandlers(container);
+    logger.info("Server Lifecycle IPC handlers registered");
 
     // ===== SYSTEM RESOURCES HANDLERS =====
     registerSystemResourcesIPCHandlers(container);
+    logger.info("System Resources IPC handlers registered");
+
+    // ===== APP CONFIGURATION HANDLERS =====
+    registerAppConfigurationIPCHandlers(container);
+    logger.info("App Configuration IPC handlers registered");
+
+    logger.info("All IPC handlers registered successfully");
 
     app.on("activate", function () {
       // On macOS it's common to re-create a window in the app when the
@@ -322,15 +338,21 @@ if (!gotTheLock) {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
   });
+
+  app.on("quit", () => {
+    logger.info("Application shutting down");
+    logger.info("=".repeat(60));
+  });
+
+  // Quit when all windows are closed, except on macOS. There, it's common
+  // for applications and their menu bar to stay active until the user quits
+  // explicitly with Cmd + Q.
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") {
+      app.quit();
+    }
+  });
 }
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
-});
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.

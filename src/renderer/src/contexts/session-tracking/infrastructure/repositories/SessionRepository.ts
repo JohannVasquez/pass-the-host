@@ -1,7 +1,7 @@
 import { injectable } from "inversify";
-import type { ISessionRepository } from "../../domain/repositories";
+import type { ISessionRepository } from "@session-tracking/domain/repositories";
 import type { R2Config } from "@cloud-storage/domain/entities";
-import type { ServerStatistics } from "../../domain/entities";
+import type { ServerStatistics } from "@session-tracking/domain/entities";
 
 /**
  * Session Repository implementation using IPC

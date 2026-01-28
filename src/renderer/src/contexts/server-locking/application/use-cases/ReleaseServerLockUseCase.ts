@@ -1,7 +1,7 @@
 import { injectable, inject } from "inversify";
-import type { IServerLockRepository } from "../../domain/repositories";
+import type { IServerLockRepository } from "@server-locking/domain/repositories";
 import type { R2Config } from "@cloud-storage/domain/entities";
-import type { LockOperationResult } from "../../domain/entities";
+import type { LockOperationResult } from "@server-locking/domain/entities";
 import { SERVER_LOCKING_TYPES } from "@shared/di";
 import { EventBus } from "@shared/infrastructure/event-bus";
 import { ServerLockReleasedEvent } from "@shared/domain/DomainEvents";

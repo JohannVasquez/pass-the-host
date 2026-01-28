@@ -1,5 +1,5 @@
 import { injectable, inject } from "inversify";
-import type { ISessionRepository } from "../../domain/repositories";
+import type { ISessionRepository } from "@session-tracking/domain/repositories";
 import { SESSION_TRACKING_TYPES } from "@shared/di";
 import { EventBus } from "@shared/infrastructure/event-bus";
 import { SessionEndedEvent } from "@shared/domain/DomainEvents";

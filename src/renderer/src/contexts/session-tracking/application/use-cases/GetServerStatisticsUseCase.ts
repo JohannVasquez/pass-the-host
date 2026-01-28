@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
-import type { ISessionRepository } from "../../domain/repositories";
-import type { ServerStatistics } from "../../domain/entities";
+import type { ISessionRepository } from "@session-tracking/domain/repositories";
+import type { ServerStatistics } from "@session-tracking/domain/entities";
 import { SESSION_TRACKING_TYPES } from "@shared/di";
 
 /**

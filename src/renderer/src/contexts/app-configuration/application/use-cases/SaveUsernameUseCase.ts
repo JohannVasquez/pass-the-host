@@ -1,5 +1,5 @@
 import { injectable, inject } from "inversify";
-import type { IConfigurationRepository } from "../../domain/repositories";
+import type { IConfigurationRepository } from "@app-configuration/domain/repositories";
 import { APP_CONFIGURATION_TYPES } from "@shared/di";
 import { EventBus } from "@shared/infrastructure/event-bus";
 import { UsernameChangedEvent } from "@shared/domain/DomainEvents";

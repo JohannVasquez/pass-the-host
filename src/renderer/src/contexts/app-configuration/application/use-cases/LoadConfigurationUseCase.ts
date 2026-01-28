@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
-import type { IConfigurationRepository } from "../../domain/repositories";
-import type { AppConfig } from "../../domain/entities";
+import type { IConfigurationRepository } from "@app-configuration/domain/repositories";
+import type { AppConfig } from "@app-configuration/domain/entities";
 import { APP_CONFIGURATION_TYPES } from "@shared/di";
 
 /**

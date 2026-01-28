@@ -1,13 +1,13 @@
 import type { Container } from "inversify";
 import { SERVER_LOCKING_TYPES } from "@shared/di";
-import type { IServerLockRepository } from "../domain/repositories";
-import { ServerLockRepository } from "../infrastructure/repositories";
+import type { IServerLockRepository } from "@server-locking/domain/repositories";
+import { ServerLockRepository } from "@server-locking/infrastructure/repositories";
 import {
   CreateServerLockUseCase,
   CheckServerLockUseCase,
   UploadServerLockUseCase,
   ReleaseServerLockUseCase,
-} from "../application/use-cases";
+} from "@server-locking/application/use-cases";
 
 /**
  * Configures the Server Locking context in the DI container
