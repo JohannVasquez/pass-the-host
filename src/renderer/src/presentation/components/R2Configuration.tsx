@@ -51,10 +51,12 @@ export const R2Configuration: React.FC<R2ConfigurationProps> = ({
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
     try {
-      // @ts-ignore
-      const ok = await window.configAPI.saveR2Config(localConfig);
+      // Type assertion needed because localConfig matches the expected R2 config shape
+      const ok = await window.configAPI.saveR2Config(
+        localConfig as Parameters<typeof window.configAPI.saveR2Config>[0],
+      );
       setSaveStatus(ok ? "success" : "error");
       if (ok) onSave(localConfig);
     } catch {

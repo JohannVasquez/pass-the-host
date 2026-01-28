@@ -39,8 +39,38 @@ interface RcloneAPI {
   ) => Promise<boolean>;
 }
 
+interface AppConfigData {
+  r2: {
+    endpoint: string;
+    access_key: string;
+    secret_key: string;
+    bucket_name: string;
+    region?: string;
+  };
+  server: {
+    server_path: string;
+    java_path: string;
+    server_jar: string;
+    server_type: string;
+    memory_min: string;
+    memory_max: string;
+    server_port: number;
+  };
+  app: {
+    owner_name: string | null;
+    language: string;
+  };
+}
+
+interface R2ConfigType {
+  endpoint: string;
+  access_key: string;
+  secret_key: string;
+  bucket_name: string;
+}
+
 interface ConfigAPI {
-  loadConfig: () => Promise<any>;
+  loadConfig: () => Promise<AppConfigData | null>;
   saveR2Config: (r2Config: {
     endpoint: string;
     access_key: string;
@@ -60,7 +90,7 @@ interface SystemAPI {
 interface ServerAPI {
   createLock: (serverId: string, username: string) => Promise<boolean>;
   readLock: (
-    r2Config: any,
+    r2Config: R2ConfigType,
     serverId: string,
   ) => Promise<{ exists: boolean; username?: string; startedAt?: string; timestamp?: number }>;
   uploadLock: (
@@ -90,7 +120,7 @@ interface ServerAPI {
     command: string,
     args: string[],
     workingDir: string,
-  ) => Promise<any>;
+  ) => Promise<boolean>;
   killServerProcess: (serverId: string) => Promise<void>;
   editForgeJvmArgs: (serverId: string, minRam: number, maxRam: number) => Promise<void>;
   readForgeJvmArgs: (serverId: string) => Promise<{ allArgs: string[] } | null>;
@@ -99,8 +129,8 @@ interface ServerAPI {
   openServerFolder: (serverId: string) => Promise<boolean>;
   createSession: (serverId: string, username: string) => Promise<boolean>;
   updateSession: (serverId: string, username: string) => Promise<boolean>;
-  uploadSession: (config: any, serverId: string) => Promise<boolean>;
-  shouldDownload: (config: any, serverId: string) => Promise<boolean>;
+  uploadSession: (config: R2ConfigType, serverId: string) => Promise<boolean>;
+  shouldDownload: (config: R2ConfigType, serverId: string) => Promise<boolean>;
   getStatistics: (serverId: string) => Promise<{
     totalPlaytime: number;
     sessionCount: number;
@@ -119,7 +149,10 @@ interface ServerAPI {
     serverType: "vanilla" | "forge",
   ) => Promise<boolean>;
   onCreateProgress: (callback: (message: string) => void) => () => void;
-  deleteFromR2: (config: any, serverId: string) => Promise<{ success: boolean; error?: string }>;
+  deleteFromR2: (
+    config: R2ConfigType,
+    serverId: string,
+  ) => Promise<{ success: boolean; error?: string }>;
   deleteLocally: (serverId: string) => Promise<{ success: boolean; error?: string }>;
 }
 

@@ -48,7 +48,9 @@ export class ServerProcess {
       } catch {
         try {
           this._process.kill();
-        } catch {}
+        } catch {
+          // Ignore kill errors
+        }
         resolve(false);
       }
     });

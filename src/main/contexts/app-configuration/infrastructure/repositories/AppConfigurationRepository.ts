@@ -75,7 +75,7 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
   async saveR2Config(r2Config: R2Config): Promise<ConfigSaveResult> {
     const configPath = this.getConfigPath();
     try {
-      let config: any = {};
+      let config: Partial<AppConfig> = {};
 
       // Try to read existing config
       if (fs.existsSync(configPath)) {
@@ -107,16 +107,17 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
 
       return { success: true };
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
       console.error("Failed to save R2 config:", e);
-      return { success: false, error: e.message };
+      return { success: false, error: errorMessage };
     }
   }
 
   async saveUsername(username: string): Promise<ConfigSaveResult> {
     const configPath = this.getConfigPath();
     try {
-      let config: any = {};
+      let config: Partial<AppConfig> = {};
 
       // Try to read existing config
       if (fs.existsSync(configPath)) {
@@ -158,16 +159,17 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
 
       return { success: true };
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
       console.error("Failed to save username:", e);
-      return { success: false, error: e.message };
+      return { success: false, error: errorMessage };
     }
   }
 
   async saveRamConfig(minRam: number, maxRam: number): Promise<ConfigSaveResult> {
     const configPath = this.getConfigPath();
     try {
-      let config: any = {};
+      let config: Partial<AppConfig> = {};
 
       // Try to read existing config
       if (fs.existsSync(configPath)) {
@@ -218,16 +220,17 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
 
       return { success: true };
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
       console.error("Failed to save RAM config:", e);
-      return { success: false, error: e.message };
+      return { success: false, error: errorMessage };
     }
   }
 
   async saveLanguage(language: string): Promise<ConfigSaveResult> {
     const configPath = this.getConfigPath();
     try {
-      let config: any = {};
+      let config: Partial<AppConfig> = {};
 
       // Try to read existing config
       if (fs.existsSync(configPath)) {
@@ -253,9 +256,10 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
 
       return { success: true };
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
       console.error("Failed to save language:", e);
-      return { success: false, error: e.message };
+      return { success: false, error: errorMessage };
     }
   }
 }

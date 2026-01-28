@@ -32,7 +32,9 @@ export class ServerProcessRepository implements IServerProcessRepository {
           ) {
             try {
               fs.writeFileSync(eulaPath, "eula=true");
-            } catch {}
+            } catch {
+              // Ignore EULA write errors
+            }
           }
         }
 

@@ -110,11 +110,12 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
         javaPath: javaPath,
         version: requiredJava.minVersion.toString(),
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error ensuring Java for Minecraft:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       return {
         success: false,
-        error: error.message || "Unknown error",
+        error: errorMessage,
       };
     }
   }

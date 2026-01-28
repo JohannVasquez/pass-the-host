@@ -31,7 +31,7 @@ export class SessionRepository implements ISessionRepository {
       if (fs.existsSync(sessionFilePath)) {
         try {
           existingData = JSON.parse(fs.readFileSync(sessionFilePath, "utf-8"));
-        } catch (e) {
+        } catch {
           console.warn(`Could not parse existing session.json, creating new one`);
         }
       }
@@ -76,7 +76,7 @@ export class SessionRepository implements ISessionRepository {
       let sessionData: SessionMetadata;
       try {
         sessionData = JSON.parse(fs.readFileSync(sessionFilePath, "utf-8"));
-      } catch (e) {
+      } catch {
         console.error(`Could not parse session.json`);
         return false;
       }

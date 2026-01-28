@@ -11,24 +11,24 @@ export interface R2Config {
 }
 
 export interface ServerConfig {
-  server_path: string;
-  java_path: string;
-  server_jar: string;
-  server_type: string;
-  memory_min: string;
-  memory_max: string;
-  server_port: number;
+  server_path?: string;
+  java_path?: string;
+  server_jar?: string;
+  server_type?: string;
+  memory_min?: string;
+  memory_max?: string;
+  server_port?: number;
 }
 
 export interface AppSettings {
-  owner_name: string | null;
-  language: string;
+  owner_name?: string | null;
+  language?: string;
 }
 
 export interface AppConfig {
-  r2: R2Config;
-  server: ServerConfig;
-  app: AppSettings;
+  r2?: R2Config;
+  server?: ServerConfig;
+  app?: AppSettings;
 }
 
 export interface ConfigSaveResult {
