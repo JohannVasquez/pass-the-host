@@ -74,8 +74,8 @@ export function ServerLockedModal({
 
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
             The server is currently running or was not properly stopped. Please wait for the other
-            user to stop the server, or use the "Release Lock" option if you're sure the server is
-            not running.
+            user to stop the server, or use the &quot;Release Lock&quot; option if you&apos;re sure
+            the server is not running.
           </Typography>
         </Box>
       </DialogContent>

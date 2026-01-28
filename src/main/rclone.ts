@@ -22,6 +22,11 @@ interface R2Config {
   bucket_name: string;
 }
 
+interface MinecraftVersionInfo {
+  id: string;
+  url: string;
+}
+
 /**
  * Ensures rclone is configured with R2 credentials
  * Reusable helper function for all R2 operations
@@ -31,7 +36,7 @@ async function ensureRcloneConfigured(config: R2Config): Promise<void> {
 
   try {
     await execAsync(configCommand);
-  } catch (error) {
+  } catch {
     // Config might already exist, continue
   }
 }
@@ -404,9 +409,10 @@ export async function downloadServerFromR2(
           fs.rmSync(localServerPath, { recursive: true, force: true });
           deleted = true;
           console.log(`[RCLONE] Successfully deleted existing folder`);
-        } catch (error: any) {
+        } catch (error: unknown) {
           attempts++;
-          if (error.code === "EBUSY" || error.code === "EPERM") {
+          const errorWithCode = error as { code?: string };
+          if (errorWithCode.code === "EBUSY" || errorWithCode.code === "EPERM") {
             if (attempts < maxAttempts) {
               console.log(`[RCLONE] Folder is locked, waiting 2 seconds before retry...`);
               await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -559,7 +565,7 @@ export async function readServerLock(
       startedAt: lockContent.startedAt,
       timestamp: lockContent.timestamp,
     };
-  } catch (error: any) {
+  } catch {
     return { exists: false };
   }
 }
@@ -679,7 +685,7 @@ export async function deleteServerLock(
     const checkCommand = `"${RCLONE_PATH}" ls ${r2LockPath}`;
     try {
       await execAsync(checkCommand, { maxBuffer: 1024 * 1024 });
-    } catch (error) {
+    } catch {
       // File doesn't exist
       return { success: true, existed: false };
     }
@@ -720,9 +726,10 @@ export async function deleteServerFromR2(
     await execAsync(deleteCommand, { maxBuffer: 1024 * 1024 });
 
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error(`Error deleting server ${serverId} from R2:`, error);
-    return { success: false, error: error.message || "Unknown error" };
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -741,9 +748,10 @@ export function deleteServerLocally(serverId: string): { success: boolean; error
     fs.rmSync(serverPath, { recursive: true, force: true });
 
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error(`Error deleting server ${serverId} locally:`, error);
-    return { success: false, error: error.message || "Unknown error" };
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -1004,7 +1012,7 @@ export function createSessionMetadata(serverId: string, username: string): boole
     if (fs.existsSync(sessionFilePath)) {
       try {
         existingData = JSON.parse(fs.readFileSync(sessionFilePath, "utf-8"));
-      } catch (e) {
+      } catch {
         console.warn(`Could not parse existing session.json, creating new one`);
       }
     }
@@ -1059,7 +1067,7 @@ export function updateSessionMetadata(serverId: string, username: string): boole
     let sessionData: SessionMetadata;
     try {
       sessionData = JSON.parse(fs.readFileSync(sessionFilePath, "utf-8"));
-    } catch (e) {
+    } catch {
       console.error(`Could not parse session.json`);
       return false;
     }
@@ -1173,7 +1181,7 @@ export async function readR2SessionMetadata(
 
     const { stdout } = await execAsync(catCommand, { maxBuffer: 1024 * 1024 });
     return JSON.parse(stdout.trim()) as SessionMetadata;
-  } catch (error) {
+  } catch {
     // File doesn't exist in R2
     return null;
   }
@@ -1298,7 +1306,7 @@ async function getMinecraftServerJarUrl(version: string): Promise<string> {
                       const versionManifest = JSON.parse(versionData);
                       // Find version in manifest
                       const versionInfo = versionManifest.versions.find(
-                        (v: any) => v.id === version,
+                        (v: MinecraftVersionInfo) => v.id === version,
                       );
 
                       if (!versionInfo) {
@@ -1369,7 +1377,7 @@ export async function createMinecraftServer(
 
       try {
         downloadUrl = await getMinecraftServerJarUrl(version);
-      } catch (error) {
+      } catch {
         // Fallback to latest release
         onProgress?.("Using latest release version...");
         downloadUrl =
@@ -1402,7 +1410,9 @@ export async function createMinecraftServer(
                     file.close();
                     try {
                       fs.unlinkSync(serverJarPath);
-                    } catch {}
+                    } catch {
+                      // Ignore unlink errors
+                    }
                     reject(err);
                   });
               } else {
@@ -1423,7 +1433,9 @@ export async function createMinecraftServer(
             file.close();
             try {
               fs.unlinkSync(serverJarPath);
-            } catch {}
+            } catch {
+              // Ignore unlink errors
+            }
             reject(err);
           });
       });
@@ -1461,7 +1473,9 @@ export async function createMinecraftServer(
                     file.close();
                     try {
                       fs.unlinkSync(forgeInstallerPath);
-                    } catch {}
+                    } catch {
+                      // Ignore unlink errors
+                    }
                     reject(err);
                   });
               } else {
@@ -1482,7 +1496,9 @@ export async function createMinecraftServer(
             file.close();
             try {
               fs.unlinkSync(forgeInstallerPath);
-            } catch {}
+            } catch {
+              // Ignore unlink errors
+            }
             reject(err);
           });
       });

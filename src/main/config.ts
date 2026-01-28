@@ -2,12 +2,41 @@ import * as fs from "fs";
 import * as path from "path";
 import { app } from "electron";
 
+export interface R2ConfigData {
+  endpoint?: string;
+  access_key?: string;
+  secret_key?: string;
+  bucket_name?: string;
+  region?: string;
+}
+
+export interface ServerConfigData {
+  server_path?: string;
+  java_path?: string;
+  server_jar?: string;
+  server_type?: string;
+  memory_min?: string;
+  memory_max?: string;
+  server_port?: number;
+}
+
+export interface AppSettingsData {
+  owner_name?: string | null;
+  language?: string;
+}
+
+export interface AppConfigData {
+  r2?: R2ConfigData;
+  server?: ServerConfigData;
+  app?: AppSettingsData;
+}
+
 export function getConfigPath(): string {
   // Store config in userData directory so it persists and is writable
   return path.join(app.getPath("userData"), "config.json");
 }
 
-export function loadConfig(): any {
+export function loadConfig(): AppConfigData | null {
   const configPath = getConfigPath();
   try {
     if (fs.existsSync(configPath)) {
@@ -43,10 +72,10 @@ export function loadConfig(): any {
   }
 }
 
-export function saveR2Config(r2Config: any): boolean {
+export function saveR2Config(r2Config: Partial<R2ConfigData>): boolean {
   const configPath = getConfigPath();
   try {
-    let config: any = {};
+    let config: Partial<AppConfigData> = {};
 
     // Try to read existing config
     if (fs.existsSync(configPath)) {
@@ -87,7 +116,7 @@ export function saveR2Config(r2Config: any): boolean {
 export function saveUsername(username: string): boolean {
   const configPath = getConfigPath();
   try {
-    let config: any = {};
+    let config: Partial<AppConfigData> = {};
 
     // Try to read existing config
     if (fs.existsSync(configPath)) {
@@ -138,7 +167,7 @@ export function saveUsername(username: string): boolean {
 export function saveRamConfig(minRam: number, maxRam: number): boolean {
   const configPath = getConfigPath();
   try {
-    let config: any = {};
+    let config: Partial<AppConfigData> = {};
 
     // Try to read existing config
     if (fs.existsSync(configPath)) {
@@ -198,7 +227,7 @@ export function saveRamConfig(minRam: number, maxRam: number): boolean {
 export function saveLanguage(language: string): boolean {
   const configPath = getConfigPath();
   try {
-    let config: any = {};
+    let config: Partial<AppConfigData> = {};
 
     // Try to read existing config
     if (fs.existsSync(configPath)) {

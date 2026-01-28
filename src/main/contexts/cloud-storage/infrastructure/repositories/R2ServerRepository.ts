@@ -6,7 +6,7 @@ import { spawn } from "child_process";
 import { promisify } from "util";
 import { exec } from "child_process";
 import { IR2ServerRepository } from "../../domain/repositories";
-import { R2Config, ServerInfo, TransferProgress } from "../../domain/entities";
+import { R2Config, ServerInfo, TransferProgress, SessionMetadata } from "../../domain/entities";
 import { RcloneRepository } from "./RcloneRepository";
 
 const execAsync = promisify(exec);
@@ -85,9 +85,10 @@ export class R2ServerRepository implements IR2ServerRepository {
             fs.rmSync(localServerPath, { recursive: true, force: true });
             deleted = true;
             console.log(`[RCLONE] Successfully deleted existing folder`);
-          } catch (error: any) {
+          } catch (error: unknown) {
             attempts++;
-            if (error.code === "EBUSY" || error.code === "EPERM") {
+            const nodeError = error as NodeJS.ErrnoException;
+            if (nodeError.code === "EBUSY" || nodeError.code === "EPERM") {
               if (attempts < maxAttempts) {
                 console.log(`[RCLONE] Folder is locked, waiting 2 seconds before retry...`);
                 await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -158,9 +159,10 @@ export class R2ServerRepository implements IR2ServerRepository {
       await execAsync(deleteCommand, { maxBuffer: 1024 * 1024 });
 
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`Error deleting server ${serverId} from R2:`, error);
-      return { success: false, error: error.message || "Unknown error" };
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -184,7 +186,7 @@ export class R2ServerRepository implements IR2ServerRepository {
         const { stdout } = await execAsync(catCommand, { maxBuffer: 1024 * 1024 });
         r2Session = JSON.parse(stdout.trim());
         console.log(`[SESSION] R2 session for ${serverId}:`, JSON.stringify(r2Session, null, 2));
-      } catch (e) {
+      } catch {
         // File doesn't exist in R2
         console.log(`[SESSION] No R2 session file found for ${serverId}`);
       }
@@ -221,7 +223,7 @@ export class R2ServerRepository implements IR2ServerRepository {
     }
   }
 
-  private readLocalSession(serverId: string): any {
+  private readLocalSession(serverId: string): SessionMetadata | null {
     try {
       const serverPath = path.join(app.getPath("userData"), "servers", serverId);
       const sessionFilePath = path.join(serverPath, "session.json");
@@ -231,7 +233,7 @@ export class R2ServerRepository implements IR2ServerRepository {
       }
 
       const content = fs.readFileSync(sessionFilePath, "utf-8");
-      return JSON.parse(content);
+      return JSON.parse(content) as SessionMetadata;
     } catch (error) {
       console.error(`Error reading local session for ${serverId}:`, error);
       return null;

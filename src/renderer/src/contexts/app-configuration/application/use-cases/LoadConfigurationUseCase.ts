@@ -1,5 +1,6 @@
 import { injectable, inject } from "inversify";
 import type { IConfigurationRepository } from "../../domain/repositories";
+import type { AppConfig } from "../../domain/entities";
 import { APP_CONFIGURATION_TYPES } from "@shared/di";
 
 /**
@@ -13,7 +14,7 @@ export class LoadConfigurationUseCase {
     private repository: IConfigurationRepository,
   ) {}
 
-  async execute(): Promise<any> {
+  async execute(): Promise<AppConfig | null> {
     return await this.repository.loadConfig();
   }
 }

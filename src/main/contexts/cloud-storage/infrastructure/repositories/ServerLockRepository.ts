@@ -57,7 +57,7 @@ export class ServerLockRepository implements IServerLockRepository {
         startedAt: lockContent.startedAt,
         timestamp: lockContent.timestamp,
       };
-    } catch (error: any) {
+    } catch {
       return { exists: false };
     }
   }
@@ -101,7 +101,7 @@ export class ServerLockRepository implements IServerLockRepository {
       const checkCommand = `"${rclonePath}" ls ${r2LockPath}`;
       try {
         await execAsync(checkCommand, { maxBuffer: 1024 * 1024 });
-      } catch (error) {
+      } catch {
         return { success: true, existed: false };
       }
 

@@ -122,7 +122,7 @@ export class RcloneRepository implements IRcloneRepository {
 
     try {
       await execAsync(configCommand);
-    } catch (error) {
+    } catch {
       // Config might already exist, continue
     }
   }

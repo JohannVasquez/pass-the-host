@@ -10,6 +10,11 @@ import {
   ServerDeletionResult,
 } from "../../domain/entities";
 
+interface MinecraftVersionInfo {
+  id: string;
+  url: string;
+}
+
 @injectable()
 export class ServerLifecycleRepository implements IServerLifecycleRepository {
   async createServer(
@@ -46,9 +51,10 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
 
       onProgress?.("Server created successfully!");
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       console.error(`Error creating server ${config.serverName}:`, error);
-      return { success: false, error: error.message || "Unknown error" };
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -64,9 +70,10 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
       fs.rmSync(serverPath, { recursive: true, force: true });
 
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       console.error(`Error deleting server ${serverId} locally:`, error);
-      return { success: false, error: error.message || "Unknown error" };
+      return { success: false, error: errorMessage };
     }
   }
 
@@ -85,7 +92,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
 
     try {
       downloadUrl = await this.getMinecraftServerJarUrl(version);
-    } catch (error) {
+    } catch {
       // Fallback to latest release
       onProgress?.("Using latest release version...");
       downloadUrl =
@@ -139,7 +146,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
                     try {
                       const versionManifest = JSON.parse(versionData);
                       const versionInfo = versionManifest.versions.find(
-                        (v: any) => v.id === version,
+                        (v: MinecraftVersionInfo) => v.id === version,
                       );
 
                       if (!versionInfo) {
@@ -202,7 +209,9 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
                   file.close();
                   try {
                     fs.unlinkSync(destPath);
-                  } catch {}
+                  } catch {
+                    // Ignore unlink errors
+                  }
                   reject(err);
                 });
             } else {
@@ -223,7 +232,9 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
           file.close();
           try {
             fs.unlinkSync(destPath);
-          } catch {}
+          } catch {
+            // Ignore unlink errors
+          }
           reject(err);
         });
     });

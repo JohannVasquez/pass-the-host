@@ -42,6 +42,20 @@ const darkTheme = createTheme({
   },
 });
 
+// Type for server statistics data
+interface ServerStatistics {
+  totalPlaytime: number;
+  sessionCount: number;
+  sessions: Array<{
+    username: string;
+    startTime: string;
+    startTimestamp: number;
+    endTime?: string;
+    endTimestamp?: number;
+    duration?: number;
+  }>;
+}
+
 function App(): React.JSX.Element {
   const { t, i18n } = useTranslation();
 
@@ -96,7 +110,7 @@ function App(): React.JSX.Element {
   ]);
   const [serverStartTime, setServerStartTime] = React.useState<Date | null>(null);
   const [isStatisticsModalOpen, setIsStatisticsModalOpen] = React.useState<boolean>(false);
-  const [serverStatistics, setServerStatistics] = React.useState<any>(null);
+  const [serverStatistics, setServerStatistics] = React.useState<ServerStatistics | null>(null);
   const [isCreateServerModalOpen, setIsCreateServerModalOpen] = React.useState<boolean>(false);
   const [isCreatingServer, setIsCreatingServer] = React.useState<boolean>(false);
   const [createServerProgress, setCreateServerProgress] = React.useState<string>("");
@@ -161,6 +175,7 @@ function App(): React.JSX.Element {
     };
 
     loadConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Listen to Java download progress
@@ -416,6 +431,7 @@ function App(): React.JSX.Element {
     };
 
     checkRcloneAndR2();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configLoaded, rcloneCheckCompleted]);
 
   // Validate R2 configuration when it changes
@@ -467,6 +483,7 @@ function App(): React.JSX.Element {
 
       testConnection();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [r2Config, isRcloneReady]);
 
   React.useEffect(() => {
@@ -693,8 +710,8 @@ function App(): React.JSX.Element {
     }
   };
 
-  // Store the server process reference
-  const serverProcessRef = React.useRef<any>(null);
+  // Store the server process reference (used for tracking if process is started)
+  const serverProcessRef = React.useRef<boolean>(false);
 
   const handleStartStop = async (): Promise<void> => {
     if (serverStatus === ServerStatus.STOPPED) {
@@ -934,7 +951,7 @@ function App(): React.JSX.Element {
       let localServerPath = "";
       try {
         localServerPath = await window.serverAPI.getLocalServerPath(selectedServer);
-      } catch (e) {
+      } catch {
         setLogs((prev) => [
           ...prev,
           { timestamp: new Date(), message: "Could not get local server path", type: "error" },
@@ -950,7 +967,7 @@ function App(): React.JSX.Element {
       try {
         const javaResult = await window.javaAPI.ensureForMinecraft(server.version);
         javaPath = javaResult.javaPath;
-      } catch (e) {
+      } catch {
         setLogs((prev) => [
           ...prev,
           { timestamp: new Date(), message: "Could not get Java path", type: "error" },
@@ -983,7 +1000,7 @@ function App(): React.JSX.Element {
         }
         try {
           await window.serverAPI.editForgeJvmArgs(selectedServer, ramConfig.min, ramConfig.max);
-        } catch (e) {
+        } catch {
           setLogs((prev) => [
             ...prev,
             {
@@ -1046,13 +1063,13 @@ function App(): React.JSX.Element {
         return;
       }
       try {
-        const proc = await window.serverAPI.spawnServerProcess(
+        const success = await window.serverAPI.spawnServerProcess(
           selectedServer,
           startCmd,
           startArgs,
           workingDir,
         );
-        serverProcessRef.current = proc;
+        serverProcessRef.current = success;
         setLogs((prev) => [
           ...prev,
           { timestamp: new Date(), message: "Server started successfully", type: "info" },
@@ -1080,7 +1097,7 @@ function App(): React.JSX.Element {
       if (selectedServer) {
         try {
           await window.serverAPI.killServerProcess(selectedServer);
-          serverProcessRef.current = null;
+          serverProcessRef.current = false;
         } catch (e) {
           setLogs((prev) => [
             ...prev,

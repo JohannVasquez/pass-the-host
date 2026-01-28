@@ -1,5 +1,6 @@
 import { injectable } from "inversify";
 import type { IConfigurationRepository } from "../../domain/repositories";
+import type { AppConfig } from "../../domain/entities";
 
 /**
  * Configuration Repository implementation using IPC
@@ -7,7 +8,7 @@ import type { IConfigurationRepository } from "../../domain/repositories";
  */
 @injectable()
 export class ConfigurationRepository implements IConfigurationRepository {
-  async loadConfig(): Promise<any> {
+  async loadConfig(): Promise<AppConfig | null> {
     try {
       return await window.configAPI.loadConfig();
     } catch (error) {
