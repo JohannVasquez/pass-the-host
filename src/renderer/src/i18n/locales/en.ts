@@ -212,5 +212,9 @@ export const en = {
       success: "Server deleted successfully",
       failed: "Failed to delete server",
     },
+    storage: {
+      total: "Total Storage",
+      server: "Server Size",
+    },
   },
 };

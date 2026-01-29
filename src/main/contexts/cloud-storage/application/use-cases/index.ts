@@ -153,3 +153,17 @@ export class WriteServerPortUseCase {
     return this.serverPropertiesRepository.writePort(serverId, port);
   }
 }
+@injectable()
+export class GetBucketSizeUseCase {
+  constructor(private rcloneRepository: IRcloneRepository) {}
+  async execute(config: S3Config): Promise<number> {
+    return await this.rcloneRepository.getBucketSize(config);
+  }
+}
+@injectable()
+export class GetServerSizeUseCase {
+  constructor(private s3ServerRepository: IS3ServerRepository) {}
+  async execute(config: S3Config, serverId: string): Promise<number> {
+    return await this.s3ServerRepository.getServerSize(config, serverId);
+  }
+}

@@ -29,6 +29,8 @@ import {
   GetServerStatisticsUseCase,
   ReadServerPortUseCase,
   WriteServerPortUseCase,
+  GetBucketSizeUseCase,
+  GetServerSizeUseCase,
 } from "@main/contexts/cloud-storage/application/use-cases";
 import { registerServerLifecycleIPCHandlers } from "@main/contexts/server-lifecycle/infrastructure/ipc";
 import { registerSystemResourcesIPCHandlers } from "@main/contexts/system-resources/infrastructure/ipc";
@@ -274,6 +276,8 @@ if (!gotTheLock) {
       container.get(GetServerStatisticsUseCase),
       container.get(ReadServerPortUseCase),
       container.get(WriteServerPortUseCase),
+      container.get(GetBucketSizeUseCase),
+      container.get(GetServerSizeUseCase),
     );
     cloudStorageIPCHandlers.register();
     logger.info("Cloud Storage IPC handlers registered");

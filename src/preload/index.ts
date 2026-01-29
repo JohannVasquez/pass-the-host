@@ -28,6 +28,10 @@ const rcloneAPI = {
     ipcRenderer.invoke("rclone:download-server", config, serverId),
   uploadServer: (config: S3ConfigType, serverId: string): Promise<boolean> =>
     ipcRenderer.invoke("rclone:upload-server", config, serverId),
+  getBucketSize: (config: S3ConfigType): Promise<number> =>
+    ipcRenderer.invoke("cloud-storage:get-bucket-size", config),
+  getServerSize: (config: S3ConfigType, serverId: string): Promise<number> =>
+    ipcRenderer.invoke("cloud-storage:get-server-size", config, serverId),
   onProgress: (callback: (message: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, message: string): void =>
       callback(message);

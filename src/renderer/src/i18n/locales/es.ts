@@ -216,5 +216,9 @@ export const es = {
       success: "Servidor eliminado exitosamente",
       failed: "Error al eliminar el servidor",
     },
+    storage: {
+      total: "Almacenamiento Total",
+      server: "Tamaño del Servidor",
+    },
   },
 };

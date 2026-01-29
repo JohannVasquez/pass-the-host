@@ -124,6 +124,10 @@ function App(): React.JSX.Element {
     type: "vanilla" | "forge";
   } | null>(null);
   const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = React.useState<boolean>(false);
+  const [totalBucketSize, setTotalBucketSize] = React.useState<number>(0);
+  const [selectedServerSize, setSelectedServerSize] = React.useState<number>(0);
+  const [isLoadingBucketSize, setIsLoadingBucketSize] = React.useState<boolean>(false);
+  const [isLoadingServerSize, setIsLoadingServerSize] = React.useState<boolean>(false);
 
   // Load configuration from config.json on mount
   React.useEffect(() => {
@@ -527,6 +531,9 @@ function App(): React.JSX.Element {
           type: "info",
         },
       ]);
+
+      // Load bucket size after loading servers
+      loadBucketSize();
     } catch (error) {
       console.error("Error loading servers from R2:", error);
       setLogs((prev) => [
@@ -538,6 +545,48 @@ function App(): React.JSX.Element {
         },
       ]);
     }
+  };
+
+  const loadBucketSize = async (): Promise<void> => {
+    if (!validateS3Config(s3Config) || isLoadingBucketSize) {
+      return;
+    }
+
+    try {
+      setIsLoadingBucketSize(true);
+      const size = await window.rclone.getBucketSize(s3Config);
+      setTotalBucketSize(size);
+    } catch (error) {
+      console.error("Error loading bucket size:", error);
+      setTotalBucketSize(0);
+    } finally {
+      setIsLoadingBucketSize(false);
+    }
+  };
+
+  const loadServerSize = async (serverId: string): Promise<void> => {
+    if (!validateS3Config(s3Config) || isLoadingServerSize || !serverId) {
+      return;
+    }
+
+    try {
+      setIsLoadingServerSize(true);
+      const size = await window.rclone.getServerSize(s3Config, serverId);
+      setSelectedServerSize(size);
+    } catch (error) {
+      console.error("Error loading server size:", error);
+      setSelectedServerSize(0);
+    } finally {
+      setIsLoadingServerSize(false);
+    }
+  };
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
   const handleSaveS3Config = async (config: S3Config): Promise<void> => {
@@ -642,6 +691,9 @@ function App(): React.JSX.Element {
       // Keep default port 25565 if reading fails
       setServerPort(25565);
     }
+
+    // Load server size
+    loadServerSize(serverId);
   };
 
   const handlePortChange = (port: number): void => {
@@ -1880,6 +1932,16 @@ function App(): React.JSX.Element {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               Pass the host!
             </Typography>
+            {isS3Configured && totalBucketSize > 0 && (
+              <Typography variant="body2" sx={{ mr: 2, display: "flex", alignItems: "center" }}>
+                {t("storage.total")}: {formatBytes(totalBucketSize)}
+                {selectedServer && selectedServerSize > 0 && (
+                  <span style={{ marginLeft: "8px" }}>
+                    | {t("storage.server")}: {formatBytes(selectedServerSize)}
+                  </span>
+                )}
+              </Typography>
+            )}
             <Tooltip title={t("serverControl.viewStatistics")}>
               <span>
                 <IconButton

@@ -20,6 +20,8 @@ import {
   GetServerStatisticsUseCase,
   ReadServerPortUseCase,
   WriteServerPortUseCase,
+  GetBucketSizeUseCase,
+  GetServerSizeUseCase,
 } from "../../application/use-cases";
 import type { S3Config } from "../../domain/entities";
 
@@ -44,6 +46,8 @@ export class CloudStorageIPCHandlers {
     private getServerStatisticsUseCase: GetServerStatisticsUseCase,
     private readServerPortUseCase: ReadServerPortUseCase,
     private writeServerPortUseCase: WriteServerPortUseCase,
+    private getBucketSizeUseCase: GetBucketSizeUseCase,
+    private getServerSizeUseCase: GetServerSizeUseCase,
   ) {}
 
   /**
@@ -240,6 +244,21 @@ export class CloudStorageIPCHandlers {
       "server:write-port",
       this.handleIPC("writePort", async (_event, serverId: string, port: number) => {
         return this.writeServerPortUseCase.execute(serverId, port);
+      }),
+    );
+
+    // Storage size handlers
+    ipcMain.handle(
+      "cloud-storage:get-bucket-size",
+      this.handleIPC("getBucketSize", async (_event, config: S3Config) => {
+        return await this.getBucketSizeUseCase.execute(config);
+      }),
+    );
+
+    ipcMain.handle(
+      "cloud-storage:get-server-size",
+      this.handleIPC("getServerSize", async (_event, config: S3Config, serverId: string) => {
+        return await this.getServerSizeUseCase.execute(config, serverId);
       }),
     );
   }
