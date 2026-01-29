@@ -136,6 +136,10 @@ interface JavaAPI {
   onProgress: (callback: (message: string) => void) => () => void;
 }
 
+interface NotificationAPI {
+  show: (title: string, body: string) => Promise<void>;
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI;
@@ -145,6 +149,7 @@ declare global {
     systemAPI: SystemAPI;
     serverAPI: ServerAPI;
     javaAPI: JavaAPI;
+    notificationAPI: NotificationAPI;
   }
 }
 

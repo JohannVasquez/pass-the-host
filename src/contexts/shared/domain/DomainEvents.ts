@@ -290,6 +290,30 @@ export class ServerLockDetectedEvent extends BaseDomainEvent {
     return "server.lock.detected";
   }
 }
+export class ServerLockCheckFailedEvent extends BaseDomainEvent {
+  constructor(data: { serverId: string; error: string; retryDelay: number }) {
+    super(data.serverId);
+    this.serverId = data.serverId;
+    this.error = data.error;
+    this.retryDelay = data.retryDelay;
+  }
+  public readonly serverId: string;
+  public readonly error: string;
+  public readonly retryDelay: number;
+  get eventName(): string {
+    return "server.lock.checkFailed";
+  }
+}
+export class ServerLockAvailableEvent extends BaseDomainEvent {
+  constructor(data: { serverId: string }) {
+    super(data.serverId);
+    this.serverId = data.serverId;
+  }
+  public readonly serverId: string;
+  get eventName(): string {
+    return "server.lock.available";
+  }
+}
 // SESSION TRACKING EVENTS
 export class SessionStartedEvent extends BaseDomainEvent {
   constructor(data: { serverId: string; username: string; timestamp: Date }) {

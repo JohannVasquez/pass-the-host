@@ -12,6 +12,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import { BarChart as BarChartIcon } from "@mui/icons-material";
+import { SnackbarProvider, useSnackbar } from "notistack";
 import { S3Configuration } from "./presentation/components/S3Configuration";
 import { ServerControlPanel } from "./presentation/components/ServerControlPanel";
 import { NetworkConfiguration } from "./presentation/components/NetworkConfiguration";
@@ -35,6 +36,13 @@ import { Server } from "./domain/entities/Server";
 import { S3ServerRepository } from "./infrastructure/repositories/S3ServerRepository";
 import { S3Service } from "./infrastructure/services/S3Service";
 import { useTranslation } from "react-i18next";
+import { EventBus } from "@shared/infrastructure/event-bus";
+import {
+  ServerLockDetectedEvent,
+  ServerLockAvailableEvent,
+  ServerLockCheckFailedEvent,
+} from "@shared/domain/DomainEvents";
+import { useLockMonitor } from "@server-locking/presentation/hooks/useLockMonitor";
 import "./i18n/config";
 
 const darkTheme = createTheme({
@@ -58,7 +66,22 @@ interface ServerStatistics {
 }
 
 function App(): React.JSX.Element {
+  return (
+    <ThemeProvider theme={darkTheme}>
+      <SnackbarProvider
+        maxSnack={3}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        autoHideDuration={5000}
+      >
+        <AppContent />
+      </SnackbarProvider>
+    </ThemeProvider>
+  );
+}
+
+function AppContent(): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const { enqueueSnackbar } = useSnackbar();
 
   // Estados simulados para la interfaz
   const [serverStatus, setServerStatus] = React.useState<ServerStatus>(ServerStatus.STOPPED);
@@ -128,6 +151,101 @@ function App(): React.JSX.Element {
   const [selectedServerSize, setSelectedServerSize] = React.useState<number>(0);
   const [isLoadingBucketSize, setIsLoadingBucketSize] = React.useState<boolean>(false);
   const [isLoadingServerSize, setIsLoadingServerSize] = React.useState<boolean>(false);
+
+  // Monitor server lock status when server is stopped and selected
+  useLockMonitor(selectedServer, s3Config, serverStatus === ServerStatus.STOPPED && isS3Configured);
+
+  // Subscribe to lock monitoring events
+  React.useEffect(() => {
+    const eventBus = EventBus.getInstance();
+
+    // Handle lock detected event
+    eventBus.subscribe("server.lock.detected", (event: ServerLockDetectedEvent) => {
+      setLockedServerInfo({
+        username: event.username,
+        startedAt: event.timestamp.toISOString(),
+      });
+
+      // Show toast notification
+      enqueueSnackbar(
+        t("serverLock.detectedToast", {
+          username: event.username,
+          defaultValue: `Server is now being used by ${event.username}`,
+        }),
+        {
+          variant: "warning",
+        },
+      );
+
+      // Log to console
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: `Server locked by ${event.username}`,
+          type: "warning",
+        },
+      ]);
+    });
+
+    // Handle lock available event (server became available)
+    eventBus.subscribe("server.lock.available", (event: ServerLockAvailableEvent) => {
+      setLockedServerInfo({ username: "", startedAt: "" });
+
+      // Show OS notification
+      window.notificationAPI.show(
+        t("serverLock.availableTitle", {
+          defaultValue: "Server Available",
+        }),
+        t("serverLock.availableMessage", {
+          serverId: event.serverId,
+          defaultValue: `Server ${event.serverId} is now available for use`,
+        }),
+      );
+
+      // Show toast notification
+      enqueueSnackbar(
+        t("serverLock.availableToast", {
+          defaultValue: "Server is now available!",
+        }),
+        {
+          variant: "success",
+        },
+      );
+
+      // Log to console
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Server is now available",
+          type: "success",
+        },
+      ]);
+    });
+
+    // Handle lock check failed event
+    eventBus.subscribe("server.lock.checkFailed", (event: ServerLockCheckFailedEvent) => {
+      const retrySeconds = Math.round(event.retryDelay / 1000);
+
+      // Show toast notification
+      enqueueSnackbar(
+        t("serverLock.checkFailedToast", {
+          retrySeconds,
+          defaultValue: `Could not verify server status. Retrying in ${retrySeconds}s...`,
+        }),
+        {
+          variant: "error",
+        },
+      );
+
+      // Log to console (only for debugging, not spamming)
+      console.warn(`Lock check failed: ${event.error}. Retry in ${retrySeconds}s`);
+    });
+
+    // No cleanup needed for EventBus subscriptions in this implementation
+    // EventBus keeps subscriptions active until manually unsubscribed
+  }, [t, enqueueSnackbar]);
 
   // Load configuration from config.json on mount
   React.useEffect(() => {
@@ -1996,6 +2114,7 @@ function App(): React.JSX.Element {
               disabled={!isS3Configured || !isRcloneReady}
               serverStartTime={serverStartTime}
               username={username}
+              lockedServerInfo={lockedServerInfo}
             />
 
             <UsernameInput
