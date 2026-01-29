@@ -197,7 +197,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           disabled={disabled}
           fullWidth
         >
-          {t("serverControl.syncToR2")}
+          {t("serverControl.syncToCloud")}
         </Button>
         <Button
           variant="contained"
