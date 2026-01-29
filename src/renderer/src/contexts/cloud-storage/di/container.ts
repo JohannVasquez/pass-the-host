@@ -1,7 +1,7 @@
 import type { Container } from "inversify";
 import { CLOUD_STORAGE_TYPES } from "@shared/di";
-import type { ICloudStorageRepository } from "../domain/repositories";
-import { CloudStorageRepository } from "../infrastructure/repositories";
+import type { ICloudStorageRepository } from "@cloud-storage/domain/repositories";
+import { CloudStorageRepository } from "@cloud-storage/infrastructure/repositories";
 import {
   ConfigureR2UseCase,
   TestR2ConnectionUseCase,
@@ -9,7 +9,7 @@ import {
   DownloadServerUseCase,
   UploadServerUseCase,
   DeleteRemoteServerUseCase,
-} from "../application/use-cases";
+} from "@cloud-storage/application/use-cases";
 
 /**
  * Configures the Cloud Storage context in the DI container

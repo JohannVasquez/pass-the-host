@@ -56,7 +56,7 @@ export class AppContainer {
   /**
    * Bind a dependency to the container
    */
-  public bind<T>(serviceIdentifier: symbol): any {
+  public bind<T>(serviceIdentifier: symbol): ReturnType<Container["bind"]> {
     return this.container.bind<T>(serviceIdentifier);
   }
 

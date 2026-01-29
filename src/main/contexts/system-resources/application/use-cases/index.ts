@@ -12,7 +12,7 @@ export class EnsureJavaForMinecraftUseCase {
 
   async execute(
     minecraftVersion: string,
-    onProgress?: (message: string) => void
+    onProgress?: (message: string) => void,
   ): Promise<JavaInstallationResult> {
     return this.repository.ensureJavaForMinecraft(minecraftVersion, onProgress);
   }

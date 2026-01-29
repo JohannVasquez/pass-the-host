@@ -3,6 +3,7 @@ import { app } from "electron";
 import * as path from "path";
 import * as fs from "fs";
 import { IServerPropertiesRepository } from "../../domain/repositories";
+import { FileSystemError, ValidationError } from "@shared/domain/errors";
 
 @injectable()
 export class ServerPropertiesRepository implements IServerPropertiesRepository {
@@ -36,8 +37,8 @@ export class ServerPropertiesRepository implements IServerPropertiesRepository {
       }
 
       return 25565;
-    } catch (error) {
-      console.error(`Error reading server.properties for ${serverId}:`, error);
+    } catch {
+      // Expected case: file missing or unreadable, return default port
       return 25565;
     }
   }
@@ -46,16 +47,15 @@ export class ServerPropertiesRepository implements IServerPropertiesRepository {
     const serverPath = this.getLocalServerPath(serverId);
     const propertiesPath = path.join(serverPath, "server.properties");
 
+    if (isNaN(port) || port < 1 || port > 65535) {
+      throw new ValidationError(`Invalid port number: ${port}. Port must be between 1 and 65535.`);
+    }
+
+    if (!fs.existsSync(propertiesPath)) {
+      return false;
+    }
+
     try {
-      if (isNaN(port) || port < 1 || port > 65535) {
-        console.error(`Invalid port number: ${port}`);
-        return false;
-      }
-
-      if (!fs.existsSync(propertiesPath)) {
-        return false;
-      }
-
       const content = fs.readFileSync(propertiesPath, "utf-8");
       const lines = content.split("\n");
       let portFound = false;
@@ -78,8 +78,9 @@ export class ServerPropertiesRepository implements IServerPropertiesRepository {
       fs.writeFileSync(propertiesPath, updatedLines.join("\n"), "utf-8");
       return true;
     } catch (error) {
-      console.error(`Error writing server.properties for ${serverId}:`, error);
-      return false;
+      throw new FileSystemError(
+        `Failed to write server.properties for ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

@@ -1,5 +1,5 @@
 import { injectable, inject } from "inversify";
-import type { IConfigurationRepository } from "../../domain/repositories";
+import type { IConfigurationRepository } from "@app-configuration/domain/repositories";
 import { APP_CONFIGURATION_TYPES } from "@shared/di";
 import { EventBus } from "@shared/infrastructure/event-bus";
 import { LanguageChangedEvent } from "@shared/domain/DomainEvents";
@@ -14,7 +14,7 @@ export class ChangeLanguageUseCase {
 
   constructor(
     @inject(APP_CONFIGURATION_TYPES.ConfigurationRepository)
-    private repository: IConfigurationRepository
+    private repository: IConfigurationRepository,
   ) {}
 
   async execute(language: string): Promise<boolean> {
@@ -28,7 +28,7 @@ export class ChangeLanguageUseCase {
       this.eventBus.publish(
         new LanguageChangedEvent({
           language,
-        })
+        }),
       );
     }
 

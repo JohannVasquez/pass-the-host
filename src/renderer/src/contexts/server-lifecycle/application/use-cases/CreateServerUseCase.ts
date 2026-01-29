@@ -11,7 +11,7 @@ import { eventBus, ServerCreatedEvent } from "@shared/index";
 export class CreateServerUseCase {
   constructor(
     @inject(SERVER_LIFECYCLE_TYPES.ServerRepository)
-    private readonly serverRepository: IServerRepository
+    private readonly serverRepository: IServerRepository,
   ) {}
 
   /**
@@ -37,7 +37,7 @@ export class CreateServerUseCase {
     const server = await this.serverRepository.createServer(
       params.name,
       params.version,
-      params.type
+      params.type,
     );
 
     // Publish domain event

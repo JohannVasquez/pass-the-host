@@ -10,7 +10,7 @@ import { eventBus, ServerDeletedEvent } from "@shared/index";
 export class DeleteServerUseCase {
   constructor(
     @inject(SERVER_LIFECYCLE_TYPES.ServerRepository)
-    private readonly serverRepository: IServerRepository
+    private readonly serverRepository: IServerRepository,
   ) {}
 
   /**

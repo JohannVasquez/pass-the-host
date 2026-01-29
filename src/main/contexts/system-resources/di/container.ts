@@ -22,7 +22,7 @@ export function configureSystemResourcesContext(container: Container): void {
     .bind<EnsureJavaForMinecraftUseCase>(TYPES.EnsureJavaForMinecraftUseCase)
     .toDynamicValue(() => {
       const repository = container.get<ISystemResourcesRepository>(
-        TYPES.ISystemResourcesRepository
+        TYPES.ISystemResourcesRepository,
       );
       return new EnsureJavaForMinecraftUseCase(repository);
     })
@@ -32,7 +32,7 @@ export function configureSystemResourcesContext(container: Container): void {
     .bind<GetInstalledJavaVersionsUseCase>(TYPES.GetInstalledJavaVersionsUseCase)
     .toDynamicValue(() => {
       const repository = container.get<ISystemResourcesRepository>(
-        TYPES.ISystemResourcesRepository
+        TYPES.ISystemResourcesRepository,
       );
       return new GetInstalledJavaVersionsUseCase(repository);
     })
@@ -42,7 +42,7 @@ export function configureSystemResourcesContext(container: Container): void {
     .bind<GetRequiredJavaVersionUseCase>(TYPES.GetRequiredJavaVersionUseCase)
     .toDynamicValue(() => {
       const repository = container.get<ISystemResourcesRepository>(
-        TYPES.ISystemResourcesRepository
+        TYPES.ISystemResourcesRepository,
       );
       return new GetRequiredJavaVersionUseCase(repository);
     })
@@ -52,7 +52,7 @@ export function configureSystemResourcesContext(container: Container): void {
     .bind<GetTotalMemoryUseCase>(TYPES.GetTotalMemoryUseCase)
     .toDynamicValue(() => {
       const repository = container.get<ISystemResourcesRepository>(
-        TYPES.ISystemResourcesRepository
+        TYPES.ISystemResourcesRepository,
       );
       return new GetTotalMemoryUseCase(repository);
     })
@@ -62,7 +62,7 @@ export function configureSystemResourcesContext(container: Container): void {
     .bind<GetNetworkInterfacesUseCase>(TYPES.GetNetworkInterfacesUseCase)
     .toDynamicValue(() => {
       const repository = container.get<ISystemResourcesRepository>(
-        TYPES.ISystemResourcesRepository
+        TYPES.ISystemResourcesRepository,
       );
       return new GetNetworkInterfacesUseCase(repository);
     })

@@ -1,33 +1,25 @@
 import { IServerRepository } from "../../domain/repositories/IServerRepository";
 import { Server, ServerType } from "../../domain/entities/Server";
+import { S3Config } from "../../domain/entities/ServerConfig";
 
 /**
- * R2 Server Repository implementation
- * Communicates with the main process to retrieve servers from R2 storage
+ * S3-compatible Server Repository implementation
+ * Communicates with the main process to retrieve servers from S3-compatible storage
+ * Supports AWS S3, Cloudflare R2, MinIO, Backblaze B2, DigitalOcean Spaces, etc.
  */
 export class R2ServerRepository implements IServerRepository {
-  private r2Config: {
-    endpoint: string;
-    access_key: string;
-    secret_key: string;
-    bucket_name: string;
-  };
+  private s3Config: S3Config;
 
-  constructor(r2Config: {
-    endpoint: string;
-    access_key: string;
-    secret_key: string;
-    bucket_name: string;
-  }) {
-    this.r2Config = r2Config;
+  constructor(s3Config: S3Config) {
+    this.s3Config = s3Config;
   }
 
   /**
-   * Gets all servers from R2 storage
+   * Gets all servers from S3-compatible storage
    */
   async getServers(): Promise<Server[]> {
     try {
-      const rawServers = await window.rclone.listServers(this.r2Config);
+      const rawServers = await window.rclone.listServers(this.s3Config);
 
       return rawServers.map((server) => ({
         id: server.id,
@@ -36,7 +28,7 @@ export class R2ServerRepository implements IServerRepository {
         type: this.parseServerType(server.type),
       }));
     } catch (error) {
-      console.error("Error getting servers from R2:", error);
+      console.error("Error getting servers from cloud storage:", error);
       return [];
     }
   }

@@ -43,14 +43,14 @@ export const ServerStatisticsModal: React.FC<ServerStatisticsModalProps> = ({
   // Format duration from milliseconds to readable format (days, hours, minutes, seconds)
   const formatDuration = (ms: number | undefined): string => {
     if (!ms) return `0 ${t("statistics.seconds")}`;
-    
+
     const days = Math.floor(ms / (1000 * 60 * 60 * 24));
     const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((ms % (1000 * 60)) / 1000);
 
     const parts: string[] = [];
-    
+
     if (days > 0) {
       parts.push(`${days} ${t("statistics.days")}`);
     }
@@ -105,13 +105,14 @@ export const ServerStatisticsModal: React.FC<ServerStatisticsModalProps> = ({
   ];
 
   // Prepare rows for the DataGrid
-  const rows = statistics?.sessions.map((session, index) => ({
-    id: index,
-    username: session.username,
-    startTime: session.startTime,
-    endTime: session.endTime,
-    duration: session.duration,
-  })) || [];
+  const rows =
+    statistics?.sessions.map((session, index) => ({
+      id: index,
+      username: session.username,
+      startTime: session.startTime,
+      endTime: session.endTime,
+      duration: session.duration,
+    })) || [];
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -146,9 +147,7 @@ export const ServerStatisticsModal: React.FC<ServerStatisticsModalProps> = ({
                   <Typography variant="body2" color="text.secondary">
                     {t("statistics.totalSessions")}
                   </Typography>
-                  <Typography variant="h5">
-                    {statistics.sessionCount}
-                  </Typography>
+                  <Typography variant="h5">{statistics.sessionCount}</Typography>
                 </Box>
               </Box>
             </Box>

@@ -1,6 +1,7 @@
 node_modules
 dist
 out
+coverage
 .DS_Store
 .eslintcache
 *.log*
@@ -9,3 +10,5 @@ out
 src/renderer/config.json
 
 .agent
+
+.github/copilot-instructions.md

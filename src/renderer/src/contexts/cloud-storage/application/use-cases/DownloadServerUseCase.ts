@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
-import type { ICloudStorageRepository } from "../../domain/repositories";
-import type { R2Config, TransferProgress } from "../../domain/entities";
+import type { ICloudStorageRepository } from "@cloud-storage/domain/repositories";
+import type { S3Config, TransferProgress } from "@cloud-storage/domain/entities";
 import { CLOUD_STORAGE_TYPES } from "@shared/di";
 import { EventBus } from "@shared/infrastructure/event-bus";
 import {
@@ -12,7 +12,7 @@ import {
 
 /**
  * Download Server Use Case
- * Downloads a server from R2 to local storage
+ * Downloads a server from S3-compatible storage to local storage
  */
 @injectable()
 export class DownloadServerUseCase {
@@ -20,10 +20,10 @@ export class DownloadServerUseCase {
 
   constructor(
     @inject(CLOUD_STORAGE_TYPES.CloudStorageRepository)
-    private repository: ICloudStorageRepository
+    private repository: ICloudStorageRepository,
   ) {}
 
-  async execute(config: R2Config, serverId: string): Promise<boolean> {
+  async execute(config: S3Config, serverId: string): Promise<boolean> {
     this.eventBus.publish(new ServerDownloadStartedEvent({ serverId }));
 
     try {
@@ -37,9 +37,9 @@ export class DownloadServerUseCase {
               progress: progress.percentage,
               bytesTransferred: progress.bytesTransferred,
               totalBytes: progress.totalBytes,
-            })
+            }),
           );
-        }
+        },
       );
 
       if (success) {
@@ -49,7 +49,7 @@ export class DownloadServerUseCase {
           new ServerDownloadFailedEvent({
             serverId,
             error: "Download failed",
-          })
+          }),
         );
       }
 
@@ -59,7 +59,7 @@ export class DownloadServerUseCase {
         new ServerDownloadFailedEvent({
           serverId,
           error: error instanceof Error ? error.message : "Unknown error",
-        })
+        }),
       );
       return false;
     }

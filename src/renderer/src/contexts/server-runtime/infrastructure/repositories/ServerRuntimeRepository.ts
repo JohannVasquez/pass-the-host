@@ -4,6 +4,17 @@ import type { ServerStatus } from "@server-runtime/domain/entities/ServerStatus"
 import type { LogEntry } from "@server-runtime/domain/entities/LogEntry";
 import { eventBus, ServerLogReceivedEvent } from "@shared/index";
 
+interface ServerAPIType {
+  onServerLog?: (callback: (log: LogEntry) => void) => void;
+  onStatusChange?: (callback: (status: ServerStatus) => void) => void;
+  startServer?: (serverId: string) => Promise<void>;
+  stopServer?: (serverId: string) => Promise<void>;
+  sendCommand?: (serverId: string, command: string) => Promise<void>;
+  getStatus?: (serverId: string) => Promise<ServerStatus>;
+}
+
+type WindowWithServerAPI = { serverAPI?: ServerAPIType };
+
 /**
  * Server Runtime Repository implementation using Electron IPC
  */
@@ -20,9 +31,10 @@ export class ServerRuntimeRepository implements IServerRuntimeRepository {
    * Setup IPC event listeners
    */
   private setupEventListeners(): void {
+    const win = window as unknown as WindowWithServerAPI;
     // Listen for server logs
-    if ((window as any).serverAPI?.onServerLog) {
-      (window as any).serverAPI.onServerLog((log: LogEntry) => {
+    if (win.serverAPI?.onServerLog) {
+      win.serverAPI.onServerLog((log: LogEntry) => {
         // Publish to event bus
         eventBus.publish(new ServerLogReceivedEvent("current", log.message, log.type));
 
@@ -32,48 +44,32 @@ export class ServerRuntimeRepository implements IServerRuntimeRepository {
     }
 
     // Listen for status changes
-    if ((window as any).serverAPI?.onStatusChange) {
-      (window as any).serverAPI.onStatusChange((status: ServerStatus) => {
+    if (win.serverAPI?.onStatusChange) {
+      win.serverAPI.onStatusChange((status: ServerStatus) => {
         this.statusCallbacks.forEach((callback) => callback(status));
       });
     }
   }
 
   async startServer(serverId: string): Promise<void> {
-    try {
-      await (window as any).serverAPI.startServer(serverId);
-    } catch (error) {
-      console.error(`Error starting server ${serverId}:`, error);
-      throw error;
-    }
+    const win = window as unknown as WindowWithServerAPI;
+    await win.serverAPI?.startServer?.(serverId);
   }
 
   async stopServer(serverId: string): Promise<void> {
-    try {
-      await (window as any).serverAPI.stopServer(serverId);
-    } catch (error) {
-      console.error(`Error stopping server ${serverId}:`, error);
-      throw error;
-    }
+    const win = window as unknown as WindowWithServerAPI;
+    await win.serverAPI?.stopServer?.(serverId);
   }
 
   async executeCommand(serverId: string, command: string): Promise<void> {
-    try {
-      await (window as any).serverAPI.sendCommand(serverId, command);
-    } catch (error) {
-      console.error(`Error executing command on ${serverId}:`, error);
-      throw error;
-    }
+    const win = window as unknown as WindowWithServerAPI;
+    await win.serverAPI?.sendCommand?.(serverId, command);
   }
 
   async getServerStatus(serverId: string): Promise<ServerStatus> {
-    try {
-      const status = await (window as any).serverAPI.getStatus(serverId);
-      return status;
-    } catch (error) {
-      console.error(`Error getting status for ${serverId}:`, error);
-      throw error;
-    }
+    const win = window as unknown as WindowWithServerAPI;
+    const status = await win.serverAPI?.getStatus?.(serverId);
+    return status!;
   }
 
   onLogReceived(callback: (log: LogEntry) => void): () => void {

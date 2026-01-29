@@ -1,40 +1,40 @@
-import type { R2Config, RemoteServer, TransferProgress } from "../entities";
+import type { S3Config, RemoteServer, TransferProgress } from "../entities";
 
 /**
  * Cloud Storage Repository interface
- * Defines operations for R2 cloud storage
+ * Defines operations for S3-compatible cloud storage
  */
 export interface ICloudStorageRepository {
   /**
-   * Tests connection to R2 storage
+   * Tests connection to S3-compatible storage
    */
-  testConnection(config: R2Config): Promise<boolean>;
+  testConnection(config: S3Config): Promise<boolean>;
 
   /**
-   * Lists all servers available in R2 storage
+   * Lists all servers available in S3-compatible storage
    */
-  listServers(config: R2Config): Promise<RemoteServer[]>;
+  listServers(config: S3Config): Promise<RemoteServer[]>;
 
   /**
-   * Downloads a server from R2 to local storage
+   * Downloads a server from S3-compatible storage to local storage
    */
   downloadServer(
-    config: R2Config,
+    config: S3Config,
     serverId: string,
-    onProgress?: (progress: TransferProgress) => void
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean>;
 
   /**
-   * Uploads a server from local storage to R2
+   * Uploads a server from local storage to S3-compatible storage
    */
   uploadServer(
-    config: R2Config,
+    config: S3Config,
     serverId: string,
-    onProgress?: (progress: TransferProgress) => void
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean>;
 
   /**
-   * Deletes a server from R2 storage
+   * Deletes a server from S3-compatible storage
    */
-  deleteServer(config: R2Config, serverId: string): Promise<boolean>;
+  deleteServer(config: S3Config, serverId: string): Promise<boolean>;
 }

@@ -1,5 +1,5 @@
 import { injectable, inject } from "inversify";
-import type { IConfigurationRepository } from "../../domain/repositories";
+import type { IConfigurationRepository } from "@app-configuration/domain/repositories";
 import { APP_CONFIGURATION_TYPES } from "@shared/di";
 import { EventBus } from "@shared/infrastructure/event-bus";
 import { RamConfigChangedEvent } from "@shared/domain/DomainEvents";
@@ -14,7 +14,7 @@ export class SaveRamConfigUseCase {
 
   constructor(
     @inject(APP_CONFIGURATION_TYPES.ConfigurationRepository)
-    private repository: IConfigurationRepository
+    private repository: IConfigurationRepository,
   ) {}
 
   async execute(minRam: number, maxRam: number): Promise<boolean> {
@@ -33,7 +33,7 @@ export class SaveRamConfigUseCase {
         new RamConfigChangedEvent({
           minRam,
           maxRam,
-        })
+        }),
       );
     }
 

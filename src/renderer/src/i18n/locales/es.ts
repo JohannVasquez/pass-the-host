@@ -1,12 +1,29 @@
 export const es = {
   translation: {
+    // Claves legacy de R2 para compatibilidad
     r2Configuration: {
       title: "Cloudflare R2",
       endpoint: "Endpoint",
-      access_key: "Access Key",
-      secret_key: "Secret Key",
+      access_key: "Clave de Acceso",
+      secret_key: "Clave Secreta",
       bucket_name: "Nombre del Bucket",
       save: "Guardar Configuración",
+      lock: "Bloquear configuración",
+      unlock: "Desbloquear configuración",
+    },
+    // Nuevas claves para almacenamiento S3 compatible
+    s3Configuration: {
+      title: "Almacenamiento en la Nube (S3)",
+      provider: "Proveedor de Almacenamiento",
+      otherProvider: "Otro compatible con S3",
+      endpoint: "URL del Endpoint",
+      region: "Región",
+      access_key: "ID de Clave de Acceso",
+      secret_key: "Clave de Acceso Secreta",
+      bucket_name: "Nombre del Bucket",
+      save: "Guardar Configuración",
+      saveSuccess: "Configuración guardada exitosamente",
+      saveError: "Error al guardar la configuración",
       lock: "Bloquear configuración",
       unlock: "Desbloquear configuración",
     },
@@ -18,10 +35,12 @@ export const es = {
       start: "Iniciar Servidor",
       stop: "Detener Servidor",
       releaseLock: "Liberar Lock",
-      syncToR2: "Sincronizar a R2",
+      syncToCloud: "Sincronizar a la Nube",
       openServerFolder: "Abrir carpeta del servidor",
       editProperties: "Editar server.properties",
       deleteServer: "Eliminar Servidor",
+      cloudNotConfigured:
+        "Por favor configure los ajustes de almacenamiento en la nube antes de usar los controles del servidor",
       r2NotConfigured:
         "Por favor configure los ajustes de R2 antes de usar los controles del servidor",
       usernameNotConfigured:
@@ -93,8 +112,8 @@ export const es = {
       doNotClose: "Por favor espera, no cierres la aplicación",
     },
     transfer: {
-      downloading: "Descargando desde R2",
-      uploading: "Subiendo a R2",
+      downloading: "Descargando desde la Nube",
+      uploading: "Subiendo a la Nube",
       complete: "Transferencia completa",
     },
     username: {
@@ -111,13 +130,14 @@ export const es = {
       dangerMessage: "Eliminar el archivo de lock cuando el servidor está corriendo puede causar:",
       consequence1: "Corrupción de datos o pérdida de progreso",
       consequence2: "Múltiples instancias ejecutándose simultáneamente",
-      consequence3: "Conflictos al sincronizar con el almacenamiento R2",
+      consequence3: "Conflictos al sincronizar con el almacenamiento en la nube",
       confirmationText: "Para confirmar, escribe el nombre del servidor:",
       placeholder: "Nombre del servidor",
       error: "El nombre del servidor no coincide",
       cancel: "Cancelar",
       confirm: "Liberar Lock",
       noLockFound: "No se encontró ningún archivo de lock",
+      noLockInCloud: "No se encontró archivo de lock en la nube",
       noLockInR2: "No se encontró archivo de lock en R2",
       noLocalLock: "No se encontró archivo de lock local",
     },
@@ -167,10 +187,20 @@ export const es = {
       preparing: "Preparando...",
       modalWarning: "Por favor espera, esto puede tardar unos minutos",
     },
+    serverExists: {
+      title: "El Servidor Ya Existe",
+      message: "Un servidor llamado '{{serverName}}' ya existe localmente.",
+      warning:
+        "Eliminar o sobrescribir eliminará permanentemente los archivos del servidor actual.",
+      options: "¿Qué te gustaría hacer?",
+      cancel: "Cancelar",
+      delete: "Eliminar y Cancelar",
+      overwrite: "Sobrescribir",
+    },
     deleteServerModal: {
       title: "Eliminar Servidor",
       warning: "¿Estás seguro de que deseas eliminar este servidor?",
-      cloudOnly: "Esto eliminará el servidor de la nube (R2).",
+      cloudOnly: "Esto eliminará el servidor del almacenamiento en la nube.",
       alsoLocal: "También se eliminarán los archivos locales.",
       deleteLocalFiles: "Eliminar también archivos locales",
       confirmationText: "Para confirmar, escribe el nombre del servidor:",
@@ -179,10 +209,15 @@ export const es = {
       cancel: "Cancelar",
       confirm: "Eliminar Servidor",
       deleting: "Eliminando servidor...",
+      deletingFromCloud: "Eliminando del almacenamiento en la nube...",
       deletingFromR2: "Eliminando de R2...",
       deletingLocally: "Eliminando archivos locales...",
       success: "Servidor eliminado exitosamente",
       failed: "Error al eliminar el servidor",
+    },
+    storage: {
+      total: "Almacenamiento Total",
+      server: "Tamaño del Servidor",
     },
   },
 };

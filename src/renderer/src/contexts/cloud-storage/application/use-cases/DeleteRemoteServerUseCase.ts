@@ -1,13 +1,13 @@
 import { injectable, inject } from "inversify";
-import type { ICloudStorageRepository } from "../../domain/repositories";
-import type { R2Config } from "../../domain/entities";
+import type { ICloudStorageRepository } from "@cloud-storage/domain/repositories";
+import type { S3Config } from "@cloud-storage/domain/entities";
 import { CLOUD_STORAGE_TYPES } from "@shared/di";
 import { EventBus } from "@shared/infrastructure/event-bus";
 import { ServerDeletedFromR2Event } from "@shared/domain/DomainEvents";
 
 /**
  * Delete Remote Server Use Case
- * Deletes a server from R2 storage
+ * Deletes a server from S3-compatible storage
  */
 @injectable()
 export class DeleteRemoteServerUseCase {
@@ -15,10 +15,10 @@ export class DeleteRemoteServerUseCase {
 
   constructor(
     @inject(CLOUD_STORAGE_TYPES.CloudStorageRepository)
-    private repository: ICloudStorageRepository
+    private repository: ICloudStorageRepository,
   ) {}
 
-  async execute(config: R2Config, serverId: string): Promise<boolean> {
+  async execute(config: S3Config, serverId: string): Promise<boolean> {
     const success = await this.repository.deleteServer(config, serverId);
 
     if (success) {

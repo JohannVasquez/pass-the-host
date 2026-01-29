@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
-import type { ICloudStorageRepository } from "../../domain/repositories";
-import type { R2Config, TransferProgress } from "../../domain/entities";
+import type { ICloudStorageRepository } from "@cloud-storage/domain/repositories";
+import type { S3Config, TransferProgress } from "@cloud-storage/domain/entities";
 import { CLOUD_STORAGE_TYPES } from "@shared/di";
 import { EventBus } from "@shared/infrastructure/event-bus";
 import {
@@ -12,7 +12,7 @@ import {
 
 /**
  * Upload Server Use Case
- * Uploads a server from local storage to R2
+ * Uploads a server from local storage to S3-compatible storage
  */
 @injectable()
 export class UploadServerUseCase {
@@ -20,10 +20,10 @@ export class UploadServerUseCase {
 
   constructor(
     @inject(CLOUD_STORAGE_TYPES.CloudStorageRepository)
-    private repository: ICloudStorageRepository
+    private repository: ICloudStorageRepository,
   ) {}
 
-  async execute(config: R2Config, serverId: string): Promise<boolean> {
+  async execute(config: S3Config, serverId: string): Promise<boolean> {
     this.eventBus.publish(new ServerUploadStartedEvent({ serverId }));
 
     try {
@@ -37,9 +37,9 @@ export class UploadServerUseCase {
               progress: progress.percentage,
               bytesTransferred: progress.bytesTransferred,
               totalBytes: progress.totalBytes,
-            })
+            }),
           );
-        }
+        },
       );
 
       if (success) {
@@ -49,7 +49,7 @@ export class UploadServerUseCase {
           new ServerUploadFailedEvent({
             serverId,
             error: "Upload failed",
-          })
+          }),
         );
       }
 
@@ -59,7 +59,7 @@ export class UploadServerUseCase {
         new ServerUploadFailedEvent({
           serverId,
           error: error instanceof Error ? error.message : "Unknown error",
-        })
+        }),
       );
       return false;
     }

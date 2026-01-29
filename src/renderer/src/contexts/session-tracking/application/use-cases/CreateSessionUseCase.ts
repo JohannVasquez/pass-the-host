@@ -1,5 +1,5 @@
 import { injectable, inject } from "inversify";
-import type { ISessionRepository } from "../../domain/repositories";
+import type { ISessionRepository } from "@session-tracking/domain/repositories";
 import { SESSION_TRACKING_TYPES } from "@shared/di";
 import { EventBus } from "@shared/infrastructure/event-bus";
 import { SessionStartedEvent } from "@shared/domain/DomainEvents";
@@ -14,7 +14,7 @@ export class CreateSessionUseCase {
 
   constructor(
     @inject(SESSION_TRACKING_TYPES.SessionRepository)
-    private repository: ISessionRepository
+    private repository: ISessionRepository,
   ) {}
 
   async execute(serverId: string, username: string): Promise<boolean> {
@@ -30,7 +30,7 @@ export class CreateSessionUseCase {
           serverId,
           username,
           timestamp: new Date(),
-        })
+        }),
       );
     }
 

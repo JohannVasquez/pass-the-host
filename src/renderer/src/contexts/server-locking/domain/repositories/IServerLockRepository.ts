@@ -1,4 +1,4 @@
-import type { R2Config } from "@cloud-storage/domain/entities";
+import type { S3Config } from "@cloud-storage/domain/entities";
 import type { LockCheckResult, LockOperationResult } from "../entities";
 
 /**
@@ -12,19 +12,19 @@ export interface IServerLockRepository {
   createLocalLock(serverId: string, username: string): Promise<boolean>;
 
   /**
-   * Reads lock information from R2 storage
+   * Reads lock information from S3-compatible storage
    */
-  readRemoteLock(r2Config: R2Config, serverId: string): Promise<LockCheckResult>;
+  readRemoteLock(s3Config: S3Config, serverId: string): Promise<LockCheckResult>;
 
   /**
-   * Uploads local lock to R2 storage
+   * Uploads local lock to S3-compatible storage
    */
-  uploadLock(r2Config: R2Config, serverId: string): Promise<boolean>;
+  uploadLock(s3Config: S3Config, serverId: string): Promise<boolean>;
 
   /**
-   * Deletes lock from R2 storage
+   * Deletes lock from S3-compatible storage
    */
-  deleteRemoteLock(r2Config: R2Config, serverId: string): Promise<LockOperationResult>;
+  deleteRemoteLock(s3Config: S3Config, serverId: string): Promise<LockOperationResult>;
 
   /**
    * Deletes local lock file

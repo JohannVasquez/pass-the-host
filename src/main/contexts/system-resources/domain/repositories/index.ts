@@ -11,7 +11,7 @@ export interface ISystemResourcesRepository {
   getRequiredJavaVersion(minecraftVersion: string): JavaRequirement;
   ensureJavaForMinecraft(
     minecraftVersion: string,
-    onProgress?: (message: string) => void
+    onProgress?: (message: string) => void,
   ): Promise<JavaInstallationResult>;
   getTotalMemory(): SystemMemoryInfo;
   getNetworkInterfaces(): NetworkInterface[];

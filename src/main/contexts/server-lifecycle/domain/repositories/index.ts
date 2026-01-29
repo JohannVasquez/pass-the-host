@@ -9,7 +9,7 @@ export interface IServerLifecycleRepository {
    */
   createServer(
     config: MinecraftServerConfig,
-    onProgress?: (message: string) => void
+    onProgress?: (message: string) => void,
   ): Promise<ServerCreationResult>;
 
   /**
