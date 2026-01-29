@@ -10,7 +10,7 @@ import { eventBus, ServerStoppedEvent, ServerStoppingEvent } from "@shared/index
 export class StopServerUseCase {
   constructor(
     @inject(SERVER_RUNTIME_TYPES.ServerRuntimeRepository)
-    private readonly runtimeRepository: IServerRuntimeRepository
+    private readonly runtimeRepository: IServerRuntimeRepository,
   ) {}
 
   /**

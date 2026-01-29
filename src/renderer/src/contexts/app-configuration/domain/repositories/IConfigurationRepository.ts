@@ -1,3 +1,5 @@
+import type { AppConfig } from "../entities";
+
 /**
  * Configuration Repository interface
  * Defines operations for managing application configuration
@@ -6,7 +8,7 @@ export interface IConfigurationRepository {
   /**
    * Loads the complete configuration
    */
-  loadConfig(): Promise<any>;
+  loadConfig(): Promise<AppConfig | null>;
 
   /**
    * Saves username configuration

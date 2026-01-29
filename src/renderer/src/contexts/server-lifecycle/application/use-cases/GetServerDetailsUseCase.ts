@@ -10,7 +10,7 @@ import { SERVER_LIFECYCLE_TYPES } from "@shared/di/types";
 export class GetServerDetailsUseCase {
   constructor(
     @inject(SERVER_LIFECYCLE_TYPES.ServerRepository)
-    private readonly serverRepository: IServerRepository
+    private readonly serverRepository: IServerRepository,
   ) {}
 
   /**

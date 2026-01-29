@@ -4,7 +4,7 @@ import { IAppConfigurationRepository } from "../domain/repositories";
 import { AppConfigurationRepository } from "../infrastructure/repositories";
 import {
   LoadConfigUseCase,
-  SaveR2ConfigUseCase,
+  SaveS3ConfigUseCase,
   SaveUsernameUseCase,
   SaveRamConfigUseCase,
   SaveLanguageUseCase,
@@ -22,19 +22,19 @@ export function configureAppConfigurationContext(container: Container): void {
     .bind<LoadConfigUseCase>(TYPES.LoadConfigUseCase)
     .toDynamicValue(() => {
       const repository = container.get<IAppConfigurationRepository>(
-        TYPES.IAppConfigurationRepository
+        TYPES.IAppConfigurationRepository,
       );
       return new LoadConfigUseCase(repository);
     })
     .inTransientScope();
 
   container
-    .bind<SaveR2ConfigUseCase>(TYPES.SaveR2ConfigUseCase)
+    .bind<SaveS3ConfigUseCase>(TYPES.SaveS3ConfigUseCase)
     .toDynamicValue(() => {
       const repository = container.get<IAppConfigurationRepository>(
-        TYPES.IAppConfigurationRepository
+        TYPES.IAppConfigurationRepository,
       );
-      return new SaveR2ConfigUseCase(repository);
+      return new SaveS3ConfigUseCase(repository);
     })
     .inTransientScope();
 
@@ -42,7 +42,7 @@ export function configureAppConfigurationContext(container: Container): void {
     .bind<SaveUsernameUseCase>(TYPES.SaveUsernameUseCase)
     .toDynamicValue(() => {
       const repository = container.get<IAppConfigurationRepository>(
-        TYPES.IAppConfigurationRepository
+        TYPES.IAppConfigurationRepository,
       );
       return new SaveUsernameUseCase(repository);
     })
@@ -52,7 +52,7 @@ export function configureAppConfigurationContext(container: Container): void {
     .bind<SaveRamConfigUseCase>(TYPES.SaveRamConfigUseCase)
     .toDynamicValue(() => {
       const repository = container.get<IAppConfigurationRepository>(
-        TYPES.IAppConfigurationRepository
+        TYPES.IAppConfigurationRepository,
       );
       return new SaveRamConfigUseCase(repository);
     })
@@ -62,7 +62,7 @@ export function configureAppConfigurationContext(container: Container): void {
     .bind<SaveLanguageUseCase>(TYPES.SaveLanguageUseCase)
     .toDynamicValue(() => {
       const repository = container.get<IAppConfigurationRepository>(
-        TYPES.IAppConfigurationRepository
+        TYPES.IAppConfigurationRepository,
       );
       return new SaveLanguageUseCase(repository);
     })

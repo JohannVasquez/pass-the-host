@@ -10,7 +10,7 @@ import { SERVER_RUNTIME_TYPES } from "@shared/di/types";
 export class GetServerStatusUseCase {
   constructor(
     @inject(SERVER_RUNTIME_TYPES.ServerRuntimeRepository)
-    private readonly runtimeRepository: IServerRuntimeRepository
+    private readonly runtimeRepository: IServerRuntimeRepository,
   ) {}
 
   /**

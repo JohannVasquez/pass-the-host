@@ -6,14 +6,14 @@ import * as https from "https";
 import * as os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
-import { ISystemResourcesRepository } from "../../domain/repositories";
-import {
+import type { ISystemResourcesRepository } from "@main/contexts/system-resources/domain/repositories";
+import type {
   JavaVersion,
   JavaRequirement,
   JavaInstallationResult,
   SystemMemoryInfo,
   NetworkInterface,
-} from "../../domain/entities";
+} from "@main/contexts/system-resources/domain/entities";
 
 const execAsync = promisify(exec);
 const JAVA_RUNTIME_DIR = path.join(app.getPath("userData"), "java_runtime");
@@ -83,7 +83,7 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
 
   async ensureJavaForMinecraft(
     minecraftVersion: string,
-    onProgress?: (message: string) => void
+    onProgress?: (message: string) => void,
   ): Promise<JavaInstallationResult> {
     try {
       const requiredJava = this.getRequiredJavaVersion(minecraftVersion);
@@ -110,11 +110,12 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
         javaPath: javaPath,
         version: requiredJava.minVersion.toString(),
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error ensuring Java for Minecraft:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       return {
         success: false,
-        error: error.message || "Unknown error",
+        error: errorMessage,
       };
     }
   }
@@ -281,7 +282,7 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
 
   private async downloadJava(
     javaVersion: number,
-    onProgress?: (message: string) => void
+    onProgress?: (message: string) => void,
   ): Promise<boolean> {
     try {
       onProgress?.(`Downloading Java ${javaVersion}...`);

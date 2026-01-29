@@ -1,13 +1,13 @@
 import type { Container } from "inversify";
 import { APP_CONFIGURATION_TYPES } from "@shared/di";
-import type { IConfigurationRepository } from "../domain/repositories";
-import { ConfigurationRepository } from "../infrastructure/repositories";
+import type { IConfigurationRepository } from "@app-configuration/domain/repositories";
+import { ConfigurationRepository } from "@app-configuration/infrastructure/repositories";
 import {
   LoadConfigurationUseCase,
   SaveUsernameUseCase,
   ChangeLanguageUseCase,
   SaveRamConfigUseCase,
-} from "../application/use-cases";
+} from "@app-configuration/application/use-cases";
 
 /**
  * Configures the App Configuration context in the DI container

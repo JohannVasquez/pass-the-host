@@ -3,7 +3,7 @@ import { ChildProcessWithoutNullStreams } from "child_process";
 export class ServerProcess {
   constructor(
     private readonly _serverId: string,
-    private readonly _process: ChildProcessWithoutNullStreams
+    private readonly _process: ChildProcessWithoutNullStreams,
   ) {}
 
   get serverId(): string {
@@ -48,7 +48,9 @@ export class ServerProcess {
       } catch {
         try {
           this._process.kill();
-        } catch {}
+        } catch {
+          // Ignore kill errors
+        }
         resolve(false);
       }
     });

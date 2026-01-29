@@ -1,23 +1,24 @@
-import { R2Config } from "../../domain/entities/ServerConfig";
+import { S3Config } from "../../domain/entities/ServerConfig";
 
 /**
- * R2 Service - Handles all R2 storage operations
+ * R2 Service - Handles all S3-compatible storage operations
+ * Supports AWS S3, Cloudflare R2, MinIO, Backblaze B2, DigitalOcean Spaces, etc.
  * Following Clean Architecture principles
  */
 export class R2Service {
-  private r2Config: R2Config;
+  private s3Config: S3Config;
 
-  constructor(r2Config: R2Config) {
-    this.r2Config = r2Config;
+  constructor(s3Config: S3Config) {
+    this.s3Config = s3Config;
   }
 
   /**
-   * Downloads a server from R2 to local storage
+   * Downloads a server from cloud storage to local storage
    * Deletes existing files before downloading
    */
   async downloadServer(serverId: string): Promise<boolean> {
     try {
-      return await window.rclone.downloadServer(this.r2Config, serverId);
+      return await window.rclone.downloadServer(this.s3Config, serverId);
     } catch (error) {
       console.error(`Error downloading server ${serverId}:`, error);
       return false;
@@ -25,11 +26,11 @@ export class R2Service {
   }
 
   /**
-   * Uploads a server from local storage to R2
+   * Uploads a server from local storage to cloud storage
    */
   async uploadServer(serverId: string): Promise<boolean> {
     try {
-      return await window.rclone.uploadServer(this.r2Config, serverId);
+      return await window.rclone.uploadServer(this.s3Config, serverId);
     } catch (error) {
       console.error(`Error uploading server ${serverId}:`, error);
       return false;
@@ -37,23 +38,23 @@ export class R2Service {
   }
 
   /**
-   * Tests the R2 connection
+   * Tests the cloud storage connection
    */
   async testConnection(): Promise<boolean> {
     try {
-      return await window.rclone.testR2Connection(this.r2Config);
+      return await window.rclone.testConnection(this.s3Config);
     } catch (error) {
-      console.error("Error testing R2 connection:", error);
+      console.error("Error testing cloud storage connection:", error);
       return false;
     }
   }
 
   /**
-   * Lists all servers in R2
+   * Lists all servers in cloud storage
    */
   async listServers(): Promise<Array<{ id: string; name: string; version: string; type: string }>> {
     try {
-      return await window.rclone.listServers(this.r2Config);
+      return await window.rclone.listServers(this.s3Config);
     } catch (error) {
       console.error("Error listing servers:", error);
       return [];
@@ -61,9 +62,9 @@ export class R2Service {
   }
 
   /**
-   * Updates the R2 configuration
+   * Updates the S3 configuration
    */
-  updateConfig(config: R2Config): void {
-    this.r2Config = config;
+  updateConfig(config: S3Config): void {
+    this.s3Config = config;
   }
 }

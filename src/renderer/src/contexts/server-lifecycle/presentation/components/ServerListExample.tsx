@@ -10,7 +10,7 @@ import type { Server } from "@server-lifecycle/domain/entities";
  */
 export const ServerListExample: React.FC = () => {
   const listServersUseCase = useDependency<ListServersUseCase>(
-    SERVER_LIFECYCLE_TYPES.ListServersUseCase
+    SERVER_LIFECYCLE_TYPES.ListServersUseCase,
   );
   const [servers, setServers] = useState<Server[]>([]);
   const [loading, setLoading] = useState(true);

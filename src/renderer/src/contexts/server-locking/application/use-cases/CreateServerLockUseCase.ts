@@ -1,5 +1,5 @@
 import { injectable, inject } from "inversify";
-import type { IServerLockRepository } from "../../domain/repositories";
+import type { IServerLockRepository } from "@server-locking/domain/repositories";
 import { SERVER_LOCKING_TYPES } from "@shared/di";
 import { EventBus } from "@shared/infrastructure/event-bus";
 import { ServerLockCreatedEvent } from "@shared/domain/DomainEvents";
@@ -14,7 +14,7 @@ export class CreateServerLockUseCase {
 
   constructor(
     @inject(SERVER_LOCKING_TYPES.ServerLockRepository)
-    private repository: IServerLockRepository
+    private repository: IServerLockRepository,
   ) {}
 
   async execute(serverId: string, username: string): Promise<boolean> {
@@ -29,7 +29,7 @@ export class CreateServerLockUseCase {
         new ServerLockCreatedEvent({
           serverId,
           username,
-        })
+        }),
       );
     }
 

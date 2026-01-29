@@ -12,7 +12,7 @@ export class CreateMinecraftServerUseCase {
 
   async execute(
     config: MinecraftServerConfig,
-    onProgress?: (message: string) => void
+    onProgress?: (message: string) => void,
   ): Promise<ServerCreationResult> {
     return await this.serverLifecycleRepository.createServer(config, onProgress);
   }

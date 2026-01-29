@@ -1,4 +1,4 @@
-import type { R2Config } from "@cloud-storage/domain/entities";
+import type { S3Config } from "@cloud-storage/domain/entities";
 import type { ServerStatistics } from "../entities";
 
 /**
@@ -17,9 +17,9 @@ export interface ISessionRepository {
   updateSession(serverId: string, username: string): Promise<boolean>;
 
   /**
-   * Uploads session data to R2 storage
+   * Uploads session data to S3-compatible storage
    */
-  uploadSession(r2Config: R2Config, serverId: string): Promise<boolean>;
+  uploadSession(s3Config: S3Config, serverId: string): Promise<boolean>;
 
   /**
    * Gets server statistics including all sessions

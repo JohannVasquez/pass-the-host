@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { appContainer } from "@shared/di";
 import { configureServerLifecycle } from "@server-lifecycle/di";
 import { configureServerRuntime } from "@server-runtime/di";
@@ -10,19 +10,17 @@ import { configureAppConfiguration } from "@app-configuration/di";
 
 /**
  * Hook to get a dependency from the DI container
+ * Uses useMemo to avoid calling setState in effect
  * @param symbol The symbol identifier for the dependency
  * @returns The resolved dependency or null if not ready
  */
 export function useDependency<T>(symbol: symbol): T | null {
-  const [dependency, setDependency] = useState<T | null>(null);
-
-  useEffect(() => {
+  const dependency = useMemo(() => {
     try {
-      const resolved = appContainer.get<T>(symbol);
-      setDependency(resolved);
+      return appContainer.get<T>(symbol);
     } catch (error) {
       console.error(`Failed to resolve dependency:`, error);
-      setDependency(null);
+      return null;
     }
   }, [symbol]);
 
@@ -46,7 +44,7 @@ export function useContainerReady(): boolean {
           configureServerLocking,
           configureSystemResources,
           configureSessionTracking,
-          configureAppConfiguration
+          configureAppConfiguration,
         );
         setReady(true);
       } catch (error) {
