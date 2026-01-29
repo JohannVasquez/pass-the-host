@@ -17,6 +17,11 @@ export interface IRcloneRepository {
    * Test S3-compatible storage connection
    */
   testConnection(config: S3Config): Promise<boolean>;
+
+  /**
+   * Get the size of the entire bucket in bytes
+   */
+  getBucketSize(config: S3Config): Promise<number>;
 }
 
 export interface IS3ServerRepository {
@@ -52,6 +57,11 @@ export interface IS3ServerRepository {
    * Check if server should be downloaded (compares timestamps)
    */
   shouldDownloadServer(config: S3Config, serverId: string): Promise<boolean>;
+
+  /**
+   * Get the size of a specific server in bytes
+   */
+  getServerSize(config: S3Config, serverId: string): Promise<number>;
 }
 
 export interface IServerLockRepository {

@@ -31,6 +31,8 @@ import {
   GetServerStatisticsUseCase,
   ReadServerPortUseCase,
   WriteServerPortUseCase,
+  GetBucketSizeUseCase,
+  GetServerSizeUseCase,
 } from "../application/use-cases";
 import { TYPES } from "../application/use-cases/types";
 
@@ -176,5 +178,13 @@ export function configureCloudStorageContext(container: Container): void {
     return new WriteServerPortUseCase(
       container.get<IServerPropertiesRepository>(TYPES.ServerPropertiesRepository),
     );
+  });
+
+  container.bind<GetBucketSizeUseCase>(GetBucketSizeUseCase).toDynamicValue(() => {
+    return new GetBucketSizeUseCase(container.get<IRcloneRepository>(TYPES.RcloneRepository));
+  });
+
+  container.bind<GetServerSizeUseCase>(GetServerSizeUseCase).toDynamicValue(() => {
+    return new GetServerSizeUseCase(container.get<IS3ServerRepository>(TYPES.S3ServerRepository));
   });
 }

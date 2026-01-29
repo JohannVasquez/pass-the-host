@@ -142,6 +142,22 @@ export class RcloneRepository implements IRcloneRepository {
     }
   }
 
+  async getBucketSize(config: S3Config): Promise<number> {
+    try {
+      await this.ensureConfigured(config);
+      const sizeCommand = `"${this.RCLONE_PATH}" size ${this.RCLONE_CONFIG_NAME}:${config.bucket_name}/pass_the_host --json`;
+      const { stdout } = await execAsync(sizeCommand);
+      const result = JSON.parse(stdout);
+      // rclone size --json returns { "count": <number>, "bytes": <number> }
+      return result.bytes || 0;
+    } catch (error) {
+      throw new ExternalServiceError(
+        "S3",
+        `Failed to get bucket size: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   async ensureConfigured(config: S3Config): Promise<void> {
     const providerStr = this.getProviderString(config.provider);
 

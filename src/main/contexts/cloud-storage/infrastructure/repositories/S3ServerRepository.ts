@@ -174,6 +174,27 @@ export class S3ServerRepository implements IS3ServerRepository {
     }
   }
 
+  async getServerSize(config: S3Config, serverId: string): Promise<number> {
+    try {
+      await this.rcloneRepository.ensureConfigured(config);
+
+      const rclonePath = this.rcloneRepository.getRclonePath();
+      const configName = this.rcloneRepository.getRcloneConfigName();
+      const s3ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
+
+      const sizeCommand = `"${rclonePath}" size ${s3ServerPath} --json`;
+      const { stdout } = await execAsync(sizeCommand);
+      const result = JSON.parse(stdout);
+      // rclone size --json returns { "count": <number>, "bytes": <number> }
+      return result.bytes || 0;
+    } catch (error) {
+      throw new ExternalServiceError(
+        "S3",
+        `Failed to get server size for ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
   async shouldDownloadServer(config: S3Config, serverId: string): Promise<boolean> {
     try {
       // Read local session directly instead of using SessionRepository

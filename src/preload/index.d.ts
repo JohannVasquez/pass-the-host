@@ -25,6 +25,8 @@ interface RcloneAPI {
   ) => () => void;
   downloadServer: (config: S3ConfigType, serverId: string) => Promise<boolean>;
   uploadServer: (config: S3ConfigType, serverId: string) => Promise<boolean>;
+  getBucketSize: (config: S3ConfigType) => Promise<number>;
+  getServerSize: (config: S3ConfigType, serverId: string) => Promise<number>;
 }
 
 interface AppConfigData {
