@@ -11,7 +11,6 @@ import type {
   ServerDeletionResult,
 } from "../../../../../../src/main/contexts/server-lifecycle/domain/entities";
 
-// Mock repository factory
 function createMockRepository(): IServerLifecycleRepository {
   return {
     createServer: vi.fn(),

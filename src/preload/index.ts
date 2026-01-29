@@ -13,10 +13,8 @@ interface S3ConfigType {
   bucket_name: string;
 }
 
-// Custom APIs for renderer
 const api = {};
 
-// Rclone API (S3-compatible storage)
 const rcloneAPI = {
   checkInstallation: (): Promise<boolean> => ipcRenderer.invoke("rclone:check-installation"),
   installRclone: (): Promise<boolean> => ipcRenderer.invoke("rclone:install"),
