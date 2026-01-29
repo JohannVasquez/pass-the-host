@@ -36,7 +36,6 @@ export const es = {
       stop: "Detener Servidor",
       releaseLock: "Liberar Lock",
       syncToCloud: "Sincronizar a la Nube",
-      syncToR2: "Sincronizar a R2",
       openServerFolder: "Abrir carpeta del servidor",
       editProperties: "Editar server.properties",
       deleteServer: "Eliminar Servidor",
