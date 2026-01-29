@@ -206,6 +206,11 @@ const javaAPI = {
   },
 };
 
+const notificationAPI = {
+  show: (title: string, body: string): Promise<void> =>
+    ipcRenderer.invoke("notification:show", title, body),
+};
+
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
@@ -218,6 +223,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("systemAPI", systemAPI);
     contextBridge.exposeInMainWorld("serverAPI", serverAPI);
     contextBridge.exposeInMainWorld("javaAPI", javaAPI);
+    contextBridge.exposeInMainWorld("notificationAPI", notificationAPI);
   } catch (error) {
     console.error(error);
   }
@@ -230,4 +236,5 @@ if (process.contextIsolated) {
   win.systemAPI = systemAPI;
   win.serverAPI = serverAPI;
   win.javaAPI = javaAPI;
+  win.notificationAPI = notificationAPI;
 }

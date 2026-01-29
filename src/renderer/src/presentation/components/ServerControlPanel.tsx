@@ -23,6 +23,7 @@ import {
   Add as AddIcon,
   FolderOpen as FolderOpenIcon,
   DeleteForever as DeleteForeverIcon,
+  Lock as LockIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 import { ServerStatus } from "../../domain/entities/ServerStatus";
@@ -43,6 +44,10 @@ interface ServerControlPanelProps {
   disabled?: boolean;
   serverStartTime: Date | null;
   username: string;
+  lockedServerInfo?: {
+    username: string;
+    startedAt: string;
+  };
 }
 
 export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
@@ -60,11 +65,13 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   disabled = false,
   serverStartTime,
   username,
+  lockedServerInfo,
 }): React.JSX.Element => {
   const { t } = useTranslation();
   const isRunning = status === ServerStatus.RUNNING;
   const isTransitioning = status === ServerStatus.STARTING || status === ServerStatus.STOPPING;
   const [uptime, setUptime] = React.useState<string>("00:00:00");
+  const isLocked = lockedServerInfo?.username && lockedServerInfo?.username !== "";
 
   // Update uptime every second when server is running
   React.useEffect(() => {
@@ -119,6 +126,22 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
       {!username && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {t("serverControl.usernameNotConfigured")}
+        </Alert>
+      )}
+
+      {isLocked && selectedServer && (
+        <Alert severity="warning" icon={<LockIcon />} sx={{ mb: 2 }}>
+          <Typography variant="body2" fontWeight="bold">
+            {t("serverControl.serverLocked", {
+              defaultValue: "Server in use",
+            })}
+          </Typography>
+          <Typography variant="caption">
+            {t("serverControl.lockedBy", {
+              username: lockedServerInfo?.username,
+              defaultValue: `Being used by ${lockedServerInfo?.username}`,
+            })}
+          </Typography>
         </Alert>
       )}
 

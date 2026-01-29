@@ -38,7 +38,17 @@ import { registerAppConfigurationIPCHandlers } from "@main/contexts/app-configur
 import { LoadConfigUseCase } from "@main/contexts/app-configuration/application/use-cases";
 import { TYPES as ConfigTYPES } from "@main/contexts/app-configuration/application/use-cases/types";
 import { Container } from "inversify";
-import { app, shell, BrowserWindow, ipcMain, Tray, nativeImage, Menu, dialog } from "electron";
+import {
+  app,
+  shell,
+  BrowserWindow,
+  ipcMain,
+  Tray,
+  nativeImage,
+  Menu,
+  dialog,
+  Notification,
+} from "electron";
 import { autoUpdater } from "electron-updater";
 import { join } from "path";
 import { electronApp, is } from "@electron-toolkit/utils";
@@ -290,6 +300,20 @@ if (!gotTheLock) {
     // ===== APP CONFIGURATION HANDLERS =====
     registerAppConfigurationIPCHandlers(container);
     logger.info("App Configuration IPC handlers registered");
+
+    // ===== NOTIFICATION HANDLER =====
+    ipcMain.handle("notification:show", async (_event, title: string, body: string) => {
+      if (Notification.isSupported()) {
+        const notification = new Notification({
+          title,
+          body,
+          icon: icon.toDataURL(),
+        });
+        notification.show();
+      }
+    });
+    logger.info("Notification IPC handler registered");
+
     logger.info("All IPC handlers registered successfully");
     app.on("activate", function () {
       // On macOS it's common to re-create a window in the app when the

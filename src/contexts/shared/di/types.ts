@@ -34,6 +34,7 @@ export const SERVER_LOCKING_TYPES = {
   CheckServerLockUseCase: Symbol.for("CheckServerLockUseCase"),
   UploadServerLockUseCase: Symbol.for("UploadServerLockUseCase"),
   ReleaseServerLockUseCase: Symbol.for("ReleaseServerLockUseCase"),
+  MonitorServerLockUseCase: Symbol.for("MonitorServerLockUseCase"),
 };
 
 export const SESSION_TRACKING_TYPES = {
