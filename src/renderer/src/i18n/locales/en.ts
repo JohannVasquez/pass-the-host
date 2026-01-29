@@ -165,6 +165,15 @@ export const en = {
       preparing: "Preparing...",
       modalWarning: "Please wait, this may take a few minutes",
     },
+    serverExists: {
+      title: "Server Already Exists",
+      message: "A server named '{{serverName}}' already exists locally.",
+      warning: "Deleting or overwriting will permanently remove the current server files.",
+      options: "What would you like to do?",
+      cancel: "Cancel",
+      delete: "Delete & Cancel",
+      overwrite: "Overwrite",
+    },
     deleteServerModal: {
       title: "Delete Server",
       warning: "Are you sure you want to delete this server?",

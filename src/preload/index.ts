@@ -174,8 +174,19 @@ const serverAPI = {
     serverName: string,
     version: string,
     serverType: "vanilla" | "forge",
-  ): Promise<boolean> =>
-    ipcRenderer.invoke("server:create-minecraft-server", serverName, version, serverType),
+    overwrite?: boolean,
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    errorCode?: "SERVER_EXISTS" | "JAVA_NOT_FOUND" | "NETWORK_ERROR" | "UNKNOWN";
+  }> =>
+    ipcRenderer.invoke(
+      "server:create-minecraft-server",
+      serverName,
+      version,
+      serverType,
+      overwrite,
+    ),
   onCreateProgress: (callback: (message: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, message: string): void =>
       callback(message);

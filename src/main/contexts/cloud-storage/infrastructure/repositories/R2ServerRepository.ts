@@ -256,6 +256,18 @@ export class R2ServerRepository implements IR2ServerRepository {
     _serverName: string,
   ): Promise<{ version: string; type: string }> {
     try {
+      // First, try to read server_info.json if it exists
+      try {
+        const infoCommand = `"${rclonePath}" cat ${serverPath}/server_info.json`;
+        const { stdout: infoStdout } = await execAsync(infoCommand);
+        const serverInfo = JSON.parse(infoStdout.trim());
+        if (serverInfo.version && serverInfo.type) {
+          return { version: serverInfo.version, type: serverInfo.type };
+        }
+      } catch {
+        // server_info.json doesn't exist or couldn't be parsed, continue with detection
+      }
+
       const listCommand = `"${rclonePath}" lsf ${serverPath}`;
       const { stdout } = await execAsync(listCommand);
 

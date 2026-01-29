@@ -167,6 +167,16 @@ export const es = {
       preparing: "Preparando...",
       modalWarning: "Por favor espera, esto puede tardar unos minutos",
     },
+    serverExists: {
+      title: "El Servidor Ya Existe",
+      message: "Un servidor llamado '{{serverName}}' ya existe localmente.",
+      warning:
+        "Eliminar o sobrescribir eliminará permanentemente los archivos del servidor actual.",
+      options: "¿Qué te gustaría hacer?",
+      cancel: "Cancelar",
+      delete: "Eliminar y Cancelar",
+      overwrite: "Sobrescribir",
+    },
     deleteServerModal: {
       title: "Eliminar Servidor",
       warning: "¿Estás seguro de que deseas eliminar este servidor?",
