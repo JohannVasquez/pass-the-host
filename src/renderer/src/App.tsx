@@ -26,6 +26,7 @@ import { DownloadProgressModal } from "./presentation/components/DownloadProgres
 import { TransferProgressModal } from "./presentation/components/TransferProgressModal";
 import { ServerStatisticsModal } from "./presentation/components/ServerStatisticsModal";
 import { CreateServerModal } from "./presentation/components/CreateServerModal";
+import { ServerExistsModal } from "./presentation/components/ServerExistsModal";
 import { DeleteServerModal } from "./presentation/components/DeleteServerModal";
 import { ServerStatus } from "./domain/entities/ServerStatus";
 import { R2Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
@@ -114,6 +115,12 @@ function App(): React.JSX.Element {
   const [isCreateServerModalOpen, setIsCreateServerModalOpen] = React.useState<boolean>(false);
   const [isCreatingServer, setIsCreatingServer] = React.useState<boolean>(false);
   const [createServerProgress, setCreateServerProgress] = React.useState<string>("");
+  const [isServerExistsModalOpen, setIsServerExistsModalOpen] = React.useState<boolean>(false);
+  const [pendingServerCreation, setPendingServerCreation] = React.useState<{
+    name: string;
+    version: string;
+    type: "vanilla" | "forge";
+  } | null>(null);
   const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = React.useState<boolean>(false);
 
   // Load configuration from config.json on mount
@@ -217,17 +224,6 @@ function App(): React.JSX.Element {
       setTransferPercent(progress.percent);
       setTransferTransferred(progress.transferred);
       setTransferTotal(progress.total);
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
-  // Listen to server creation progress
-  React.useEffect(() => {
-    const unsubscribe = window.serverAPI.onCreateProgress((message) => {
-      setCreateServerProgress(message);
     });
 
     return () => {
@@ -851,7 +847,7 @@ function App(): React.JSX.Element {
             ...prev,
             {
               timestamp: new Date(),
-              message: `Failed to setup Java ${javaResult.javaVersion}. Server may not start correctly.`,
+              message: `Failed to setup Java. Server may not start correctly.`,
               type: "error",
             },
           ]);
@@ -862,7 +858,7 @@ function App(): React.JSX.Element {
           ...prev,
           {
             timestamp: new Date(),
-            message: `Java ${javaResult.javaVersion} is ready`,
+            message: `Java ${javaResult.version || "runtime"} is ready`,
             type: "info",
           },
         ]);
@@ -966,6 +962,9 @@ function App(): React.JSX.Element {
       let javaPath = "";
       try {
         const javaResult = await window.javaAPI.ensureForMinecraft(server.version);
+        if (!javaResult.javaPath) {
+          throw new Error("Java path not available");
+        }
         javaPath = javaResult.javaPath;
       } catch {
         setLogs((prev) => [
@@ -1279,6 +1278,7 @@ function App(): React.JSX.Element {
     serverName: string,
     version: string,
     serverType: "vanilla" | "forge",
+    overwrite: boolean = false,
   ): Promise<void> => {
     setIsCreatingServer(true);
     setCreateServerProgress("");
@@ -1293,9 +1293,51 @@ function App(): React.JSX.Element {
     ]);
 
     try {
-      const success = await window.serverAPI.createMinecraftServer(serverName, version, serverType);
+      // For Forge servers, ensure Java is installed first
+      if (serverType === "forge") {
+        setCreateServerProgress("Checking Java installation...");
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Checking Java installation for Forge...",
+            type: "info",
+          },
+        ]);
 
-      if (success) {
+        const javaResult = await window.javaAPI.ensureForMinecraft(version);
+        if (!javaResult.success) {
+          throw new Error(javaResult.error || "Failed to ensure Java is installed");
+        }
+
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Java ${javaResult.version} ready at ${javaResult.javaPath}`,
+            type: "info",
+          },
+        ]);
+      }
+
+      const result = await window.serverAPI.createMinecraftServer(
+        serverName,
+        version,
+        serverType,
+        overwrite,
+      );
+
+      // Check if server already exists
+      if (!result.success && result.errorCode === "SERVER_EXISTS") {
+        // Save pending creation data
+        setPendingServerCreation({ name: serverName, version, type: serverType });
+        setIsServerExistsModalOpen(true);
+        setIsCreatingServer(false);
+        setCreateServerProgress("");
+        return;
+      }
+
+      if (result.success) {
         setLogs((prev) => [
           ...prev,
           {
@@ -2013,6 +2055,47 @@ function App(): React.JSX.Element {
           onConfirm={handleConfirmCreateServer}
           isCreating={isCreatingServer}
           progressMessage={createServerProgress}
+        />
+
+        {/* Server Exists Modal */}
+        <ServerExistsModal
+          open={isServerExistsModalOpen}
+          serverName={pendingServerCreation?.name || ""}
+          onCancel={() => {
+            setIsServerExistsModalOpen(false);
+            setPendingServerCreation(null);
+          }}
+          onDelete={async () => {
+            if (pendingServerCreation) {
+              // Delete the existing server
+              const deleteResult = await window.serverAPI.deleteLocally(pendingServerCreation.name);
+              if (deleteResult.success) {
+                setLogs((prev) => [
+                  ...prev,
+                  {
+                    timestamp: new Date(),
+                    message: `Existing server ${pendingServerCreation.name} deleted`,
+                    type: "info",
+                  },
+                ]);
+              }
+            }
+            setIsServerExistsModalOpen(false);
+            setPendingServerCreation(null);
+          }}
+          onOverwrite={async () => {
+            setIsServerExistsModalOpen(false);
+            if (pendingServerCreation) {
+              // Retry creation with overwrite flag
+              await handleConfirmCreateServer(
+                pendingServerCreation.name,
+                pendingServerCreation.version,
+                pendingServerCreation.type,
+                true,
+              );
+              setPendingServerCreation(null);
+            }
+          }}
         />
 
         {/* Delete Server Modal */}

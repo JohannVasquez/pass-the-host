@@ -147,7 +147,12 @@ interface ServerAPI {
     serverName: string,
     version: string,
     serverType: "vanilla" | "forge",
-  ) => Promise<boolean>;
+    overwrite?: boolean,
+  ) => Promise<{
+    success: boolean;
+    error?: string;
+    errorCode?: "SERVER_EXISTS" | "JAVA_NOT_FOUND" | "NETWORK_ERROR" | "UNKNOWN";
+  }>;
   onCreateProgress: (callback: (message: string) => void) => () => void;
   deleteFromR2: (
     config: R2ConfigType,
@@ -159,7 +164,7 @@ interface ServerAPI {
 interface JavaAPI {
   ensureForMinecraft: (
     minecraftVersion: string,
-  ) => Promise<{ success: boolean; javaPath: string; javaVersion: number }>;
+  ) => Promise<{ success: boolean; javaPath?: string; version?: string; error?: string }>;
   getInstalledVersions: () => Promise<Array<{ version: number; path: string }>>;
   getRequiredVersion: (minecraftVersion: string) => Promise<number>;
   onProgress: (callback: (message: string) => void) => () => void;
