@@ -39,6 +39,7 @@ function createMockRcloneRepository(): IRcloneRepository {
     checkInstallation: vi.fn(),
     install: vi.fn(),
     testConnection: vi.fn(),
+    getBucketSize: vi.fn(),
   };
 }
 function createMockS3ServerRepository(): IS3ServerRepository {
@@ -48,6 +49,7 @@ function createMockS3ServerRepository(): IS3ServerRepository {
     uploadServer: vi.fn(),
     deleteServer: vi.fn(),
     shouldDownloadServer: vi.fn(),
+    getServerSize: vi.fn(),
   };
 }
 function createMockServerLockRepository(): IServerLockRepository {
