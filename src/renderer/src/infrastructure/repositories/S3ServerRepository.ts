@@ -7,7 +7,7 @@ import { S3Config } from "../../domain/entities/ServerConfig";
  * Communicates with the main process to retrieve servers from S3-compatible storage
  * Supports AWS S3, Cloudflare R2, MinIO, Backblaze B2, DigitalOcean Spaces, etc.
  */
-export class R2ServerRepository implements IServerRepository {
+export class S3ServerRepository implements IServerRepository {
   private s3Config: S3Config;
 
   constructor(s3Config: S3Config) {

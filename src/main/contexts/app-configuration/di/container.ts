@@ -4,7 +4,7 @@ import { IAppConfigurationRepository } from "../domain/repositories";
 import { AppConfigurationRepository } from "../infrastructure/repositories";
 import {
   LoadConfigUseCase,
-  SaveR2ConfigUseCase,
+  SaveS3ConfigUseCase,
   SaveUsernameUseCase,
   SaveRamConfigUseCase,
   SaveLanguageUseCase,
@@ -29,12 +29,12 @@ export function configureAppConfigurationContext(container: Container): void {
     .inTransientScope();
 
   container
-    .bind<SaveR2ConfigUseCase>(TYPES.SaveR2ConfigUseCase)
+    .bind<SaveS3ConfigUseCase>(TYPES.SaveS3ConfigUseCase)
     .toDynamicValue(() => {
       const repository = container.get<IAppConfigurationRepository>(
         TYPES.IAppConfigurationRepository,
       );
-      return new SaveR2ConfigUseCase(repository);
+      return new SaveS3ConfigUseCase(repository);
     })
     .inTransientScope();
 

@@ -5,7 +5,7 @@ import * as fs from "fs";
 import { promisify } from "util";
 import { exec } from "child_process";
 import type { IServerLockRepository } from "../../domain/repositories";
-import type { R2Config, ServerLock } from "../../domain/entities";
+import type { S3Config, ServerLock } from "../../domain/entities";
 import { RcloneRepository } from "./RcloneRepository";
 import { NotFoundError, FileSystemError, ExternalServiceError } from "@shared/domain/errors";
 
@@ -39,7 +39,7 @@ export class ServerLockRepository implements IServerLockRepository {
     }
   }
 
-  async readLock(config: R2Config, serverId: string): Promise<ServerLock> {
+  async readLock(config: S3Config, serverId: string): Promise<ServerLock> {
     await this.rcloneRepository.ensureConfigured(config);
 
     const rclonePath = this.rcloneRepository.getRclonePath();
@@ -88,7 +88,7 @@ export class ServerLockRepository implements IServerLockRepository {
     }
   }
 
-  async uploadLock(config: R2Config, serverId: string): Promise<boolean> {
+  async uploadLock(config: S3Config, serverId: string): Promise<boolean> {
     await this.rcloneRepository.ensureConfigured(config);
 
     const rclonePath = this.rcloneRepository.getRclonePath();
@@ -114,7 +114,7 @@ export class ServerLockRepository implements IServerLockRepository {
   }
 
   async deleteLock(
-    config: R2Config,
+    config: S3Config,
     serverId: string,
   ): Promise<{ success: boolean; existed: boolean }> {
     await this.rcloneRepository.ensureConfigured(config);

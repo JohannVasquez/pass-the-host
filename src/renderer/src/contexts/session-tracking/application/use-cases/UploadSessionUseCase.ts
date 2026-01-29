@@ -1,13 +1,13 @@
 import { injectable, inject } from "inversify";
 import type { ISessionRepository } from "@session-tracking/domain/repositories";
-import type { R2Config } from "@cloud-storage/domain/entities";
+import type { S3Config } from "@cloud-storage/domain/entities";
 import { SESSION_TRACKING_TYPES } from "@shared/di";
 import { EventBus } from "@shared/infrastructure/event-bus";
 import { SessionUploadedEvent } from "@shared/domain/DomainEvents";
 
 /**
  * Upload Session Use Case
- * Uploads session data to R2 storage
+ * Uploads session data to S3-compatible storage
  */
 @injectable()
 export class UploadSessionUseCase {
@@ -18,12 +18,12 @@ export class UploadSessionUseCase {
     private repository: ISessionRepository,
   ) {}
 
-  async execute(r2Config: R2Config, serverId: string): Promise<boolean> {
+  async execute(s3Config: S3Config, serverId: string): Promise<boolean> {
     if (!serverId) {
       throw new Error("ServerId is required");
     }
 
-    const success = await this.repository.uploadSession(r2Config, serverId);
+    const success = await this.repository.uploadSession(s3Config, serverId);
 
     if (success) {
       this.eventBus.publish(

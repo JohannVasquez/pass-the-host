@@ -1,11 +1,11 @@
 import { S3Config } from "../../domain/entities/ServerConfig";
 
 /**
- * R2 Service - Handles all S3-compatible storage operations
+ * S3 Service - Handles all S3-compatible storage operations
  * Supports AWS S3, Cloudflare R2, MinIO, Backblaze B2, DigitalOcean Spaces, etc.
  * Following Clean Architecture principles
  */
-export class R2Service {
+export class S3Service {
   private s3Config: S3Config;
 
   constructor(s3Config: S3Config) {

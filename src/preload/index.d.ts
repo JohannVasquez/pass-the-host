@@ -1,51 +1,40 @@
 import { ElectronAPI } from "@electron-toolkit/preload";
 
+// S3-compatible storage types
+type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other";
+
+interface S3ConfigType {
+  provider?: S3Provider;
+  endpoint: string;
+  region?: string;
+  access_key: string;
+  secret_key: string;
+  bucket_name: string;
+}
+
 interface RcloneAPI {
   checkInstallation: () => Promise<boolean>;
   installRclone: () => Promise<boolean>;
-  testR2Connection: (config: {
-    endpoint: string;
-    access_key: string;
-    secret_key: string;
-    bucket_name: string;
-  }) => Promise<boolean>;
-  listServers: (config: {
-    endpoint: string;
-    access_key: string;
-    secret_key: string;
-    bucket_name: string;
-  }) => Promise<Array<{ id: string; name: string; version: string; type: string }>>;
+  testConnection: (config: S3ConfigType) => Promise<boolean>;
+  listServers: (
+    config: S3ConfigType,
+  ) => Promise<Array<{ id: string; name: string; version: string; type: string }>>;
   onProgress: (callback: (message: string) => void) => () => void;
   onTransferProgress: (
     callback: (progress: { percent: number; transferred: string; total: string }) => void,
   ) => () => void;
-  downloadServer: (
-    config: {
-      endpoint: string;
-      access_key: string;
-      secret_key: string;
-      bucket_name: string;
-    },
-    serverId: string,
-  ) => Promise<boolean>;
-  uploadServer: (
-    config: {
-      endpoint: string;
-      access_key: string;
-      secret_key: string;
-      bucket_name: string;
-    },
-    serverId: string,
-  ) => Promise<boolean>;
+  downloadServer: (config: S3ConfigType, serverId: string) => Promise<boolean>;
+  uploadServer: (config: S3ConfigType, serverId: string) => Promise<boolean>;
 }
 
 interface AppConfigData {
-  r2: {
+  s3: {
+    provider: S3Provider;
     endpoint: string;
+    region: string;
     access_key: string;
     secret_key: string;
     bucket_name: string;
-    region?: string;
   };
   server: {
     server_path: string;
@@ -62,21 +51,9 @@ interface AppConfigData {
   };
 }
 
-interface R2ConfigType {
-  endpoint: string;
-  access_key: string;
-  secret_key: string;
-  bucket_name: string;
-}
-
 interface ConfigAPI {
   loadConfig: () => Promise<AppConfigData | null>;
-  saveR2Config: (r2Config: {
-    endpoint: string;
-    access_key: string;
-    secret_key: string;
-    bucket_name: string;
-  }) => Promise<boolean>;
+  saveS3Config: (s3Config: S3ConfigType) => Promise<boolean>;
   saveUsername: (username: string) => Promise<boolean>;
   saveRamConfig: (minRam: number, maxRam: number) => Promise<boolean>;
   saveLanguage: (language: string) => Promise<boolean>;
@@ -90,25 +67,12 @@ interface SystemAPI {
 interface ServerAPI {
   createLock: (serverId: string, username: string) => Promise<boolean>;
   readLock: (
-    r2Config: R2ConfigType,
+    s3Config: S3ConfigType,
     serverId: string,
   ) => Promise<{ exists: boolean; username?: string; startedAt?: string; timestamp?: number }>;
-  uploadLock: (
-    config: {
-      endpoint: string;
-      access_key: string;
-      secret_key: string;
-      bucket_name: string;
-    },
-    serverId: string,
-  ) => Promise<boolean>;
+  uploadLock: (config: S3ConfigType, serverId: string) => Promise<boolean>;
   deleteLock: (
-    config: {
-      endpoint: string;
-      access_key: string;
-      secret_key: string;
-      bucket_name: string;
-    },
+    config: S3ConfigType,
     serverId: string,
   ) => Promise<{ success: boolean; existed: boolean }>;
   deleteLocalLock: (serverId: string) => Promise<{ success: boolean; existed: boolean }>;
@@ -129,8 +93,8 @@ interface ServerAPI {
   openServerFolder: (serverId: string) => Promise<boolean>;
   createSession: (serverId: string, username: string) => Promise<boolean>;
   updateSession: (serverId: string, username: string) => Promise<boolean>;
-  uploadSession: (config: R2ConfigType, serverId: string) => Promise<boolean>;
-  shouldDownload: (config: R2ConfigType, serverId: string) => Promise<boolean>;
+  uploadSession: (config: S3ConfigType, serverId: string) => Promise<boolean>;
+  shouldDownload: (config: S3ConfigType, serverId: string) => Promise<boolean>;
   getStatistics: (serverId: string) => Promise<{
     totalPlaytime: number;
     sessionCount: number;
@@ -154,8 +118,8 @@ interface ServerAPI {
     errorCode?: "SERVER_EXISTS" | "JAVA_NOT_FOUND" | "NETWORK_ERROR" | "UNKNOWN";
   }>;
   onCreateProgress: (callback: (message: string) => void) => () => void;
-  deleteFromR2: (
-    config: R2ConfigType,
+  deleteFromS3: (
+    config: S3ConfigType,
     serverId: string,
   ) => Promise<{ success: boolean; error?: string }>;
   deleteLocally: (serverId: string) => Promise<{ success: boolean; error?: string }>;

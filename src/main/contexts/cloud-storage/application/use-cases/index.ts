@@ -1,12 +1,12 @@
 import { injectable } from "inversify";
 import {
   IRcloneRepository,
-  IR2ServerRepository,
+  IS3ServerRepository,
   IServerLockRepository,
   ISessionRepository,
   IServerPropertiesRepository,
 } from "../../domain/repositories";
-import { R2Config, ServerInfo, TransferProgress } from "../../domain/entities/R2Config";
+import { S3Config, ServerInfo, TransferProgress } from "../../domain/entities/S3Config";
 import { ServerLock } from "../../domain/entities/ServerLock";
 import { ServerStatistics } from "../../domain/entities/SessionMetadata";
 
@@ -34,7 +34,7 @@ export class InstallRcloneUseCase {
 export class TestR2ConnectionUseCase {
   constructor(private rcloneRepository: IRcloneRepository) {}
 
-  async execute(config: R2Config): Promise<boolean> {
+  async execute(config: S3Config): Promise<boolean> {
     return await this.rcloneRepository.testConnection(config);
   }
 }
@@ -43,54 +43,54 @@ export class TestR2ConnectionUseCase {
 
 @injectable()
 export class ListR2ServersUseCase {
-  constructor(private r2ServerRepository: IR2ServerRepository) {}
+  constructor(private s3ServerRepository: IS3ServerRepository) {}
 
-  async execute(config: R2Config): Promise<ServerInfo[]> {
-    return await this.r2ServerRepository.listServers(config);
+  async execute(config: S3Config): Promise<ServerInfo[]> {
+    return await this.s3ServerRepository.listServers(config);
   }
 }
 
 @injectable()
 export class DownloadServerFromR2UseCase {
-  constructor(private r2ServerRepository: IR2ServerRepository) {}
+  constructor(private s3ServerRepository: IS3ServerRepository) {}
 
   async execute(
-    config: R2Config,
+    config: S3Config,
     serverId: string,
     onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean> {
-    return await this.r2ServerRepository.downloadServer(config, serverId, onProgress);
+    return await this.s3ServerRepository.downloadServer(config, serverId, onProgress);
   }
 }
 
 @injectable()
 export class UploadServerToR2UseCase {
-  constructor(private r2ServerRepository: IR2ServerRepository) {}
+  constructor(private s3ServerRepository: IS3ServerRepository) {}
 
   async execute(
-    config: R2Config,
+    config: S3Config,
     serverId: string,
     onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean> {
-    return await this.r2ServerRepository.uploadServer(config, serverId, onProgress);
+    return await this.s3ServerRepository.uploadServer(config, serverId, onProgress);
   }
 }
 
 @injectable()
 export class DeleteServerFromR2UseCase {
-  constructor(private r2ServerRepository: IR2ServerRepository) {}
+  constructor(private s3ServerRepository: IS3ServerRepository) {}
 
-  async execute(config: R2Config, serverId: string): Promise<{ success: boolean; error?: string }> {
-    return await this.r2ServerRepository.deleteServer(config, serverId);
+  async execute(config: S3Config, serverId: string): Promise<{ success: boolean; error?: string }> {
+    return await this.s3ServerRepository.deleteServer(config, serverId);
   }
 }
 
 @injectable()
 export class ShouldDownloadServerUseCase {
-  constructor(private r2ServerRepository: IR2ServerRepository) {}
+  constructor(private s3ServerRepository: IS3ServerRepository) {}
 
-  async execute(config: R2Config, serverId: string): Promise<boolean> {
-    return await this.r2ServerRepository.shouldDownloadServer(config, serverId);
+  async execute(config: S3Config, serverId: string): Promise<boolean> {
+    return await this.s3ServerRepository.shouldDownloadServer(config, serverId);
   }
 }
 
@@ -109,7 +109,7 @@ export class CreateServerLockUseCase {
 export class ReadServerLockUseCase {
   constructor(private serverLockRepository: IServerLockRepository) {}
 
-  async execute(config: R2Config, serverId: string): Promise<ServerLock> {
+  async execute(config: S3Config, serverId: string): Promise<ServerLock> {
     return await this.serverLockRepository.readLock(config, serverId);
   }
 }
@@ -118,7 +118,7 @@ export class ReadServerLockUseCase {
 export class UploadServerLockUseCase {
   constructor(private serverLockRepository: IServerLockRepository) {}
 
-  async execute(config: R2Config, serverId: string): Promise<boolean> {
+  async execute(config: S3Config, serverId: string): Promise<boolean> {
     return await this.serverLockRepository.uploadLock(config, serverId);
   }
 }
@@ -128,7 +128,7 @@ export class DeleteServerLockUseCase {
   constructor(private serverLockRepository: IServerLockRepository) {}
 
   async execute(
-    config: R2Config,
+    config: S3Config,
     serverId: string,
   ): Promise<{ success: boolean; existed: boolean }> {
     return await this.serverLockRepository.deleteLock(config, serverId);
@@ -168,7 +168,7 @@ export class UpdateSessionUseCase {
 export class UploadSessionUseCase {
   constructor(private sessionRepository: ISessionRepository) {}
 
-  async execute(config: R2Config, serverId: string): Promise<boolean> {
+  async execute(config: S3Config, serverId: string): Promise<boolean> {
     return await this.sessionRepository.uploadSession(config, serverId);
   }
 }

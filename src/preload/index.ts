@@ -1,44 +1,35 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 
+// S3 provider types
+type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other";
+
+interface S3ConfigType {
+  provider: S3Provider;
+  endpoint: string;
+  region: string;
+  access_key: string;
+  secret_key: string;
+  bucket_name: string;
+}
+
 // Custom APIs for renderer
 const api = {};
 
-// Rclone API
+// Rclone API (S3-compatible storage)
 const rcloneAPI = {
   checkInstallation: (): Promise<boolean> => ipcRenderer.invoke("rclone:check-installation"),
   installRclone: (): Promise<boolean> => ipcRenderer.invoke("rclone:install"),
-  testR2Connection: (config: {
-    endpoint: string;
-    access_key: string;
-    secret_key: string;
-    bucket_name: string;
-  }): Promise<boolean> => ipcRenderer.invoke("rclone:test-r2-connection", config),
-  listServers: (config: {
-    endpoint: string;
-    access_key: string;
-    secret_key: string;
-    bucket_name: string;
-  }): Promise<Array<{ id: string; name: string; version: string; type: string }>> =>
+  testConnection: (config: S3ConfigType): Promise<boolean> =>
+    ipcRenderer.invoke("rclone:test-s3-connection", config),
+  listServers: (
+    config: S3ConfigType,
+  ): Promise<Array<{ id: string; name: string; version: string; type: string }>> =>
     ipcRenderer.invoke("rclone:list-servers", config),
-  downloadServer: (
-    config: {
-      endpoint: string;
-      access_key: string;
-      secret_key: string;
-      bucket_name: string;
-    },
-    serverId: string,
-  ): Promise<boolean> => ipcRenderer.invoke("rclone:download-server", config, serverId),
-  uploadServer: (
-    config: {
-      endpoint: string;
-      access_key: string;
-      secret_key: string;
-      bucket_name: string;
-    },
-    serverId: string,
-  ): Promise<boolean> => ipcRenderer.invoke("rclone:upload-server", config, serverId),
+  downloadServer: (config: S3ConfigType, serverId: string): Promise<boolean> =>
+    ipcRenderer.invoke("rclone:download-server", config, serverId),
+  uploadServer: (config: S3ConfigType, serverId: string): Promise<boolean> =>
+    ipcRenderer.invoke("rclone:upload-server", config, serverId),
   onProgress: (callback: (message: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, message: string): void =>
       callback(message);
@@ -58,12 +49,13 @@ const rcloneAPI = {
 };
 
 interface AppConfigData {
-  r2: {
+  s3: {
+    provider: S3Provider;
     endpoint: string;
+    region: string;
     access_key: string;
     secret_key: string;
     bucket_name: string;
-    region?: string;
   };
   server: {
     server_path: string;
@@ -80,12 +72,17 @@ interface AppConfigData {
   };
 }
 
-interface R2ConfigType {
-  endpoint: string;
-  access_key: string;
-  secret_key: string;
-  bucket_name: string;
-}
+const configAPI = {
+  loadConfig: (): Promise<AppConfigData | null> => ipcRenderer.invoke("config:load"),
+  saveS3Config: (s3Config: S3ConfigType): Promise<boolean> =>
+    ipcRenderer.invoke("config:save-s3", s3Config),
+  saveUsername: (username: string): Promise<boolean> =>
+    ipcRenderer.invoke("config:save-username", username),
+  saveRamConfig: (minRam: number, maxRam: number): Promise<boolean> =>
+    ipcRenderer.invoke("config:save-ram", minRam, maxRam),
+  saveLanguage: (language: string): Promise<boolean> =>
+    ipcRenderer.invoke("config:save-language", language),
+};
 
 interface ServerStatistics {
   totalPlaytime: number;
@@ -100,18 +97,6 @@ interface ServerStatistics {
   }>;
 }
 
-const configAPI = {
-  loadConfig: (): Promise<AppConfigData | null> => ipcRenderer.invoke("config:load"),
-  saveR2Config: (r2Config: R2ConfigType): Promise<boolean> =>
-    ipcRenderer.invoke("config:save-r2", r2Config),
-  saveUsername: (username: string): Promise<boolean> =>
-    ipcRenderer.invoke("config:save-username", username),
-  saveRamConfig: (minRam: number, maxRam: number): Promise<boolean> =>
-    ipcRenderer.invoke("config:save-ram", minRam, maxRam),
-  saveLanguage: (language: string): Promise<boolean> =>
-    ipcRenderer.invoke("config:save-language", language),
-};
-
 const systemAPI = {
   getTotalMemoryGB: (): Promise<number> => ipcRenderer.invoke("system:get-total-memory"),
   getNetworkInterfaces: (): Promise<Array<{ name: string; ip: string }>> =>
@@ -122,14 +107,14 @@ const serverAPI = {
   createLock: (serverId: string, username: string): Promise<boolean> =>
     ipcRenderer.invoke("server:create-lock", serverId, username),
   readLock: (
-    r2Config: R2ConfigType,
+    s3Config: S3ConfigType,
     serverId: string,
   ): Promise<{ exists: boolean; username?: string; startedAt?: string; timestamp?: number }> => {
-    return ipcRenderer.invoke("server:read-server-lock", r2Config, serverId);
+    return ipcRenderer.invoke("server:read-server-lock", s3Config, serverId);
   },
-  uploadLock: (config: R2ConfigType, serverId: string): Promise<boolean> =>
+  uploadLock: (config: S3ConfigType, serverId: string): Promise<boolean> =>
     ipcRenderer.invoke("server:upload-lock", config, serverId),
-  deleteLock: (config: R2ConfigType, serverId: string): Promise<boolean> =>
+  deleteLock: (config: S3ConfigType, serverId: string): Promise<boolean> =>
     ipcRenderer.invoke("server:delete-lock", config, serverId),
   deleteLocalLock: (serverId: string): Promise<boolean> =>
     ipcRenderer.invoke("server:delete-local-lock", serverId),
@@ -164,9 +149,9 @@ const serverAPI = {
     ipcRenderer.invoke("server:create-session", serverId, username),
   updateSession: (serverId: string, username: string): Promise<boolean> =>
     ipcRenderer.invoke("server:update-session", serverId, username),
-  uploadSession: (config: R2ConfigType, serverId: string): Promise<boolean> =>
+  uploadSession: (config: S3ConfigType, serverId: string): Promise<boolean> =>
     ipcRenderer.invoke("server:upload-session", config, serverId),
-  shouldDownload: (config: R2ConfigType, serverId: string): Promise<boolean> =>
+  shouldDownload: (config: S3ConfigType, serverId: string): Promise<boolean> =>
     ipcRenderer.invoke("server:should-download", config, serverId),
   getStatistics: (serverId: string): Promise<ServerStatistics | null> =>
     ipcRenderer.invoke("server:get-statistics", serverId),
@@ -193,11 +178,11 @@ const serverAPI = {
     ipcRenderer.on("server:create-progress", listener);
     return () => ipcRenderer.removeListener("server:create-progress", listener);
   },
-  deleteFromR2: (
-    config: R2ConfigType,
+  deleteFromS3: (
+    config: S3ConfigType,
     serverId: string,
   ): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke("server:delete-from-r2", config, serverId),
+    ipcRenderer.invoke("server:delete-from-s3", config, serverId),
   deleteLocally: (serverId: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("server:delete-locally", serverId),
 };

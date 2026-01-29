@@ -1,13 +1,24 @@
 /**
- * R2 Configuration
+ * S3-Compatible Provider Types
  */
-export interface R2Config {
+export type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other";
+
+/**
+ * S3-Compatible Storage Configuration
+ */
+export interface S3Config {
+  provider?: S3Provider;
   endpoint: string;
   access_key: string;
   secret_key: string;
   bucket_name: string;
   region?: string;
 }
+
+/**
+ * @deprecated Use S3Config instead
+ */
+export type R2Config = S3Config;
 
 /**
  * Server Configuration
@@ -35,7 +46,9 @@ export interface AppSettings {
  * Represents the complete application configuration from config.json
  */
 export interface AppConfig {
-  r2: R2Config;
+  s3: S3Config;
+  /** @deprecated Use s3 instead */
+  r2?: R2Config;
   server: ServerConfig;
   app: AppSettings;
 }

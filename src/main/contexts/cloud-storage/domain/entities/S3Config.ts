@@ -9,9 +9,6 @@ export interface S3Config {
   bucket_name: string;
 }
 
-/** @deprecated Use S3Config instead */
-export type R2Config = S3Config;
-
 export interface ServerInfo {
   id: string;
   name: string;

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   LoadConfigUseCase,
-  SaveR2ConfigUseCase,
+  SaveS3ConfigUseCase,
   SaveUsernameUseCase,
   SaveRamConfigUseCase,
   SaveLanguageUseCase,
@@ -9,7 +9,7 @@ import {
 import type { IAppConfigurationRepository } from "../../../../../../src/main/contexts/app-configuration/domain/repositories";
 import type {
   AppConfig,
-  R2Config,
+  S3Config,
   ConfigSaveResult,
 } from "../../../../../../src/main/contexts/app-configuration/domain/entities";
 
@@ -17,7 +17,7 @@ describe("App Configuration Use Cases", () => {
   // Mock repository
   const mockRepository: IAppConfigurationRepository = {
     loadConfig: vi.fn(),
-    saveR2Config: vi.fn(),
+    saveS3Config: vi.fn(),
     saveUsername: vi.fn(),
     saveRamConfig: vi.fn(),
     saveLanguage: vi.fn(),
@@ -30,7 +30,7 @@ describe("App Configuration Use Cases", () => {
   describe("LoadConfigUseCase", () => {
     it("should return config from repository", async () => {
       const mockConfig: AppConfig = {
-        r2: { endpoint: "https://r2.example.com" },
+        s3: { endpoint: "https://s3.example.com" },
         server: { memory_min: "2G", memory_max: "4G" },
         app: { owner_name: "TestUser", language: "en" },
       };
@@ -54,36 +54,36 @@ describe("App Configuration Use Cases", () => {
     });
   });
 
-  describe("SaveR2ConfigUseCase", () => {
-    it("should save R2 config via repository", async () => {
-      const r2Config: R2Config = {
-        endpoint: "https://r2.example.com",
+  describe("SaveS3ConfigUseCase", () => {
+    it("should save S3 config via repository", async () => {
+      const s3Config: S3Config = {
+        endpoint: "https://s3.example.com",
         access_key: "key123",
         secret_key: "secret456",
         bucket_name: "my-bucket",
       };
 
       const expectedResult: ConfigSaveResult = { success: true };
-      vi.mocked(mockRepository.saveR2Config).mockResolvedValue(expectedResult);
+      vi.mocked(mockRepository.saveS3Config).mockResolvedValue(expectedResult);
 
-      const useCase = new SaveR2ConfigUseCase(mockRepository);
-      const result = await useCase.execute(r2Config);
+      const useCase = new SaveS3ConfigUseCase(mockRepository);
+      const result = await useCase.execute(s3Config);
 
       expect(result).toEqual(expectedResult);
-      expect(mockRepository.saveR2Config).toHaveBeenCalledWith(r2Config);
+      expect(mockRepository.saveS3Config).toHaveBeenCalledWith(s3Config);
     });
 
     it("should return error result when save fails", async () => {
-      const r2Config: R2Config = { endpoint: "test" };
+      const s3Config: S3Config = { endpoint: "test" };
       const expectedResult: ConfigSaveResult = {
         success: false,
         error: "Failed to save",
       };
 
-      vi.mocked(mockRepository.saveR2Config).mockResolvedValue(expectedResult);
+      vi.mocked(mockRepository.saveS3Config).mockResolvedValue(expectedResult);
 
-      const useCase = new SaveR2ConfigUseCase(mockRepository);
-      const result = await useCase.execute(r2Config);
+      const useCase = new SaveS3ConfigUseCase(mockRepository);
+      const result = await useCase.execute(s3Config);
 
       expect(result.success).toBe(false);
       expect(result.error).toBe("Failed to save");

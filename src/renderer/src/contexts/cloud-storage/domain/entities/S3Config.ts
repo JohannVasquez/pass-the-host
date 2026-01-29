@@ -18,18 +18,8 @@ export interface S3Config {
 }
 
 /**
- * @deprecated Use S3Config instead
- */
-export type R2Config = S3Config;
-
-/**
  * Validates if S3 configuration is complete and valid
  */
 export function isS3ConfigValid(config: Partial<S3Config>): config is S3Config {
   return !!(config.endpoint && config.access_key && config.secret_key && config.bucket_name);
 }
-
-/**
- * @deprecated Use isS3ConfigValid instead
- */
-export const isR2ConfigValid = isS3ConfigValid;

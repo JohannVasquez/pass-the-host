@@ -1,5 +1,5 @@
 import { IAppConfigurationRepository } from "../../domain/repositories";
-import { R2Config, AppConfig, ConfigSaveResult } from "../../domain/entities";
+import { S3Config, AppConfig, ConfigSaveResult } from "../../domain/entities";
 
 export class LoadConfigUseCase {
   constructor(private repository: IAppConfigurationRepository) {}
@@ -9,11 +9,11 @@ export class LoadConfigUseCase {
   }
 }
 
-export class SaveR2ConfigUseCase {
+export class SaveS3ConfigUseCase {
   constructor(private repository: IAppConfigurationRepository) {}
 
-  async execute(r2Config: R2Config): Promise<ConfigSaveResult> {
-    return this.repository.saveR2Config(r2Config);
+  async execute(s3Config: S3Config): Promise<ConfigSaveResult> {
+    return this.repository.saveS3Config(s3Config);
   }
 }
 

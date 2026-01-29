@@ -1,6 +1,6 @@
 import { injectable } from "inversify";
 import type { IServerLockRepository } from "@server-locking/domain/repositories";
-import type { R2Config } from "@cloud-storage/domain/entities";
+import type { S3Config } from "@cloud-storage/domain/entities";
 import type {
   ServerLock,
   LockCheckResult,
@@ -20,8 +20,8 @@ export class ServerLockRepository implements IServerLockRepository {
     return await window.serverAPI.createLock(serverId, username);
   }
 
-  async readRemoteLock(r2Config: R2Config, serverId: string): Promise<LockCheckResult> {
-    const result = await window.serverAPI.readLock(r2Config, serverId);
+  async readRemoteLock(s3Config: S3Config, serverId: string): Promise<LockCheckResult> {
+    const result = await window.serverAPI.readLock(s3Config, serverId);
 
     if (!result.exists) {
       return { exists: false };
@@ -40,12 +40,12 @@ export class ServerLockRepository implements IServerLockRepository {
     };
   }
 
-  async uploadLock(r2Config: R2Config, serverId: string): Promise<boolean> {
-    return await window.serverAPI.uploadLock(r2Config, serverId);
+  async uploadLock(s3Config: S3Config, serverId: string): Promise<boolean> {
+    return await window.serverAPI.uploadLock(s3Config, serverId);
   }
 
-  async deleteRemoteLock(r2Config: R2Config, serverId: string): Promise<LockOperationResult> {
-    const result = await window.serverAPI.deleteLock(r2Config, serverId);
+  async deleteRemoteLock(s3Config: S3Config, serverId: string): Promise<LockOperationResult> {
+    const result = await window.serverAPI.deleteLock(s3Config, serverId);
     return {
       success: result.success,
       existed: result.existed,

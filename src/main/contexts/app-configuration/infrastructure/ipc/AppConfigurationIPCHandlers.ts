@@ -4,7 +4,7 @@ import { ErrorHandler } from "@shared/infrastructure/error-handler";
 import { TYPES } from "../../application/use-cases/types";
 import {
   LoadConfigUseCase,
-  SaveR2ConfigUseCase,
+  SaveS3ConfigUseCase,
   SaveUsernameUseCase,
   SaveRamConfigUseCase,
   SaveLanguageUseCase,
@@ -23,10 +23,10 @@ export class AppConfigurationIPCHandlers {
     );
 
     ipcMain.handle(
-      "config:save-r2",
-      this.handleIPC("saveR2Config", async (_, r2Config) => {
-        const useCase = this.container.get<SaveR2ConfigUseCase>(TYPES.SaveR2ConfigUseCase);
-        return useCase.execute(r2Config);
+      "config:save-s3",
+      this.handleIPC("saveS3Config", async (_, s3Config) => {
+        const useCase = this.container.get<SaveS3ConfigUseCase>(TYPES.SaveS3ConfigUseCase);
+        return useCase.execute(s3Config);
       }),
     );
 

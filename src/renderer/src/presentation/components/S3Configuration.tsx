@@ -209,6 +209,3 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
     </Accordion>
   );
 };
-
-/** @deprecated Use S3Configuration instead */
-export const R2Configuration = S3Configuration;

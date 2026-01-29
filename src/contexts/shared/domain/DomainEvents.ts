@@ -120,11 +120,11 @@ export class ServerLogReceivedEvent extends BaseDomainEvent {
 // ============================================
 
 export class R2ConfiguredEvent extends BaseDomainEvent {
-  constructor(data: { endpoint: string; bucket: string; region: string }) {
+  constructor(data: { endpoint: string; bucket: string; region?: string }) {
     super();
     this.endpoint = data.endpoint;
     this.bucket = data.bucket;
-    this.region = data.region;
+    this.region = data.region || "auto";
   }
 
   public readonly endpoint: string;

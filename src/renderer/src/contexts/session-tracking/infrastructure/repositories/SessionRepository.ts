@@ -1,6 +1,6 @@
 import { injectable } from "inversify";
 import type { ISessionRepository } from "@session-tracking/domain/repositories";
-import type { R2Config } from "@cloud-storage/domain/entities";
+import type { S3Config } from "@cloud-storage/domain/entities";
 import type { ServerStatistics } from "@session-tracking/domain/entities";
 
 /**
@@ -17,8 +17,8 @@ export class SessionRepository implements ISessionRepository {
     return await window.serverAPI.updateSession(serverId, username);
   }
 
-  async uploadSession(r2Config: R2Config, serverId: string): Promise<boolean> {
-    return await window.serverAPI.uploadSession(r2Config, serverId);
+  async uploadSession(s3Config: S3Config, serverId: string): Promise<boolean> {
+    return await window.serverAPI.uploadSession(s3Config, serverId);
   }
 
   async getStatistics(serverId: string): Promise<ServerStatistics | null> {

@@ -12,7 +12,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import { BarChart as BarChartIcon } from "@mui/icons-material";
-import { R2Configuration } from "./presentation/components/R2Configuration";
+import { S3Configuration } from "./presentation/components/S3Configuration";
 import { ServerControlPanel } from "./presentation/components/ServerControlPanel";
 import { NetworkConfiguration } from "./presentation/components/NetworkConfiguration";
 import { RamConfiguration } from "./presentation/components/RamConfiguration";
@@ -29,11 +29,11 @@ import { CreateServerModal } from "./presentation/components/CreateServerModal";
 import { ServerExistsModal } from "./presentation/components/ServerExistsModal";
 import { DeleteServerModal } from "./presentation/components/DeleteServerModal";
 import { ServerStatus } from "./domain/entities/ServerStatus";
-import { R2Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
+import { S3Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
 import { Server } from "./domain/entities/Server";
-import { R2ServerRepository } from "./infrastructure/repositories/R2ServerRepository";
-import { R2Service } from "./infrastructure/services/R2Service";
+import { S3ServerRepository } from "./infrastructure/repositories/S3ServerRepository";
+import { S3Service } from "./infrastructure/services/S3Service";
 import { useTranslation } from "react-i18next";
 import "./i18n/config";
 
@@ -64,12 +64,14 @@ function App(): React.JSX.Element {
   const [serverStatus, setServerStatus] = React.useState<ServerStatus>(ServerStatus.STOPPED);
   const [servers, setServers] = React.useState<Server[]>([]);
   const [selectedServer, setSelectedServer] = React.useState<string | null>(null);
-  const [isR2Configured, setIsR2Configured] = React.useState<boolean>(false);
+  const [isS3Configured, setIsS3Configured] = React.useState<boolean>(false);
   const [isRcloneReady, setIsRcloneReady] = React.useState<boolean>(false);
   const [rcloneCheckCompleted, setRcloneCheckCompleted] = React.useState<boolean>(false);
   const [configLoaded, setConfigLoaded] = React.useState<boolean>(false);
-  const [r2Config, setR2Config] = React.useState<R2Config>({
+  const [s3Config, setS3Config] = React.useState<S3Config>({
+    provider: "Cloudflare",
     endpoint: "",
+    region: "auto",
     access_key: "",
     secret_key: "",
     bucket_name: "",
@@ -139,11 +141,14 @@ function App(): React.JSX.Element {
         const memMin = parseInt(memMinStr.replace(/[^0-9]/g, ""), 10) || 2;
         const memMax = parseInt(memMaxStr.replace(/[^0-9]/g, ""), 10) || 4;
 
-        setR2Config({
-          endpoint: config.r2?.endpoint || "",
-          access_key: config.r2?.access_key || "",
-          secret_key: config.r2?.secret_key || "",
-          bucket_name: config.r2?.bucket_name || "",
+        const cloudConfig = config.s3;
+        setS3Config({
+          provider: cloudConfig?.provider || "Cloudflare",
+          endpoint: cloudConfig?.endpoint || "",
+          region: cloudConfig?.region || "auto",
+          access_key: cloudConfig?.access_key || "",
+          secret_key: cloudConfig?.secret_key || "",
+          bucket_name: cloudConfig?.bucket_name || "",
         });
 
         setRamConfig({
@@ -272,8 +277,8 @@ function App(): React.JSX.Element {
     loadNetworkInterfaces();
   }, []);
 
-  // Validate R2 configuration
-  const validateR2Config = (config: R2Config): boolean => {
+  // Validate S3 configuration
+  const validateS3Config = (config: S3Config): boolean => {
     return !!(
       config.endpoint &&
       config.access_key &&
@@ -286,7 +291,7 @@ function App(): React.JSX.Element {
     );
   };
 
-  // Check if rclone is installed and verify R2 connection
+  // Check if rclone is installed and verify S3 connection
   React.useEffect(() => {
     // Wait for config to load first
     if (!configLoaded) {
@@ -298,7 +303,7 @@ function App(): React.JSX.Element {
       return;
     }
 
-    const checkRcloneAndR2 = async (): Promise<void> => {
+    const checkRcloneAndS3 = async (): Promise<void> => {
       try {
         // Check if rclone exists
         setLogs((prev) => [
@@ -364,44 +369,39 @@ function App(): React.JSX.Element {
           ]);
         }
 
-        // If R2 is configured, test the connection
+        // If S3 is configured, test the connection
 
-        if (validateR2Config(r2Config)) {
+        if (validateS3Config(s3Config)) {
           setLogs((prev) => [
             ...prev,
             {
               timestamp: new Date(),
-              message: "Testing R2 connection...",
+              message: "Testing cloud storage connection...",
               type: "info",
             },
           ]);
 
-          const connectionSuccess = await window.rclone.testR2Connection({
-            endpoint: r2Config.endpoint,
-            access_key: r2Config.access_key,
-            secret_key: r2Config.secret_key,
-            bucket_name: r2Config.bucket_name,
-          });
+          const connectionSuccess = await window.rclone.testConnection(s3Config);
 
           if (connectionSuccess) {
             setLogs((prev) => [
               ...prev,
               {
                 timestamp: new Date(),
-                message: "R2 connection successful",
+                message: "Cloud storage connection successful",
                 type: "info",
               },
             ]);
             setIsRcloneReady(true);
 
-            // Load servers from R2
-            loadServersFromR2();
+            // Load servers from cloud storage
+            loadServersFromS3();
           } else {
             setLogs((prev) => [
               ...prev,
               {
                 timestamp: new Date(),
-                message: "Failed to connect to R2. Please check your configuration.",
+                message: "Failed to connect to cloud storage. Please check your configuration.",
                 type: "error",
               },
             ]);
@@ -426,50 +426,45 @@ function App(): React.JSX.Element {
       }
     };
 
-    checkRcloneAndR2();
+    checkRcloneAndS3();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configLoaded, rcloneCheckCompleted]);
 
-  // Validate R2 configuration when it changes
+  // Validate S3 configuration when it changes
   React.useEffect(() => {
-    const isValid = validateR2Config(r2Config);
-    setIsR2Configured(isValid);
+    const isValid = validateS3Config(s3Config);
+    setIsS3Configured(isValid);
 
     if (isValid && isRcloneReady) {
-      // Re-test R2 connection when config changes
+      // Re-test S3 connection when config changes
       const testConnection = async (): Promise<void> => {
         setLogs((prev) => [
           ...prev,
           {
             timestamp: new Date(),
-            message: "R2 configuration changed. Testing connection...",
+            message: "Cloud storage configuration changed. Testing connection...",
             type: "info",
           },
         ]);
 
-        const connectionSuccess = await window.rclone.testR2Connection({
-          endpoint: r2Config.endpoint,
-          access_key: r2Config.access_key,
-          secret_key: r2Config.secret_key,
-          bucket_name: r2Config.bucket_name,
-        });
+        const connectionSuccess = await window.rclone.testConnection(s3Config);
 
         if (connectionSuccess) {
           setLogs((prev) => [
             ...prev,
             {
               timestamp: new Date(),
-              message: "R2 connection successful",
+              message: "Cloud storage connection successful",
               type: "info",
             },
           ]);
-          await loadServersFromR2();
+          await loadServersFromS3();
         } else {
           setLogs((prev) => [
             ...prev,
             {
               timestamp: new Date(),
-              message: "Failed to connect to R2. Please check your configuration.",
+              message: "Failed to connect to cloud storage. Please check your configuration.",
               type: "error",
             },
           ]);
@@ -480,7 +475,7 @@ function App(): React.JSX.Element {
       testConnection();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [r2Config, isRcloneReady]);
+  }, [s3Config, isRcloneReady]);
 
   React.useEffect(() => {
     const unsubscribe = window.serverAPI.onStdout((data: string) => {
@@ -503,9 +498,9 @@ function App(): React.JSX.Element {
     };
   }, []);
 
-  // Load servers from R2
-  const loadServersFromR2 = async (): Promise<void> => {
-    if (!validateR2Config(r2Config)) {
+  // Load servers from cloud storage
+  const loadServersFromS3 = async (): Promise<void> => {
+    if (!validateS3Config(s3Config)) {
       return;
     }
 
@@ -514,12 +509,12 @@ function App(): React.JSX.Element {
         ...prev,
         {
           timestamp: new Date(),
-          message: "Loading servers from R2...",
+          message: "Loading servers from cloud storage...",
           type: "info",
         },
       ]);
 
-      const repository = new R2ServerRepository(r2Config);
+      const repository = new S3ServerRepository(s3Config);
       const serverList = await repository.getServers();
 
       setServers(serverList);
@@ -545,18 +540,18 @@ function App(): React.JSX.Element {
     }
   };
 
-  const handleSaveR2Config = async (config: R2Config): Promise<void> => {
-    setR2Config(config);
+  const handleSaveS3Config = async (config: S3Config): Promise<void> => {
+    setS3Config(config);
 
     // Save to config.json
-    const saveSuccess = await window.configAPI.saveR2Config(config);
+    const saveSuccess = await window.configAPI.saveS3Config(config);
 
     if (!saveSuccess) {
       setLogs((prev) => [
         ...prev,
         {
           timestamp: new Date(),
-          message: "Failed to save R2 configuration",
+          message: "Failed to save cloud storage configuration",
           type: "error",
         },
       ]);
@@ -567,21 +562,21 @@ function App(): React.JSX.Element {
       ...prev,
       {
         timestamp: new Date(),
-        message: "R2 configuration saved successfully",
+        message: "Cloud storage configuration saved successfully",
         type: "info",
       },
     ]);
 
     // Validate configuration
-    const isValid = validateR2Config(config);
-    setIsR2Configured(isValid);
+    const isValid = validateS3Config(config);
+    setIsS3Configured(isValid);
 
     if (!isValid) {
       setLogs((prev) => [
         ...prev,
         {
           timestamp: new Date(),
-          message: "R2 configuration is incomplete",
+          message: "Cloud storage configuration is incomplete",
           type: "warning",
         },
       ]);
@@ -593,37 +588,32 @@ function App(): React.JSX.Element {
       ...prev,
       {
         timestamp: new Date(),
-        message: "Testing R2 connection...",
+        message: "Testing cloud storage connection...",
         type: "info",
       },
     ]);
 
-    const connectionSuccess = await window.rclone.testR2Connection({
-      endpoint: config.endpoint,
-      access_key: config.access_key,
-      secret_key: config.secret_key,
-      bucket_name: config.bucket_name,
-    });
+    const connectionSuccess = await window.rclone.testConnection(config);
 
     if (connectionSuccess) {
       setLogs((prev) => [
         ...prev,
         {
           timestamp: new Date(),
-          message: "R2 connection successful",
+          message: "Cloud storage connection successful",
           type: "info",
         },
       ]);
       setIsRcloneReady(true);
 
-      // Load servers from R2
-      await loadServersFromR2();
+      // Load servers from cloud storage
+      await loadServersFromS3();
     } else {
       setLogs((prev) => [
         ...prev,
         {
           timestamp: new Date(),
-          message: "Failed to connect to R2. Please check your configuration.",
+          message: "Failed to connect to cloud storage. Please check your configuration.",
           type: "error",
         },
       ]);
@@ -740,7 +730,7 @@ function App(): React.JSX.Element {
         ...prev,
         { timestamp: new Date(), message: "Checking server lock status...", type: "info" },
       ]);
-      const lockInfo = await window.serverAPI.readLock(r2Config, selectedServer);
+      const lockInfo = await window.serverAPI.readLock(s3Config, selectedServer);
 
       if (lockInfo.exists) {
         setLogs((prev) => [
@@ -766,20 +756,24 @@ function App(): React.JSX.Element {
         { timestamp: new Date(), message: "Checking server files...", type: "info" },
       ]);
 
-      const shouldDownload = await window.serverAPI.shouldDownload(r2Config, selectedServer);
+      const shouldDownload = await window.serverAPI.shouldDownload(s3Config, selectedServer);
 
       if (shouldDownload) {
         setLogs((prev) => [
           ...prev,
-          { timestamp: new Date(), message: "Downloading server files from R2...", type: "info" },
+          {
+            timestamp: new Date(),
+            message: "Downloading server files from cloud storage...",
+            type: "info",
+          },
         ]);
         setIsTransferring(true);
         setTransferType("download");
         setTransferPercent(0);
         setTransferTransferred("0");
         setTransferTotal("0");
-        const r2Service = new R2Service(r2Config);
-        const downloadSuccess = await r2Service.downloadServer(selectedServer);
+        const s3Service = new S3Service(s3Config);
+        const downloadSuccess = await s3Service.downloadServer(selectedServer);
         setIsTransferring(false);
         if (!downloadSuccess) {
           setLogs((prev) => [
@@ -893,20 +887,20 @@ function App(): React.JSX.Element {
         ]);
         setLogs((prev) => [
           ...prev,
-          { timestamp: new Date(), message: "Uploading lock to R2...", type: "info" },
+          { timestamp: new Date(), message: "Uploading lock to cloud storage...", type: "info" },
         ]);
-        const uploadLockSuccess = await window.serverAPI.uploadLock(r2Config, selectedServer);
+        const uploadLockSuccess = await window.serverAPI.uploadLock(s3Config, selectedServer);
         if (uploadLockSuccess) {
           setLogs((prev) => [
             ...prev,
-            { timestamp: new Date(), message: "Lock uploaded to R2", type: "info" },
+            { timestamp: new Date(), message: "Lock uploaded to cloud storage", type: "info" },
           ]);
         } else {
           setLogs((prev) => [
             ...prev,
             {
               timestamp: new Date(),
-              message: "Warning: Failed to upload lock to R2",
+              message: "Warning: Failed to upload lock to cloud storage",
               type: "warning",
             },
           ]);
@@ -1108,25 +1102,25 @@ function App(): React.JSX.Element {
           ]);
         }
       }
-      // Upload server files to R2 before stopping
+      // Upload server files to cloud before stopping
       setTimeout(async () => {
         if (selectedServer) {
           setLogs((prev) => [
             ...prev,
-            { timestamp: new Date(), message: "Deleting lock from R2...", type: "info" },
+            { timestamp: new Date(), message: "Deleting lock from cloud storage...", type: "info" },
           ]);
-          const deleteLockSuccess = await window.serverAPI.deleteLock(r2Config, selectedServer);
+          const deleteLockSuccess = await window.serverAPI.deleteLock(s3Config, selectedServer);
           if (deleteLockSuccess) {
             setLogs((prev) => [
               ...prev,
-              { timestamp: new Date(), message: "Lock deleted from R2", type: "info" },
+              { timestamp: new Date(), message: "Lock deleted from cloud storage", type: "info" },
             ]);
           } else {
             setLogs((prev) => [
               ...prev,
               {
                 timestamp: new Date(),
-                message: "Warning: Failed to delete lock from R2",
+                message: "Warning: Failed to delete lock from cloud storage",
                 type: "warning",
               },
             ]);
@@ -1149,15 +1143,19 @@ function App(): React.JSX.Element {
           }
           setLogs((prev) => [
             ...prev,
-            { timestamp: new Date(), message: "Uploading server files to R2...", type: "info" },
+            {
+              timestamp: new Date(),
+              message: "Uploading server files to cloud storage...",
+              type: "info",
+            },
           ]);
           setIsTransferring(true);
           setTransferType("upload");
           setTransferPercent(0);
           setTransferTransferred("0");
           setTransferTotal("0");
-          const r2Service = new R2Service(r2Config);
-          const uploadSuccess = await r2Service.uploadServer(selectedServer);
+          const s3Service = new S3Service(s3Config);
+          const uploadSuccess = await s3Service.uploadServer(selectedServer);
           setIsTransferring(false);
           if (uploadSuccess) {
             setLogs((prev) => [
@@ -1185,7 +1183,7 @@ function App(): React.JSX.Element {
             );
             if (sessionUpdateSuccess) {
               const sessionUploadSuccess = await window.serverAPI.uploadSession(
-                r2Config,
+                s3Config,
                 selectedServer,
               );
               if (sessionUploadSuccess) {
@@ -1352,7 +1350,7 @@ function App(): React.JSX.Element {
           ...prev,
           {
             timestamp: new Date(),
-            message: "Uploading server to R2...",
+            message: "Uploading server to cloud storage...",
             type: "info",
           },
         ]);
@@ -1363,8 +1361,8 @@ function App(): React.JSX.Element {
         setTransferTransferred("0");
         setTransferTotal("0");
 
-        const r2Service = new R2Service(r2Config);
-        const uploadSuccess = await r2Service.uploadServer(serverName);
+        const s3Service = new S3Service(s3Config);
+        const uploadSuccess = await s3Service.uploadServer(serverName);
 
         setIsTransferring(false);
 
@@ -1373,7 +1371,8 @@ function App(): React.JSX.Element {
             ...prev,
             {
               timestamp: new Date(),
-              message: "Warning: Failed to upload server to R2. You can sync it manually later.",
+              message:
+                "Warning: Failed to upload server to cloud storage. You can sync it manually later.",
               type: "warning",
             },
           ]);
@@ -1382,14 +1381,14 @@ function App(): React.JSX.Element {
             ...prev,
             {
               timestamp: new Date(),
-              message: "Server uploaded to R2 successfully",
+              message: "Server uploaded to cloud storage successfully",
               type: "info",
             },
           ]);
         }
 
-        // Reload servers from R2
-        await loadServersFromR2();
+        // Reload servers from cloud storage
+        await loadServersFromS3();
 
         // Select the newly created server
         setSelectedServer(serverName);
@@ -1437,17 +1436,17 @@ function App(): React.JSX.Element {
     try {
       let anyLockDeleted = false;
 
-      // Delete lock from R2
+      // Delete lock from cloud storage
       setLogs((prev) => [
         ...prev,
         {
           timestamp: new Date(),
-          message: "Checking lock in R2...",
+          message: "Checking lock in cloud storage...",
           type: "info",
         },
       ]);
 
-      const deleteLockResult = await window.serverAPI.deleteLock(r2Config, selectedServer);
+      const deleteLockResult = await window.serverAPI.deleteLock(s3Config, selectedServer);
 
       if (deleteLockResult.success) {
         if (deleteLockResult.existed) {
@@ -1455,7 +1454,7 @@ function App(): React.JSX.Element {
             ...prev,
             {
               timestamp: new Date(),
-              message: "Lock deleted from R2 successfully",
+              message: "Lock deleted from cloud storage successfully",
               type: "info",
             },
           ]);
@@ -1465,7 +1464,7 @@ function App(): React.JSX.Element {
             ...prev,
             {
               timestamp: new Date(),
-              message: "No lock file found in R2",
+              message: "No lock file found in cloud storage",
               type: "info",
             },
           ]);
@@ -1575,7 +1574,7 @@ function App(): React.JSX.Element {
       ...prev,
       {
         timestamp: new Date(),
-        message: `Syncing ${selectedServer} to R2...`,
+        message: `Syncing ${selectedServer} to cloud storage...`,
         type: "info",
       },
     ]);
@@ -1586,8 +1585,8 @@ function App(): React.JSX.Element {
     setTransferTransferred("0");
     setTransferTotal("0");
 
-    const r2Service = new R2Service(r2Config);
-    const uploadSuccess = await r2Service.uploadServer(selectedServer);
+    const s3Service = new S3Service(s3Config);
+    const uploadSuccess = await s3Service.uploadServer(selectedServer);
 
     setIsTransferring(false);
 
@@ -1616,7 +1615,7 @@ function App(): React.JSX.Element {
         username || "Unknown",
       );
       if (sessionUpdateSuccess) {
-        const sessionUploadSuccess = await window.serverAPI.uploadSession(r2Config, selectedServer);
+        const sessionUploadSuccess = await window.serverAPI.uploadSession(s3Config, selectedServer);
         if (sessionUploadSuccess) {
           setLogs((prev) => [
             ...prev,
@@ -1762,23 +1761,23 @@ function App(): React.JSX.Element {
       },
     ]);
 
-    // Delete from R2
+    // Delete from cloud storage
     setLogs((prev) => [
       ...prev,
       {
         timestamp: new Date(),
-        message: "Deleting from R2...",
+        message: "Deleting from cloud storage...",
         type: "info",
       },
     ]);
 
-    const r2Result = await window.serverAPI.deleteFromR2(r2Config, selectedServer);
-    if (!r2Result.success) {
+    const s3Result = await window.serverAPI.deleteFromS3(s3Config, selectedServer);
+    if (!s3Result.success) {
       setLogs((prev) => [
         ...prev,
         {
           timestamp: new Date(),
-          message: `Failed to delete from R2: ${r2Result.error || "Unknown error"}`,
+          message: `Failed to delete from cloud storage: ${s3Result.error || "Unknown error"}`,
           type: "error",
         },
       ]);
@@ -1789,7 +1788,7 @@ function App(): React.JSX.Element {
       ...prev,
       {
         timestamp: new Date(),
-        message: "Deleted from R2 successfully",
+        message: "Deleted from cloud storage successfully",
         type: "info",
       },
     ]);
@@ -1840,8 +1839,8 @@ function App(): React.JSX.Element {
     // Clear selection
     setSelectedServer(null);
 
-    // Reload servers from R2
-    await loadServersFromR2();
+    // Reload servers from cloud storage
+    await loadServersFromS3();
 
     setIsDeleteServerModalOpen(false);
   };
@@ -1932,7 +1931,7 @@ function App(): React.JSX.Element {
               onEditProperties={handleEditProperties}
               onOpenServerFolder={handleOpenServerFolder}
               onDeleteServer={handleDeleteServer}
-              disabled={!isR2Configured || !isRcloneReady}
+              disabled={!isS3Configured || !isRcloneReady}
               serverStartTime={serverStartTime}
               username={username}
             />
@@ -1943,9 +1942,9 @@ function App(): React.JSX.Element {
               disabled={serverStatus !== ServerStatus.STOPPED}
             />
 
-            <R2Configuration
-              config={r2Config}
-              onSave={handleSaveR2Config}
+            <S3Configuration
+              config={s3Config}
+              onSave={handleSaveS3Config}
               disabled={serverStatus !== ServerStatus.STOPPED}
             />
 
