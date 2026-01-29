@@ -15,7 +15,6 @@ import type {
   ForgeJvmArgs,
 } from "../../../../../../src/main/contexts/server-runtime/domain/entities";
 
-// Mock repository factory
 function createMockRepository(): IServerProcessRepository {
   return {
     spawnProcess: vi.fn(),
@@ -28,7 +27,6 @@ function createMockRepository(): IServerProcessRepository {
   };
 }
 
-// Mock ServerProcess
 function createMockServerProcess(serverId: string): ServerProcess {
   return {
     serverId,

@@ -3,7 +3,6 @@ import { ServerProcess } from "../../../../../../src/main/contexts/server-runtim
 import type { ChildProcessWithoutNullStreams } from "child_process";
 import { EventEmitter } from "events";
 
-// Mock ChildProcessWithoutNullStreams
 function createMockProcess(killed: boolean = false): ChildProcessWithoutNullStreams {
   const stdin = {
     write: vi.fn().mockReturnValue(true),

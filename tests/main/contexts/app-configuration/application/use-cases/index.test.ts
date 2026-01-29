@@ -14,7 +14,6 @@ import type {
 } from "../../../../../../src/main/contexts/app-configuration/domain/entities";
 
 describe("App Configuration Use Cases", () => {
-  // Mock repository
   const mockRepository: IAppConfigurationRepository = {
     loadConfig: vi.fn(),
     saveS3Config: vi.fn(),

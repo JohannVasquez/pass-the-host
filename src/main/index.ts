@@ -41,7 +41,6 @@ import { autoUpdater } from "electron-updater";
 import { join } from "path";
 import { electronApp, is } from "@electron-toolkit/utils";
 import { logger } from "@shared/infrastructure/logger";
-
 /**
  * Extended logger interface for electron-updater
  */
@@ -52,13 +51,11 @@ interface UpdaterLogger {
     };
   };
 }
-
 // Configure electron-log for autoUpdater
 autoUpdater.logger = logger.getLog();
 if (autoUpdater.logger && "transports" in autoUpdater.logger) {
   (autoUpdater.logger as unknown as UpdaterLogger).transports.file.level = "info";
 }
-
 // ===== SERVER RUNTIME HANDLERS - MOVED TO CONTEXT =====
 // All server process management has been moved to server-runtime context
 // The following handlers are now registered via ServerRuntimeIPCHandlers:
@@ -68,12 +65,10 @@ if (autoUpdater.logger && "transports" in autoUpdater.logger) {
 // - server:edit-forge-jvm-args
 // - server:read-forge-jvm-args
 // - server:openFolder
-
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 const icon = nativeImage.createFromPath(join(__dirname, "../../resources/icon.png"));
-
 // Auto-updater functions
 function setupAutoUpdater(container: Container): void {
   // Handle update-downloaded event
@@ -82,7 +77,6 @@ function setupAutoUpdater(container: Container): void {
     const loadConfigUseCase = container.get<LoadConfigUseCase>(ConfigTYPES.LoadConfigUseCase);
     const config = await loadConfigUseCase.execute();
     const language = config?.app?.language || "en";
-
     // Messages in different languages
     const messages: {
       [key: string]: {
@@ -109,9 +103,7 @@ function setupAutoUpdater(container: Container): void {
         later: "Más tarde",
       },
     };
-
     const msg = messages[language] || messages["en"];
-
     const dialogOpts = {
       type: "info" as const,
       buttons: [msg.restartNow, msg.later],
@@ -119,7 +111,6 @@ function setupAutoUpdater(container: Container): void {
       message: msg.message,
       detail: msg.detail,
     };
-
     dialog.showMessageBox(dialogOpts).then((returnValue) => {
       if (returnValue.response === 0) {
         // User clicked "Restart now"
@@ -128,60 +119,48 @@ function setupAutoUpdater(container: Container): void {
       }
     });
   });
-
   // Optional: Log update events
   autoUpdater.on("checking-for-update", () => {
     logger.info("Checking for updates...");
   });
-
   autoUpdater.on("update-available", (info) => {
     logger.info("Update available:", info);
   });
-
   autoUpdater.on("update-not-available", (info) => {
     logger.info("Update not available:", info);
   });
-
   autoUpdater.on("error", (err) => {
     logger.error("Error in auto-updater:", err);
   });
-
   autoUpdater.on("download-progress", (progressObj) => {
     logger.info(
       `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}%`,
     );
   });
 }
-
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
     show: false,
     autoHideMenuBar: true,
-
     icon: icon,
-
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       sandbox: false,
     },
   });
-
   mainWindow.on("ready-to-show", () => {
     mainWindow?.show();
-
     // Check for updates when window is ready
     if (!is.dev) {
       autoUpdater.checkForUpdatesAndNotify();
     }
   });
-
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url);
     return { action: "deny" };
   });
-
   mainWindow.on("close", (event) => {
     if (!isQuitting) {
       event.preventDefault();
@@ -189,18 +168,15 @@ function createWindow(): void {
       return;
     }
   });
-
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
   } else {
     mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
   }
 }
-
 // System tray config
 function createTray() {
   tray = new Tray(icon);
-
   const contextMenu = Menu.buildFromTemplate([
     {
       label: "Abrir Pass the host",
@@ -215,23 +191,18 @@ function createTray() {
       },
     },
   ]);
-
   tray.setToolTip("Pass the host");
   tray.setContextMenu(contextMenu);
-
   tray.on("double-click", () => {
     mainWindow?.show();
   });
-
   // Tip: En Windows, a veces prefieren un solo click para abrir
   tray.on("click", () => {
     mainWindow?.show();
   });
 }
-
 // Prevent multiple instances of the app
 const gotTheLock = app.requestSingleInstanceLock();
-
 if (!gotTheLock) {
   // Another instance is already running, quit this one
   logger.warn("Another instance is already running. Quitting...");
@@ -250,7 +221,6 @@ if (!gotTheLock) {
       mainWindow.focus();
     }
   });
-
   // This method will be called when Electron has finished
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
@@ -262,27 +232,19 @@ if (!gotTheLock) {
     logger.info(`Node: ${process.versions.node}`);
     logger.info(`Electron: ${process.versions.electron}`);
     logger.info("=".repeat(60));
-
     // Initialize Inversify container and register all contexts
     const container = initializeMainContainer();
     logger.info("DI Container initialized");
-
     // Set app user model id for windows
     electronApp.setAppUserModelId("com.electron");
-
     createWindow();
     logger.info("Main window created");
-
     createTray();
     logger.info("System tray created");
-
     setupAutoUpdater(container);
     logger.info("Auto-updater configured");
 
-    // IPC test
     ipcMain.on("ping", () => console.debug("pong"));
-
-    // ========== SERVER RUNTIME CONTEXT IPC HANDLERS ==========
     const serverRuntimeIPCHandlers = new ServerRuntimeIPCHandlers(
       container.get(SpawnServerProcessUseCase),
       container.get(SendCommandUseCase),
@@ -292,8 +254,6 @@ if (!gotTheLock) {
       container.get(OpenServerFolderUseCase),
     );
     serverRuntimeIPCHandlers.register();
-
-    // ========== CLOUD STORAGE CONTEXT IPC HANDLERS ==========
     const cloudStorageIPCHandlers = new CloudStorageIPCHandlers(
       container.get(CheckRcloneInstallationUseCase),
       container.get(InstallRcloneUseCase),
@@ -317,33 +277,26 @@ if (!gotTheLock) {
     );
     cloudStorageIPCHandlers.register();
     logger.info("Cloud Storage IPC handlers registered");
-
     // ===== SERVER LIFECYCLE HANDLERS =====
     registerServerLifecycleIPCHandlers(container);
     logger.info("Server Lifecycle IPC handlers registered");
-
     // ===== SYSTEM RESOURCES HANDLERS =====
     registerSystemResourcesIPCHandlers(container);
     logger.info("System Resources IPC handlers registered");
-
     // ===== APP CONFIGURATION HANDLERS =====
     registerAppConfigurationIPCHandlers(container);
     logger.info("App Configuration IPC handlers registered");
-
     logger.info("All IPC handlers registered successfully");
-
     app.on("activate", function () {
       // On macOS it's common to re-create a window in the app when the
       // dock icon is clicked and there are no other windows open.
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
   });
-
   app.on("quit", () => {
     logger.info("Application shutting down");
     logger.info("=".repeat(60));
   });
-
   // Quit when all windows are closed, except on macOS. There, it's common
   // for applications and their menu bar to stay active until the user quits
   // explicitly with Cmd + Q.
@@ -353,6 +306,5 @@ if (!gotTheLock) {
     }
   });
 }
-
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
