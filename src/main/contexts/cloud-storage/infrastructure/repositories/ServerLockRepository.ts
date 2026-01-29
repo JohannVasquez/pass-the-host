@@ -50,14 +50,31 @@ export class ServerLockRepository implements IServerLockRepository {
       const catCommand = `"${rclonePath}" cat ${r2LockPath}`;
       const { stdout } = await execAsync(catCommand, { maxBuffer: 1024 * 1024 });
 
-      const lockContent = JSON.parse(stdout.trim());
+      const content = stdout.trim();
 
-      return {
-        exists: true,
-        username: lockContent.username,
-        startedAt: lockContent.startedAt,
-        timestamp: lockContent.timestamp,
-      };
+      // Handle empty or invalid content - treat as no lock exists
+      if (!content) {
+        return { exists: false };
+      }
+
+      try {
+        const lockContent = JSON.parse(content);
+
+        // Validate lock content has required fields
+        if (!lockContent.username || !lockContent.startedAt) {
+          return { exists: false };
+        }
+
+        return {
+          exists: true,
+          username: lockContent.username,
+          startedAt: lockContent.startedAt,
+          timestamp: lockContent.timestamp,
+        };
+      } catch {
+        // Invalid JSON - treat as corrupted/no lock
+        return { exists: false };
+      }
     } catch (error) {
       // If lock doesn't exist in R2, return non-existent lock (this is expected)
       if (error instanceof Error && error.message.includes("not found")) {
