@@ -8,6 +8,7 @@ import { exec } from "child_process";
 import { IR2ServerRepository } from "../../domain/repositories";
 import { R2Config, ServerInfo, TransferProgress, SessionMetadata } from "../../domain/entities";
 import { RcloneRepository } from "./RcloneRepository";
+import { ExternalServiceError } from "@shared/domain/errors";
 
 const execAsync = promisify(exec);
 
@@ -50,8 +51,10 @@ export class R2ServerRepository implements IR2ServerRepository {
 
       return servers;
     } catch (error) {
-      console.error("Error listing R2 servers:", error);
-      return [];
+      throw new ExternalServiceError(
+        "R2",
+        `Failed to list servers: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -113,8 +116,10 @@ export class R2ServerRepository implements IR2ServerRepository {
 
       return await this.syncWithProgress(rclonePath, r2ServerPath, localServerPath, onProgress);
     } catch (error) {
-      console.error(`Error downloading server ${serverId} from R2:`, error);
-      return false;
+      throw new ExternalServiceError(
+        "R2",
+        `Failed to download server ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -139,8 +144,10 @@ export class R2ServerRepository implements IR2ServerRepository {
 
       return await this.syncWithProgress(rclonePath, localServerPath, r2ServerPath, onProgress);
     } catch (error) {
-      console.error(`Error uploading server ${serverId} to R2:`, error);
-      return false;
+      throw new ExternalServiceError(
+        "R2",
+        `Failed to upload server ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -160,9 +167,10 @@ export class R2ServerRepository implements IR2ServerRepository {
 
       return { success: true };
     } catch (error: unknown) {
-      console.error(`Error deleting server ${serverId} from R2:`, error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      return { success: false, error: errorMessage };
+      throw new ExternalServiceError(
+        "R2",
+        `Failed to delete server ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -218,8 +226,10 @@ export class R2ServerRepository implements IR2ServerRepository {
         return false;
       }
     } catch (error) {
-      console.error(`Error checking if download is needed for ${serverId}:`, error);
-      return true;
+      throw new ExternalServiceError(
+        "R2",
+        `Failed to check if download needed for ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -234,8 +244,8 @@ export class R2ServerRepository implements IR2ServerRepository {
 
       const content = fs.readFileSync(sessionFilePath, "utf-8");
       return JSON.parse(content) as SessionMetadata;
-    } catch (error) {
-      console.error(`Error reading local session for ${serverId}:`, error);
+    } catch {
+      // Expected case: file doesn't exist or can't be parsed
       return null;
     }
   }
@@ -243,7 +253,7 @@ export class R2ServerRepository implements IR2ServerRepository {
   private async detectServerVersionAndType(
     rclonePath: string,
     serverPath: string,
-    serverName: string,
+    _serverName: string,
   ): Promise<{ version: string; type: string }> {
     try {
       const listCommand = `"${rclonePath}" lsf ${serverPath}`;
@@ -317,8 +327,8 @@ export class R2ServerRepository implements IR2ServerRepository {
       }
 
       return { version: "Unknown", type: "unknown" };
-    } catch (error) {
-      console.error(`Error detecting version for ${serverName}:`, error);
+    } catch {
+      // Expected case: unable to detect version, return unknown
       return { version: "Unknown", type: "unknown" };
     }
   }

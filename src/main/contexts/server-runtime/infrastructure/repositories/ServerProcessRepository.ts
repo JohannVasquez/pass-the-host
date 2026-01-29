@@ -5,6 +5,7 @@ import * as path from "path";
 import { app, shell } from "electron";
 import { IServerProcessRepository } from "../../domain/repositories";
 import { ServerProcess, ServerRuntimeConfig, ForgeJvmArgs } from "../../domain/entities";
+import { ProcessError, FileSystemError, NotFoundError } from "@shared/domain/errors";
 
 @injectable()
 export class ServerProcessRepository implements IServerProcessRepository {
@@ -17,12 +18,12 @@ export class ServerProcessRepository implements IServerProcessRepository {
     onStderr?: (data: string) => void,
     onClose?: (code: number | null) => void,
   ): Promise<ServerProcess> {
-    return new Promise((resolve, reject) => {
-      try {
-        if (this.serverProcesses.has(serverId)) {
-          return reject(new Error("Server process already running"));
-        }
+    if (this.serverProcesses.has(serverId)) {
+      throw new ProcessError(`Server process already running for ${serverId}`);
+    }
 
+    return new Promise((resolve) => {
+      try {
         // Auto accept EULA if enabled
         if (config.autoAcceptEula !== false) {
           const eulaPath = path.join(config.workingDir, "eula.txt");
@@ -62,8 +63,10 @@ export class ServerProcessRepository implements IServerProcessRepository {
         });
 
         resolve(serverProcess);
-      } catch (e) {
-        reject(e);
+      } catch (error) {
+        throw new ProcessError(
+          `Failed to spawn server process for ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
     });
   }
@@ -88,25 +91,24 @@ export class ServerProcessRepository implements IServerProcessRepository {
   }
 
   async readForgeJvmArgs(serverId: string): Promise<ForgeJvmArgs | null> {
+    const serverPath = this.getServerPath(serverId);
+
+    // Determine which run script to parse based on platform
+    const isWindows = process.platform === "win32";
+    const runScriptPath = path.join(serverPath, isWindows ? "run.bat" : "run.sh");
+
+    // Expected case: run script doesn't exist (not a Forge server)
+    if (!fs.existsSync(runScriptPath)) {
+      return null;
+    }
+
     try {
-      const serverPath = this.getServerPath(serverId);
-
-      // Determine which run script to parse based on platform
-      const isWindows = process.platform === "win32";
-      const runScriptPath = path.join(serverPath, isWindows ? "run.bat" : "run.sh");
-
-      if (!fs.existsSync(runScriptPath)) {
-        console.error(`Run script not found: ${runScriptPath}`);
-        return null;
-      }
-
       const runScriptContent = fs.readFileSync(runScriptPath, "utf-8");
 
       // Find all @filename.txt references in the run script
       const argFileMatches = runScriptContent.match(/@[^\s%]+\.txt/g);
 
       if (!argFileMatches || argFileMatches.length === 0) {
-        console.error("No argument files found in run script");
         return null;
       }
 
@@ -118,7 +120,6 @@ export class ServerProcessRepository implements IServerProcessRepository {
         const argFilePath = path.join(serverPath, argFileName);
 
         if (!fs.existsSync(argFilePath)) {
-          console.error(`Argument file not found: ${argFilePath}`);
           continue;
         }
 
@@ -137,49 +138,55 @@ export class ServerProcessRepository implements IServerProcessRepository {
       }
 
       return allArgs.length > 0 ? { allArgs } : null;
-    } catch (e) {
-      console.error("Error reading Forge JVM args:", e);
-      return null;
+    } catch (error) {
+      // Unexpected error reading/parsing Forge args
+      throw new FileSystemError(
+        `Failed to read Forge JVM args for server ${serverId}`,
+        "FILESYSTEM_ERROR",
+        error,
+      );
     }
   }
 
   async editForgeJvmArgs(serverId: string, minRam: number, maxRam: number): Promise<boolean> {
-    try {
-      const serverPath = this.getServerPath(serverId);
-      const jvmArgsPath = path.join(serverPath, "user_jvm_args.txt");
-      if (!fs.existsSync(jvmArgsPath)) return false;
+    const serverPath = this.getServerPath(serverId);
+    const jvmArgsPath = path.join(serverPath, "user_jvm_args.txt");
 
+    // Expected case: file doesn't exist
+    if (!fs.existsSync(jvmArgsPath)) {
+      return false;
+    }
+
+    try {
       let content = fs.readFileSync(jvmArgsPath, "utf-8");
       content = content.replace(/-Xms\d+[mMgG]/g, `-Xms${minRam}G`);
       content = content.replace(/-Xmx\d+[mMgG]/g, `-Xmx${maxRam}G`);
       fs.writeFileSync(jvmArgsPath, content, "utf-8");
       return true;
-    } catch {
-      return false;
+    } catch (error) {
+      // Unexpected error reading/writing file
+      throw new FileSystemError(
+        `Failed to edit Forge JVM args for server ${serverId}`,
+        "FILESYSTEM_ERROR",
+        error,
+      );
     }
   }
 
   async openServerFolder(serverId: string): Promise<boolean> {
-    try {
-      const serverPath = this.getServerPath(serverId);
+    const serverPath = this.getServerPath(serverId);
 
-      if (!fs.existsSync(serverPath)) {
-        console.error(`Server folder does not exist: ${serverPath}`);
-        return false;
-      }
-
-      const errorMessage = await shell.openPath(serverPath);
-
-      if (errorMessage) {
-        console.error("Error opening folder:", errorMessage);
-        return false;
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Exception opening folder:", error);
-      return false;
+    if (!fs.existsSync(serverPath)) {
+      throw new NotFoundError("Server folder", serverId);
     }
+
+    const errorMessage = await shell.openPath(serverPath);
+
+    if (errorMessage) {
+      throw new FileSystemError(`Failed to open server folder: ${errorMessage}`);
+    }
+
+    return true;
   }
 
   private getServerPath(serverId: string): string {

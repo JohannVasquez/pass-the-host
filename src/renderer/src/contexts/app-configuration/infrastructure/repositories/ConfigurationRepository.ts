@@ -9,38 +9,18 @@ import type { AppConfig } from "@app-configuration/domain/entities";
 @injectable()
 export class ConfigurationRepository implements IConfigurationRepository {
   async loadConfig(): Promise<AppConfig | null> {
-    try {
-      return await window.configAPI.loadConfig();
-    } catch (error) {
-      console.error("Error loading configuration:", error);
-      return null;
-    }
+    return await window.configAPI.loadConfig();
   }
 
   async saveUsername(username: string): Promise<boolean> {
-    try {
-      return await window.configAPI.saveUsername(username);
-    } catch (error) {
-      console.error("Error saving username:", error);
-      return false;
-    }
+    return await window.configAPI.saveUsername(username);
   }
 
   async saveLanguage(language: string): Promise<boolean> {
-    try {
-      return await window.configAPI.saveLanguage(language);
-    } catch (error) {
-      console.error("Error saving language:", error);
-      return false;
-    }
+    return await window.configAPI.saveLanguage(language);
   }
 
   async saveRamConfig(minRam: number, maxRam: number): Promise<boolean> {
-    try {
-      return await window.configAPI.saveRamConfig(minRam, maxRam);
-    } catch (error) {
-      console.error("Error saving RAM configuration:", error);
-      return false;
-    }
+    return await window.configAPI.saveRamConfig(minRam, maxRam);
   }
 }

@@ -9,34 +9,17 @@ import type { SystemMemory, NetworkInterface } from "@system-resources/domain/en
 @injectable()
 export class SystemResourcesRepository implements ISystemResourcesRepository {
   async getTotalMemoryGB(): Promise<number> {
-    try {
-      return await window.systemAPI.getTotalMemoryGB();
-    } catch (error) {
-      console.error("Error getting total memory:", error);
-      return 0;
-    }
+    return await window.systemAPI.getTotalMemoryGB();
   }
 
   async getSystemMemory(): Promise<SystemMemory> {
-    try {
-      const totalGB = await window.systemAPI.getTotalMemoryGB();
-      return {
-        totalGB,
-      };
-    } catch (error) {
-      console.error("Error getting system memory:", error);
-      return {
-        totalGB: 0,
-      };
-    }
+    const totalGB = await window.systemAPI.getTotalMemoryGB();
+    return {
+      totalGB,
+    };
   }
 
   async getNetworkInterfaces(): Promise<NetworkInterface[]> {
-    try {
-      return await window.systemAPI.getNetworkInterfaces();
-    } catch (error) {
-      console.error("Error getting network interfaces:", error);
-      return [];
-    }
+    return await window.systemAPI.getNetworkInterfaces();
   }
 }

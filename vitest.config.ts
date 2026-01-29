@@ -13,7 +13,6 @@ export default defineConfig({
       reportsDirectory: "./coverage",
       include: [
         "src/contexts/shared/**/*.ts",
-        "src/main/config.ts",
         "src/main/contexts/**/application/**/*.ts",
         "src/main/contexts/**/domain/entities/ServerProcess.ts",
       ],

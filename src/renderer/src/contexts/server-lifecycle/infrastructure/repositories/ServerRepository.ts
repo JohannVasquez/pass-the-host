@@ -19,29 +19,19 @@ export class ServerRepository implements IServerRepository {
    * Gets all available servers from local and R2 storage
    */
   async getServers(): Promise<Server[]> {
-    try {
-      const servers = await (
-        window as Window & { api?: { r2?: { listServers: () => Promise<RawServerData[]> } } }
-      ).api?.r2?.listServers();
-      if (!servers) return [];
-      return servers.map((server: RawServerData) => this.mapToServer(server));
-    } catch (error) {
-      console.error("Error getting servers:", error);
-      return [];
-    }
+    const servers = await (
+      window as Window & { api?: { r2?: { listServers: () => Promise<RawServerData[]> } } }
+    ).api?.r2?.listServers();
+    if (!servers) return [];
+    return servers.map((server: RawServerData) => this.mapToServer(server));
   }
 
   /**
    * Gets a specific server by ID
    */
   async getServerById(id: string): Promise<Server | null> {
-    try {
-      const servers = await this.getServers();
-      return servers.find((server) => server.id === id) || null;
-    } catch (error) {
-      console.error(`Error getting server ${id}:`, error);
-      return null;
-    }
+    const servers = await this.getServers();
+    return servers.find((server) => server.id === id) || null;
   }
 
   /**
@@ -91,18 +81,13 @@ export class ServerRepository implements IServerRepository {
    * Checks if a server exists locally
    */
   async serverExistsLocally(serverId: string): Promise<boolean> {
-    try {
-      const api = (
-        window as Window & {
-          api?: { server?: { existsLocally: (id: string) => Promise<boolean> } };
-        }
-      ).api;
-      const exists = await api?.server?.existsLocally(serverId);
-      return exists ?? false;
-    } catch (error) {
-      console.error(`Error checking if server ${serverId} exists:`, error);
-      return false;
-    }
+    const api = (
+      window as Window & {
+        api?: { server?: { existsLocally: (id: string) => Promise<boolean> } };
+      }
+    ).api;
+    const exists = await api?.server?.existsLocally(serverId);
+    return exists ?? false;
   }
 
   /**
