@@ -6,13 +6,15 @@ export abstract class CustomError extends Error {
   public readonly code: string;
   public readonly statusCode: number;
   public readonly isOperational: boolean;
+  public readonly cause?: Error;
 
-  constructor(message: string, code: string, statusCode: number = 500) {
+  constructor(message: string, code: string, statusCode: number = 500, cause?: unknown) {
     super(message);
     this.name = this.constructor.name;
     this.code = code;
     this.statusCode = statusCode;
     this.isOperational = true;
+    this.cause = cause instanceof Error ? cause : undefined;
 
     // Maintains proper stack trace for where our error was thrown (only available on V8)
     if (Error.captureStackTrace) {
@@ -55,8 +57,8 @@ export class NetworkError extends CustomError {
  * File system error - thrown when file operations fail
  */
 export class FileSystemError extends CustomError {
-  constructor(message: string, code: string = "FILESYSTEM_ERROR") {
-    super(message, code, 500);
+  constructor(message: string, code: string = "FILESYSTEM_ERROR", cause?: unknown) {
+    super(message, code, 500, cause);
   }
 }
 
@@ -91,7 +93,12 @@ export class ProcessError extends CustomError {
  * External service error - thrown when external services (R2, rclone) fail
  */
 export class ExternalServiceError extends CustomError {
-  constructor(service: string, message: string, code: string = "EXTERNAL_SERVICE_ERROR") {
-    super(`${service}: ${message}`, code, 502);
+  constructor(
+    service: string,
+    message: string,
+    code: string = "EXTERNAL_SERVICE_ERROR",
+    cause?: unknown,
+  ) {
+    super(`${service}: ${message}`, code, 502, cause);
   }
 }

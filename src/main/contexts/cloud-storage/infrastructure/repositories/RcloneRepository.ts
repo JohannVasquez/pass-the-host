@@ -7,6 +7,7 @@ import { execSync, exec } from "child_process";
 import { promisify } from "util";
 import { IRcloneRepository } from "../../domain/repositories";
 import { R2Config } from "../../domain/entities";
+import { FileSystemError, ExternalServiceError } from "@shared/domain/errors";
 
 const execAsync = promisify(exec);
 
@@ -23,8 +24,9 @@ export class RcloneRepository implements IRcloneRepository {
     try {
       return fs.existsSync(this.RCLONE_PATH);
     } catch (error) {
-      console.error("Error checking rclone installation:", error);
-      return false;
+      throw new FileSystemError(
+        `Failed to check rclone installation at ${this.RCLONE_PATH}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -94,12 +96,14 @@ export class RcloneRepository implements IRcloneRepository {
         onProgress?.("Rclone installed successfully");
         return true;
       } else {
-        throw new Error("Rclone executable not found in extracted files");
+        throw new FileSystemError("Rclone executable not found in extracted files");
       }
     } catch (error) {
-      console.error("Error installing rclone:", error);
       onProgress?.("Failed to install rclone");
-      return false;
+      throw new ExternalServiceError(
+        "Rclone",
+        `Failed to install: ${error instanceof Error ? error.message : String(error)}`,
+      );
     } finally {
       this.isInstalling = false;
     }
@@ -112,8 +116,10 @@ export class RcloneRepository implements IRcloneRepository {
       await execAsync(testCommand);
       return true;
     } catch (error) {
-      console.error("Error testing R2 connection:", error);
-      return false;
+      throw new ExternalServiceError(
+        "R2",
+        `Connection test failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

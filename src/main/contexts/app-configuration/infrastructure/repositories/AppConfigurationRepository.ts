@@ -4,6 +4,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { IAppConfigurationRepository } from "../../domain/repositories";
 import { R2Config, AppConfig, ConfigSaveResult } from "../../domain/entities";
+import { FileSystemError } from "@shared/domain/errors";
 
 @injectable()
 export class AppConfigurationRepository implements IAppConfigurationRepository {
@@ -66,9 +67,13 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
           },
         };
       }
-    } catch (e) {
-      console.error("Failed to load config:", e);
-      return null;
+    } catch (error) {
+      // Unexpected error reading/parsing config file
+      throw new FileSystemError(
+        `Failed to read or parse config file: ${configPath}`,
+        "FILESYSTEM_ERROR",
+        error,
+      );
     }
   }
 
@@ -108,9 +113,9 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
 
       return { success: true };
     } catch (e: unknown) {
-      const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Failed to save R2 config:", e);
-      return { success: false, error: errorMessage };
+      throw new FileSystemError(
+        `Failed to save R2 config: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
 
@@ -160,9 +165,9 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
 
       return { success: true };
     } catch (e: unknown) {
-      const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Failed to save username:", e);
-      return { success: false, error: errorMessage };
+      throw new FileSystemError(
+        `Failed to save username: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
 
@@ -221,9 +226,9 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
 
       return { success: true };
     } catch (e: unknown) {
-      const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Failed to save RAM config:", e);
-      return { success: false, error: errorMessage };
+      throw new FileSystemError(
+        `Failed to save RAM config: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
 
@@ -257,9 +262,9 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
 
       return { success: true };
     } catch (e: unknown) {
-      const errorMessage = e instanceof Error ? e.message : String(e);
-      console.error("Failed to save language:", e);
-      return { success: false, error: errorMessage };
+      throw new FileSystemError(
+        `Failed to save language: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
 }

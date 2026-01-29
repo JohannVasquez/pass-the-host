@@ -52,44 +52,24 @@ export class ServerRuntimeRepository implements IServerRuntimeRepository {
   }
 
   async startServer(serverId: string): Promise<void> {
-    try {
-      const win = window as unknown as WindowWithServerAPI;
-      await win.serverAPI?.startServer?.(serverId);
-    } catch (error) {
-      console.error(`Error starting server ${serverId}:`, error);
-      throw error;
-    }
+    const win = window as unknown as WindowWithServerAPI;
+    await win.serverAPI?.startServer?.(serverId);
   }
 
   async stopServer(serverId: string): Promise<void> {
-    try {
-      const win = window as unknown as WindowWithServerAPI;
-      await win.serverAPI?.stopServer?.(serverId);
-    } catch (error) {
-      console.error(`Error stopping server ${serverId}:`, error);
-      throw error;
-    }
+    const win = window as unknown as WindowWithServerAPI;
+    await win.serverAPI?.stopServer?.(serverId);
   }
 
   async executeCommand(serverId: string, command: string): Promise<void> {
-    try {
-      const win = window as unknown as WindowWithServerAPI;
-      await win.serverAPI?.sendCommand?.(serverId, command);
-    } catch (error) {
-      console.error(`Error executing command on ${serverId}:`, error);
-      throw error;
-    }
+    const win = window as unknown as WindowWithServerAPI;
+    await win.serverAPI?.sendCommand?.(serverId, command);
   }
 
   async getServerStatus(serverId: string): Promise<ServerStatus> {
-    try {
-      const win = window as unknown as WindowWithServerAPI;
-      const status = await win.serverAPI?.getStatus?.(serverId);
-      return status!;
-    } catch (error) {
-      console.error(`Error getting status for ${serverId}:`, error);
-      throw error;
-    }
+    const win = window as unknown as WindowWithServerAPI;
+    const status = await win.serverAPI?.getStatus?.(serverId);
+    return status!;
   }
 
   onLogReceived(callback: (log: LogEntry) => void): () => void {

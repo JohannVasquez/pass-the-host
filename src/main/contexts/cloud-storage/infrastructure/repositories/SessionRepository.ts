@@ -7,6 +7,7 @@ import { exec } from "child_process";
 import { ISessionRepository } from "../../domain/repositories";
 import { R2Config, SessionMetadata, ServerStatistics, SessionEntry } from "../../domain/entities";
 import { RcloneRepository } from "./RcloneRepository";
+import { FileSystemError, ExternalServiceError, NotFoundError } from "@shared/domain/errors";
 
 const execAsync = promisify(exec);
 
@@ -15,15 +16,14 @@ export class SessionRepository implements ISessionRepository {
   constructor(private rcloneRepository: RcloneRepository) {}
 
   createSession(serverId: string, username: string): boolean {
+    const serverPath = this.getLocalServerPath(serverId);
+    const sessionFilePath = path.join(serverPath, "session.json");
+
+    if (!fs.existsSync(serverPath)) {
+      throw new NotFoundError("Server directory", serverId);
+    }
+
     try {
-      const serverPath = this.getLocalServerPath(serverId);
-      const sessionFilePath = path.join(serverPath, "session.json");
-
-      if (!fs.existsSync(serverPath)) {
-        console.error(`Server directory not found: ${serverPath}`);
-        return false;
-      }
-
       const now = new Date();
       const nowTimestamp = Date.now();
 
@@ -53,34 +53,34 @@ export class SessionRepository implements ISessionRepository {
       console.log(`[SESSION] Created session metadata for ${serverId} (user: ${username})`);
       return true;
     } catch (error) {
-      console.error(`Error creating session metadata for ${serverId}:`, error);
-      return false;
+      throw new FileSystemError(
+        `Failed to create session for ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
   updateSession(serverId: string, username: string): boolean {
+    const serverPath = this.getLocalServerPath(serverId);
+    const sessionFilePath = path.join(serverPath, "session.json");
+
+    if (!fs.existsSync(serverPath)) {
+      throw new NotFoundError("Server directory", serverId);
+    }
+
+    if (!fs.existsSync(sessionFilePath)) {
+      throw new NotFoundError("Session file", sessionFilePath);
+    }
+
+    let sessionData: SessionMetadata;
     try {
-      const serverPath = this.getLocalServerPath(serverId);
-      const sessionFilePath = path.join(serverPath, "session.json");
+      sessionData = JSON.parse(fs.readFileSync(sessionFilePath, "utf-8"));
+    } catch (error) {
+      throw new FileSystemError(
+        `Failed to parse session.json for ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
 
-      if (!fs.existsSync(serverPath)) {
-        console.error(`Server directory not found: ${serverPath}`);
-        return false;
-      }
-
-      if (!fs.existsSync(sessionFilePath)) {
-        console.error(`Session file not found: ${sessionFilePath}`);
-        return false;
-      }
-
-      let sessionData: SessionMetadata;
-      try {
-        sessionData = JSON.parse(fs.readFileSync(sessionFilePath, "utf-8"));
-      } catch {
-        console.error(`Could not parse session.json`);
-        return false;
-      }
-
+    try {
       const now = Date.now();
       const nowISO = new Date().toISOString();
 
@@ -108,34 +108,36 @@ export class SessionRepository implements ISessionRepository {
       fs.writeFileSync(sessionFilePath, JSON.stringify(sessionData, null, 2), "utf-8");
       return true;
     } catch (error) {
-      console.error(`Error updating session metadata for ${serverId}:`, error);
-      return false;
+      throw new FileSystemError(
+        `Failed to update session for ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
   async uploadSession(config: R2Config, serverId: string): Promise<boolean> {
+    await this.rcloneRepository.ensureConfigured(config);
+
+    const rclonePath = this.rcloneRepository.getRclonePath();
+    const configName = this.rcloneRepository.getRcloneConfigName();
+    const serverPath = this.getLocalServerPath(serverId);
+    const sessionFilePath = path.join(serverPath, "session.json");
+    const r2SessionPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/session.json`;
+
+    if (!fs.existsSync(sessionFilePath)) {
+      throw new NotFoundError("Session file", sessionFilePath);
+    }
+
     try {
-      await this.rcloneRepository.ensureConfigured(config);
-
-      const rclonePath = this.rcloneRepository.getRclonePath();
-      const configName = this.rcloneRepository.getRcloneConfigName();
-      const serverPath = this.getLocalServerPath(serverId);
-      const sessionFilePath = path.join(serverPath, "session.json");
-      const r2SessionPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/session.json`;
-
-      if (!fs.existsSync(sessionFilePath)) {
-        console.error(`Session file not found: ${sessionFilePath}`);
-        return false;
-      }
-
       const copyCommand = `"${rclonePath}" copyto "${sessionFilePath}" ${r2SessionPath}`;
       await execAsync(copyCommand, { maxBuffer: 1024 * 1024 });
 
       console.log(`[SESSION] Uploaded session metadata to R2 for ${serverId}`);
       return true;
     } catch (error) {
-      console.error(`Error uploading session metadata for ${serverId}:`, error);
-      return false;
+      throw new ExternalServiceError(
+        "R2",
+        `Failed to upload session for ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -157,25 +159,35 @@ export class SessionRepository implements ISessionRepository {
         sessions: sessionData.sessions,
       };
     } catch (error) {
-      console.error(`Error getting server statistics for ${serverId}:`, error);
-      return null;
+      // Unexpected error reading/parsing R2 session data
+      throw new ExternalServiceError(
+        "R2",
+        `Failed to get statistics for server ${serverId}`,
+        "EXTERNAL_SERVICE_ERROR",
+        error,
+      );
     }
   }
 
   readLocalSession(serverId: string): SessionMetadata | null {
+    const serverPath = this.getLocalServerPath(serverId);
+    const sessionFilePath = path.join(serverPath, "session.json");
+
+    // Expected case: file doesn't exist
+    if (!fs.existsSync(sessionFilePath)) {
+      return null;
+    }
+
     try {
-      const serverPath = this.getLocalServerPath(serverId);
-      const sessionFilePath = path.join(serverPath, "session.json");
-
-      if (!fs.existsSync(sessionFilePath)) {
-        return null;
-      }
-
       const content = fs.readFileSync(sessionFilePath, "utf-8");
       return JSON.parse(content) as SessionMetadata;
     } catch (error) {
-      console.error(`Error reading local session metadata for ${serverId}:`, error);
-      return null;
+      // Unexpected error reading/parsing session file
+      throw new FileSystemError(
+        `Failed to read or parse session file for server ${serverId}`,
+        "FILESYSTEM_ERROR",
+        error,
+      );
     }
   }
 

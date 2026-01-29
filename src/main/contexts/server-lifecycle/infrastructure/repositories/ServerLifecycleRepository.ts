@@ -9,6 +9,7 @@ import {
   ServerCreationResult,
   ServerDeletionResult,
 } from "../../domain/entities";
+import { FileSystemError, NetworkError, ValidationError } from "@shared/domain/errors";
 
 interface MinecraftVersionInfo {
   id: string;
@@ -26,8 +27,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
 
       // Check if server already exists
       if (fs.existsSync(serverPath)) {
-        console.error(`Server ${config.serverName} already exists`);
-        return { success: false, error: "Server already exists" };
+        throw new ValidationError(`Server ${config.serverName} already exists`);
       }
 
       // Create server directory
@@ -52,9 +52,12 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
       onProgress?.("Server created successfully!");
       return { success: true };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.error(`Error creating server ${config.serverName}:`, error);
-      return { success: false, error: errorMessage };
+      if (error instanceof ValidationError || error instanceof NetworkError) {
+        throw error;
+      }
+      throw new FileSystemError(
+        `Failed to create server ${config.serverName}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -71,9 +74,9 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
 
       return { success: true };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.error(`Error deleting server ${serverId} locally:`, error);
-      return { success: false, error: errorMessage };
+      throw new FileSystemError(
+        `Failed to delete server ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
