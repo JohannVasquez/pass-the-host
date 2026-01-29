@@ -24,7 +24,7 @@ export default defineConfig({
         "**/infrastructure/ipc/**",
         "**/repositories/**",
         "**/domain/entities/AppConfig.ts",
-        "**/domain/entities/R2Config.ts",
+        "**/domain/entities/S3Config.ts",
         "**/domain/entities/ServerLock.ts",
         "**/domain/entities/SessionMetadata.ts",
         "**/domain/entities/ServerConfig.ts",

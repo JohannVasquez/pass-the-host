@@ -5,7 +5,7 @@ import * as fs from "fs";
 import { promisify } from "util";
 import { exec } from "child_process";
 import { ISessionRepository } from "../../domain/repositories";
-import { R2Config, SessionMetadata, ServerStatistics, SessionEntry } from "../../domain/entities";
+import { S3Config, SessionMetadata, ServerStatistics, SessionEntry } from "../../domain/entities";
 import { RcloneRepository } from "./RcloneRepository";
 import { FileSystemError, ExternalServiceError, NotFoundError } from "@shared/domain/errors";
 
@@ -114,7 +114,7 @@ export class SessionRepository implements ISessionRepository {
     }
   }
 
-  async uploadSession(config: R2Config, serverId: string): Promise<boolean> {
+  async uploadSession(config: S3Config, serverId: string): Promise<boolean> {
     await this.rcloneRepository.ensureConfigured(config);
 
     const rclonePath = this.rcloneRepository.getRclonePath();

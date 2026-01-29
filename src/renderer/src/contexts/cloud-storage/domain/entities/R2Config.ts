@@ -1,24 +1,35 @@
 /**
- * R2 Configuration entity
- * Represents Cloudflare R2 storage credentials and settings
+ * S3-Compatible Provider Types
  */
-export interface R2Config {
+export type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other";
+
+/**
+ * S3-Compatible Storage Configuration entity
+ * Represents S3-compatible storage credentials and settings
+ * Supports: AWS S3, Cloudflare R2, MinIO, Backblaze B2, DigitalOcean Spaces
+ */
+export interface S3Config {
+  provider?: S3Provider;
   endpoint: string;
   access_key: string;
   secret_key: string;
   bucket_name: string;
-  region: string;
+  region?: string;
 }
 
 /**
- * Validates if R2 configuration is complete and valid
+ * @deprecated Use S3Config instead
  */
-export function isR2ConfigValid(config: Partial<R2Config>): config is R2Config {
-  return !!(
-    config.endpoint &&
-    config.access_key &&
-    config.secret_key &&
-    config.bucket_name &&
-    config.region
-  );
+export type R2Config = S3Config;
+
+/**
+ * Validates if S3 configuration is complete and valid
+ */
+export function isS3ConfigValid(config: Partial<S3Config>): config is S3Config {
+  return !!(config.endpoint && config.access_key && config.secret_key && config.bucket_name);
 }
+
+/**
+ * @deprecated Use isS3ConfigValid instead
+ */
+export const isR2ConfigValid = isS3ConfigValid;

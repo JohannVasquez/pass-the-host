@@ -1,18 +1,18 @@
 import { injectable } from "inversify";
 import type { ICloudStorageRepository } from "@cloud-storage/domain/repositories";
-import type { R2Config, RemoteServer, TransferProgress } from "@cloud-storage/domain/entities";
+import type { S3Config, RemoteServer, TransferProgress } from "@cloud-storage/domain/entities";
 
 /**
  * Cloud Storage Repository implementation using rclone IPC
- * Communicates with the main process for R2 operations
+ * Communicates with the main process for S3-compatible storage operations
  */
 @injectable()
 export class CloudStorageRepository implements ICloudStorageRepository {
-  async testConnection(config: R2Config): Promise<boolean> {
-    return await window.rclone.testR2Connection(config);
+  async testConnection(config: S3Config): Promise<boolean> {
+    return await window.rclone.testConnection(config);
   }
 
-  async listServers(config: R2Config): Promise<RemoteServer[]> {
+  async listServers(config: S3Config): Promise<RemoteServer[]> {
     const servers = await window.rclone.listServers(config);
     return servers.map((server) => ({
       id: server.id,
@@ -23,7 +23,7 @@ export class CloudStorageRepository implements ICloudStorageRepository {
   }
 
   async downloadServer(
-    config: R2Config,
+    config: S3Config,
     serverId: string,
     onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean> {
@@ -48,7 +48,7 @@ export class CloudStorageRepository implements ICloudStorageRepository {
   }
 
   async uploadServer(
-    config: R2Config,
+    config: S3Config,
     serverId: string,
     onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean> {
@@ -72,10 +72,10 @@ export class CloudStorageRepository implements ICloudStorageRepository {
     return result;
   }
 
-  async deleteServer(_config: R2Config, _serverId: string): Promise<boolean> {
+  async deleteServer(_config: S3Config, _serverId: string): Promise<boolean> {
     // Note: deleteServerFromR2 not available in current IPC API
     // This would need to be implemented in the main process
-    console.warn("Delete server from R2 not yet implemented in IPC API");
+    console.warn("Delete server from cloud storage not yet implemented in IPC API");
     return false;
   }
 }

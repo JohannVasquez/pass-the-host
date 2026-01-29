@@ -5,18 +5,18 @@ import * as fs from "fs";
 import { spawn } from "child_process";
 import { promisify } from "util";
 import { exec } from "child_process";
-import { IR2ServerRepository } from "../../domain/repositories";
-import { R2Config, ServerInfo, TransferProgress, SessionMetadata } from "../../domain/entities";
+import { IS3ServerRepository } from "../../domain/repositories";
+import { S3Config, ServerInfo, TransferProgress, SessionMetadata } from "../../domain/entities";
 import { RcloneRepository } from "./RcloneRepository";
 import { ExternalServiceError } from "@shared/domain/errors";
 
 const execAsync = promisify(exec);
 
 @injectable()
-export class R2ServerRepository implements IR2ServerRepository {
+export class S3ServerRepository implements IS3ServerRepository {
   constructor(private rcloneRepository: RcloneRepository) {}
 
-  async listServers(config: R2Config): Promise<ServerInfo[]> {
+  async listServers(config: S3Config): Promise<ServerInfo[]> {
     try {
       await this.rcloneRepository.ensureConfigured(config);
 
@@ -52,14 +52,14 @@ export class R2ServerRepository implements IR2ServerRepository {
       return servers;
     } catch (error) {
       throw new ExternalServiceError(
-        "R2",
+        "S3",
         `Failed to list servers: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
 
   async downloadServer(
-    config: R2Config,
+    config: S3Config,
     serverId: string,
     onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean> {
@@ -70,7 +70,7 @@ export class R2ServerRepository implements IR2ServerRepository {
       const configName = this.rcloneRepository.getRcloneConfigName();
       const localServersDir = path.join(app.getPath("userData"), "servers");
       const localServerPath = path.join(localServersDir, serverId);
-      const r2ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
+      const s3ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
 
       if (!fs.existsSync(localServersDir)) fs.mkdirSync(localServersDir, { recursive: true });
 
@@ -111,20 +111,20 @@ export class R2ServerRepository implements IR2ServerRepository {
         fs.mkdirSync(localServerPath, { recursive: true });
       }
 
-      console.log(`[RCLONE] Starting download from ${r2ServerPath} to ${localServerPath}`);
+      console.log(`[RCLONE] Starting download from ${s3ServerPath} to ${localServerPath}`);
       onProgress?.({ percent: 0, transferred: "0 B", total: "0 B" });
 
-      return await this.syncWithProgress(rclonePath, r2ServerPath, localServerPath, onProgress);
+      return await this.syncWithProgress(rclonePath, s3ServerPath, localServerPath, onProgress);
     } catch (error) {
       throw new ExternalServiceError(
-        "R2",
+        "S3",
         `Failed to download server ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
 
   async uploadServer(
-    config: R2Config,
+    config: S3Config,
     serverId: string,
     onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean> {
@@ -135,24 +135,24 @@ export class R2ServerRepository implements IR2ServerRepository {
       const configName = this.rcloneRepository.getRcloneConfigName();
       const localServersDir = path.join(app.getPath("userData"), "servers");
       const localServerPath = path.join(localServersDir, serverId);
-      const r2ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
+      const s3ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
 
       if (!fs.existsSync(localServerPath)) return false;
 
-      console.log(`[RCLONE] Starting upload from ${localServerPath} to ${r2ServerPath}`);
+      console.log(`[RCLONE] Starting upload from ${localServerPath} to ${s3ServerPath}`);
       onProgress?.({ percent: 0, transferred: "0 B", total: "0 B" });
 
-      return await this.syncWithProgress(rclonePath, localServerPath, r2ServerPath, onProgress);
+      return await this.syncWithProgress(rclonePath, localServerPath, s3ServerPath, onProgress);
     } catch (error) {
       throw new ExternalServiceError(
-        "R2",
+        "S3",
         `Failed to upload server ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
 
   async deleteServer(
-    config: R2Config,
+    config: S3Config,
     serverId: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
@@ -160,21 +160,21 @@ export class R2ServerRepository implements IR2ServerRepository {
 
       const rclonePath = this.rcloneRepository.getRclonePath();
       const configName = this.rcloneRepository.getRcloneConfigName();
-      const r2ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
+      const s3ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
 
-      const deleteCommand = `"${rclonePath}" purge ${r2ServerPath}`;
+      const deleteCommand = `"${rclonePath}" purge ${s3ServerPath}`;
       await execAsync(deleteCommand, { maxBuffer: 1024 * 1024 });
 
       return { success: true };
     } catch (error: unknown) {
       throw new ExternalServiceError(
-        "R2",
+        "S3",
         `Failed to delete server ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
 
-  async shouldDownloadServer(config: R2Config, serverId: string): Promise<boolean> {
+  async shouldDownloadServer(config: S3Config, serverId: string): Promise<boolean> {
     try {
       // Read local session directly instead of using SessionRepository
       const localSession = this.readLocalSession(serverId);
@@ -186,17 +186,17 @@ export class R2ServerRepository implements IR2ServerRepository {
       await this.rcloneRepository.ensureConfigured(config);
       const rclonePath = this.rcloneRepository.getRclonePath();
       const configName = this.rcloneRepository.getRcloneConfigName();
-      const r2SessionPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/session.json`;
-      const catCommand = `"${rclonePath}" cat ${r2SessionPath}`;
+      const s3SessionPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/session.json`;
+      const catCommand = `"${rclonePath}" cat ${s3SessionPath}`;
 
-      let r2Session = null;
+      let s3Session = null;
       try {
         const { stdout } = await execAsync(catCommand, { maxBuffer: 1024 * 1024 });
-        r2Session = JSON.parse(stdout.trim());
-        console.log(`[SESSION] R2 session for ${serverId}:`, JSON.stringify(r2Session, null, 2));
+        s3Session = JSON.parse(stdout.trim());
+        console.log(`[SESSION] S3 session for ${serverId}:`, JSON.stringify(s3Session, null, 2));
       } catch {
-        // File doesn't exist in R2
-        console.log(`[SESSION] No R2 session file found for ${serverId}`);
+        // File doesn't exist in S3
+        console.log(`[SESSION] No S3 session file found for ${serverId}`);
       }
 
       if (!localSession) {
@@ -204,30 +204,30 @@ export class R2ServerRepository implements IR2ServerRepository {
         return true;
       }
 
-      if (!r2Session) {
-        console.log(`[SESSION] No R2 session found for ${serverId}, using local files`);
+      if (!s3Session) {
+        console.log(`[SESSION] No S3 session found for ${serverId}, using local files`);
         return false;
       }
 
       const localTimestamp = localSession.lastPlayedTimestamp;
-      const r2Timestamp = r2Session.lastPlayedTimestamp;
+      const s3Timestamp = s3Session.lastPlayedTimestamp;
 
-      console.log(`[SESSION] Comparing timestamps - Local: ${localTimestamp}, R2: ${r2Timestamp}`);
+      console.log(`[SESSION] Comparing timestamps - Local: ${localTimestamp}, S3: ${s3Timestamp}`);
 
-      if (r2Timestamp > localTimestamp) {
+      if (s3Timestamp > localTimestamp) {
         console.log(
-          `[SESSION] R2 files are newer for ${serverId} (R2: ${r2Session.lastPlayed}, Local: ${localSession.lastPlayed}), download needed`,
+          `[SESSION] S3 files are newer for ${serverId} (S3: ${s3Session.lastPlayed}, Local: ${localSession.lastPlayed}), download needed`,
         );
         return true;
       } else {
         console.log(
-          `[SESSION] Local files are up to date for ${serverId} (R2: ${r2Session.lastPlayed}, Local: ${localSession.lastPlayed}), skipping download`,
+          `[SESSION] Local files are up to date for ${serverId} (S3: ${s3Session.lastPlayed}, Local: ${localSession.lastPlayed}), skipping download`,
         );
         return false;
       }
     } catch (error) {
       throw new ExternalServiceError(
-        "R2",
+        "S3",
         `Failed to check if download needed for ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }

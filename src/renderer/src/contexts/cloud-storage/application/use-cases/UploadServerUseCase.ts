@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
 import type { ICloudStorageRepository } from "@cloud-storage/domain/repositories";
-import type { R2Config, TransferProgress } from "@cloud-storage/domain/entities";
+import type { S3Config, TransferProgress } from "@cloud-storage/domain/entities";
 import { CLOUD_STORAGE_TYPES } from "@shared/di";
 import { EventBus } from "@shared/infrastructure/event-bus";
 import {
@@ -12,7 +12,7 @@ import {
 
 /**
  * Upload Server Use Case
- * Uploads a server from local storage to R2
+ * Uploads a server from local storage to S3-compatible storage
  */
 @injectable()
 export class UploadServerUseCase {
@@ -23,7 +23,7 @@ export class UploadServerUseCase {
     private repository: ICloudStorageRepository,
   ) {}
 
-  async execute(config: R2Config, serverId: string): Promise<boolean> {
+  async execute(config: S3Config, serverId: string): Promise<boolean> {
     this.eventBus.publish(new ServerUploadStartedEvent({ serverId }));
 
     try {

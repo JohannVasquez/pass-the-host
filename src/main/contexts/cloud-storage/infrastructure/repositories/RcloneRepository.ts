@@ -6,7 +6,7 @@ import * as https from "https";
 import { execSync, exec } from "child_process";
 import { promisify } from "util";
 import { IRcloneRepository } from "../../domain/repositories";
-import { R2Config } from "../../domain/entities";
+import { S3Config, S3Provider } from "../../domain/entities";
 import { FileSystemError, ExternalServiceError } from "@shared/domain/errors";
 
 const execAsync = promisify(exec);
@@ -18,7 +18,26 @@ export class RcloneRepository implements IRcloneRepository {
   private readonly RCLONE_DIR = path.join(app.getPath("userData"), "rclone");
   private readonly RCLONE_EXECUTABLE = process.platform === "win32" ? "rclone.exe" : "rclone";
   private readonly RCLONE_PATH = path.join(this.RCLONE_DIR, this.RCLONE_EXECUTABLE);
-  private readonly RCLONE_CONFIG_NAME = "pass-the-host-r2";
+  private readonly RCLONE_CONFIG_NAME = "pass-the-host-s3";
+
+  // Map S3Provider to rclone provider string
+  private getProviderString(provider: S3Provider): string {
+    switch (provider) {
+      case "AWS":
+        return "AWS";
+      case "Cloudflare":
+        return "Cloudflare";
+      case "MinIO":
+        return "Minio";
+      case "Backblaze":
+        return "Backblaze";
+      case "DigitalOcean":
+        return "DigitalOcean";
+      case "Other":
+      default:
+        return "Other";
+    }
+  }
 
   async checkInstallation(): Promise<boolean> {
     try {
@@ -109,7 +128,7 @@ export class RcloneRepository implements IRcloneRepository {
     }
   }
 
-  async testConnection(config: R2Config): Promise<boolean> {
+  async testConnection(config: S3Config): Promise<boolean> {
     try {
       await this.ensureConfigured(config);
       const testCommand = `"${this.RCLONE_PATH}" lsd ${this.RCLONE_CONFIG_NAME}:${config.bucket_name}`;
@@ -117,14 +136,28 @@ export class RcloneRepository implements IRcloneRepository {
       return true;
     } catch (error) {
       throw new ExternalServiceError(
-        "R2",
+        "S3",
         `Connection test failed: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
 
-  async ensureConfigured(config: R2Config): Promise<void> {
-    const configCommand = `"${this.RCLONE_PATH}" config create ${this.RCLONE_CONFIG_NAME} s3 provider=Cloudflare access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${config.endpoint} acl=private --non-interactive`;
+  async ensureConfigured(config: S3Config): Promise<void> {
+    const providerStr = this.getProviderString(config.provider);
+
+    // Build rclone config command based on provider
+    let configCommand: string;
+
+    if (config.provider === "AWS") {
+      // AWS S3 uses region-based endpoints
+      configCommand = `"${this.RCLONE_PATH}" config create ${this.RCLONE_CONFIG_NAME} s3 provider=${providerStr} access_key_id=${config.access_key} secret_access_key=${config.secret_key} region=${config.region || "us-east-1"} acl=private --non-interactive`;
+    } else if (config.provider === "MinIO") {
+      // MinIO requires endpoint
+      configCommand = `"${this.RCLONE_PATH}" config create ${this.RCLONE_CONFIG_NAME} s3 provider=${providerStr} access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${config.endpoint} region=${config.region || "us-east-1"} acl=private --non-interactive`;
+    } else {
+      // Cloudflare R2, Backblaze, DigitalOcean, Other - use endpoint
+      configCommand = `"${this.RCLONE_PATH}" config create ${this.RCLONE_CONFIG_NAME} s3 provider=${providerStr} access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${config.endpoint} region=${config.region || "auto"} acl=private --non-interactive`;
+    }
 
     try {
       await execAsync(configCommand);

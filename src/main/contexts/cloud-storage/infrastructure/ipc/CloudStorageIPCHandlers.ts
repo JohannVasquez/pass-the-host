@@ -21,7 +21,7 @@ import {
   ReadServerPortUseCase,
   WriteServerPortUseCase,
 } from "../../application/use-cases";
-import type { R2Config } from "../../domain/entities";
+import type { S3Config } from "../../domain/entities";
 
 export class CloudStorageIPCHandlers {
   constructor(
@@ -82,17 +82,26 @@ export class CloudStorageIPCHandlers {
       }),
     );
 
+    // Support both legacy and new channel names for S3 connection test
     ipcMain.handle(
-      "rclone:test-r2-connection",
-      this.handleIPC("testR2Connection", async (_event, config: R2Config) => {
+      "rclone:test-s3-connection",
+      this.handleIPC("testS3Connection", async (_event, config: S3Config) => {
         return await this.testR2ConnectionUseCase.execute(config);
       }),
     );
 
-    // R2 Server handlers
+    // Legacy channel for backward compatibility
+    ipcMain.handle(
+      "rclone:test-r2-connection",
+      this.handleIPC("testR2Connection", async (_event, config: S3Config) => {
+        return await this.testR2ConnectionUseCase.execute(config);
+      }),
+    );
+
+    // S3 Server handlers
     ipcMain.handle(
       "rclone:list-servers",
-      this.handleIPC("listR2Servers", async (_event, config: R2Config) => {
+      this.handleIPC("listServers", async (_event, config: S3Config) => {
         return await this.listR2ServersUseCase.execute(config);
       }),
     );
@@ -101,7 +110,7 @@ export class CloudStorageIPCHandlers {
       "rclone:download-server",
       this.handleIPC(
         "downloadServer",
-        async (event: IpcMainInvokeEvent, config: R2Config, serverId: string) => {
+        async (event: IpcMainInvokeEvent, config: S3Config, serverId: string) => {
           const progressCallback = (progress: {
             percent: number;
             transferred: string;
@@ -118,7 +127,7 @@ export class CloudStorageIPCHandlers {
       "rclone:upload-server",
       this.handleIPC(
         "uploadServer",
-        async (event: IpcMainInvokeEvent, config: R2Config, serverId: string) => {
+        async (event: IpcMainInvokeEvent, config: S3Config, serverId: string) => {
           const progressCallback = (progress: {
             percent: number;
             transferred: string;
@@ -131,16 +140,25 @@ export class CloudStorageIPCHandlers {
       ),
     );
 
+    // Support both legacy and new channel names for S3 delete
+    ipcMain.handle(
+      "server:delete-from-s3",
+      this.handleIPC("deleteFromS3", async (_event, config: S3Config, serverId: string) => {
+        return await this.deleteServerFromR2UseCase.execute(config, serverId);
+      }),
+    );
+
+    // Legacy channel for backward compatibility
     ipcMain.handle(
       "server:delete-from-r2",
-      this.handleIPC("deleteFromR2", async (_event, config: R2Config, serverId: string) => {
+      this.handleIPC("deleteFromR2", async (_event, config: S3Config, serverId: string) => {
         return await this.deleteServerFromR2UseCase.execute(config, serverId);
       }),
     );
 
     ipcMain.handle(
       "server:should-download",
-      this.handleIPC("shouldDownload", async (_event, config: R2Config, serverId: string) => {
+      this.handleIPC("shouldDownload", async (_event, config: S3Config, serverId: string) => {
         return await this.shouldDownloadServerUseCase.execute(config, serverId);
       }),
     );
@@ -155,21 +173,21 @@ export class CloudStorageIPCHandlers {
 
     ipcMain.handle(
       "server:read-server-lock",
-      this.handleIPC("readLock", async (_event, r2Config: R2Config, serverId: string) => {
-        return await this.readServerLockUseCase.execute(r2Config, serverId);
+      this.handleIPC("readLock", async (_event, s3Config: S3Config, serverId: string) => {
+        return await this.readServerLockUseCase.execute(s3Config, serverId);
       }),
     );
 
     ipcMain.handle(
       "server:upload-lock",
-      this.handleIPC("uploadLock", async (_event, config: R2Config, serverId: string) => {
+      this.handleIPC("uploadLock", async (_event, config: S3Config, serverId: string) => {
         return await this.uploadServerLockUseCase.execute(config, serverId);
       }),
     );
 
     ipcMain.handle(
       "server:delete-lock",
-      this.handleIPC("deleteLock", async (_event, config: R2Config, serverId: string) => {
+      this.handleIPC("deleteLock", async (_event, config: S3Config, serverId: string) => {
         return await this.deleteServerLockUseCase.execute(config, serverId);
       }),
     );
@@ -198,7 +216,7 @@ export class CloudStorageIPCHandlers {
 
     ipcMain.handle(
       "server:upload-session",
-      this.handleIPC("uploadSession", async (_event, config: R2Config, serverId: string) => {
+      this.handleIPC("uploadSession", async (_event, config: S3Config, serverId: string) => {
         return await this.uploadSessionUseCase.execute(config, serverId);
       }),
     );

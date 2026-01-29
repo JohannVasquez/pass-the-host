@@ -22,15 +22,15 @@ import {
 } from "../../../../../../src/main/contexts/cloud-storage/application/use-cases";
 import type {
   IRcloneRepository,
-  IR2ServerRepository,
+  IS3ServerRepository,
   IServerLockRepository,
   ISessionRepository,
   IServerPropertiesRepository,
 } from "../../../../../../src/main/contexts/cloud-storage/domain/repositories";
 import type {
-  R2Config,
+  S3Config,
   ServerInfo,
-} from "../../../../../../src/main/contexts/cloud-storage/domain/entities/R2Config";
+} from "../../../../../../src/main/contexts/cloud-storage/domain/entities/S3Config";
 import type { ServerLock } from "../../../../../../src/main/contexts/cloud-storage/domain/entities/ServerLock";
 import type { ServerStatistics } from "../../../../../../src/main/contexts/cloud-storage/domain/entities/SessionMetadata";
 
@@ -43,7 +43,7 @@ function createMockRcloneRepository(): IRcloneRepository {
   };
 }
 
-function createMockR2ServerRepository(): IR2ServerRepository {
+function createMockS3ServerRepository(): IS3ServerRepository {
   return {
     listServers: vi.fn(),
     downloadServer: vi.fn(),
@@ -80,10 +80,12 @@ function createMockServerPropertiesRepository(): IServerPropertiesRepository {
   };
 }
 
-// Helper to create test R2Config
-function createTestR2Config(): R2Config {
+// Helper to create test S3Config
+function createTestS3Config(): S3Config {
   return {
+    provider: "Cloudflare",
     endpoint: "https://test.r2.cloudflarestorage.com",
+    region: "auto",
     access_key: "test_access_key",
     secret_key: "test_secret_key",
     bucket_name: "test-bucket",
@@ -165,7 +167,7 @@ describe("TestR2ConnectionUseCase", () => {
   });
 
   it("should return true when connection is successful", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     (repository.testConnection as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
     const result = await useCase.execute(config);
@@ -175,7 +177,7 @@ describe("TestR2ConnectionUseCase", () => {
   });
 
   it("should return false when connection fails", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     (repository.testConnection as ReturnType<typeof vi.fn>).mockResolvedValue(false);
 
     const result = await useCase.execute(config);
@@ -187,16 +189,16 @@ describe("TestR2ConnectionUseCase", () => {
 // ========== R2 SERVER USE CASES ==========
 
 describe("ListR2ServersUseCase", () => {
-  let repository: IR2ServerRepository;
+  let repository: IS3ServerRepository;
   let useCase: ListR2ServersUseCase;
 
   beforeEach(() => {
-    repository = createMockR2ServerRepository();
+    repository = createMockS3ServerRepository();
     useCase = new ListR2ServersUseCase(repository);
   });
 
   it("should list all servers from R2", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     const servers: ServerInfo[] = [
       { id: "server-1", name: "Server 1", version: "1.20.4", type: "vanilla" },
       { id: "server-2", name: "Server 2", version: "1.20.1", type: "forge" },
@@ -212,7 +214,7 @@ describe("ListR2ServersUseCase", () => {
   });
 
   it("should return empty array when no servers exist", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     (repository.listServers as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 
     const result = await useCase.execute(config);
@@ -222,16 +224,16 @@ describe("ListR2ServersUseCase", () => {
 });
 
 describe("DownloadServerFromR2UseCase", () => {
-  let repository: IR2ServerRepository;
+  let repository: IS3ServerRepository;
   let useCase: DownloadServerFromR2UseCase;
 
   beforeEach(() => {
-    repository = createMockR2ServerRepository();
+    repository = createMockS3ServerRepository();
     useCase = new DownloadServerFromR2UseCase(repository);
   });
 
   it("should download server successfully", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     (repository.downloadServer as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
     const result = await useCase.execute(config, "server-1");
@@ -241,7 +243,7 @@ describe("DownloadServerFromR2UseCase", () => {
   });
 
   it("should pass progress callback to repository", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     const onProgress = vi.fn();
     (repository.downloadServer as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
@@ -251,7 +253,7 @@ describe("DownloadServerFromR2UseCase", () => {
   });
 
   it("should return false when download fails", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     (repository.downloadServer as ReturnType<typeof vi.fn>).mockResolvedValue(false);
 
     const result = await useCase.execute(config, "server-1");
@@ -261,16 +263,16 @@ describe("DownloadServerFromR2UseCase", () => {
 });
 
 describe("UploadServerToR2UseCase", () => {
-  let repository: IR2ServerRepository;
+  let repository: IS3ServerRepository;
   let useCase: UploadServerToR2UseCase;
 
   beforeEach(() => {
-    repository = createMockR2ServerRepository();
+    repository = createMockS3ServerRepository();
     useCase = new UploadServerToR2UseCase(repository);
   });
 
   it("should upload server successfully", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     (repository.uploadServer as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
     const result = await useCase.execute(config, "server-1");
@@ -280,7 +282,7 @@ describe("UploadServerToR2UseCase", () => {
   });
 
   it("should pass progress callback to repository", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     const onProgress = vi.fn();
     (repository.uploadServer as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
@@ -291,16 +293,16 @@ describe("UploadServerToR2UseCase", () => {
 });
 
 describe("DeleteServerFromR2UseCase", () => {
-  let repository: IR2ServerRepository;
+  let repository: IS3ServerRepository;
   let useCase: DeleteServerFromR2UseCase;
 
   beforeEach(() => {
-    repository = createMockR2ServerRepository();
+    repository = createMockS3ServerRepository();
     useCase = new DeleteServerFromR2UseCase(repository);
   });
 
   it("should delete server successfully", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     (repository.deleteServer as ReturnType<typeof vi.fn>).mockResolvedValue({ success: true });
 
     const result = await useCase.execute(config, "server-1");
@@ -311,7 +313,7 @@ describe("DeleteServerFromR2UseCase", () => {
   });
 
   it("should return error when deletion fails", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     (repository.deleteServer as ReturnType<typeof vi.fn>).mockResolvedValue({
       success: false,
       error: "Server not found",
@@ -325,16 +327,16 @@ describe("DeleteServerFromR2UseCase", () => {
 });
 
 describe("ShouldDownloadServerUseCase", () => {
-  let repository: IR2ServerRepository;
+  let repository: IS3ServerRepository;
   let useCase: ShouldDownloadServerUseCase;
 
   beforeEach(() => {
-    repository = createMockR2ServerRepository();
+    repository = createMockS3ServerRepository();
     useCase = new ShouldDownloadServerUseCase(repository);
   });
 
   it("should return true when server needs download", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     (repository.shouldDownloadServer as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
     const result = await useCase.execute(config, "server-1");
@@ -344,7 +346,7 @@ describe("ShouldDownloadServerUseCase", () => {
   });
 
   it("should return false when server is up to date", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     (repository.shouldDownloadServer as ReturnType<typeof vi.fn>).mockResolvedValue(false);
 
     const result = await useCase.execute(config, "server-1");
@@ -392,7 +394,7 @@ describe("ReadServerLockUseCase", () => {
   });
 
   it("should read existing lock", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     const lock: ServerLock = {
       exists: true,
       username: "player123",
@@ -410,7 +412,7 @@ describe("ReadServerLockUseCase", () => {
   });
 
   it("should return non-existent lock", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     const lock: ServerLock = { exists: false };
 
     (repository.readLock as ReturnType<typeof vi.fn>).mockResolvedValue(lock);
@@ -431,7 +433,7 @@ describe("UploadServerLockUseCase", () => {
   });
 
   it("should upload lock successfully", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     (repository.uploadLock as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
     const result = await useCase.execute(config, "server-1");
@@ -451,7 +453,7 @@ describe("DeleteServerLockUseCase", () => {
   });
 
   it("should delete existing lock", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     (repository.deleteLock as ReturnType<typeof vi.fn>).mockResolvedValue({
       success: true,
       existed: true,
@@ -464,7 +466,7 @@ describe("DeleteServerLockUseCase", () => {
   });
 
   it("should handle non-existent lock deletion", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     (repository.deleteLock as ReturnType<typeof vi.fn>).mockResolvedValue({
       success: true,
       existed: false,
@@ -550,7 +552,7 @@ describe("UploadSessionUseCase", () => {
   });
 
   it("should upload session successfully", async () => {
-    const config = createTestR2Config();
+    const config = createTestS3Config();
     (repository.uploadSession as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
     const result = await useCase.execute(config, "server-1");

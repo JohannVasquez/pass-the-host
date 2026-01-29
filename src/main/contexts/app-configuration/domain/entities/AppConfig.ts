@@ -1,13 +1,12 @@
-export interface R2Config {
-  accountId?: string;
-  accessKeyId?: string;
-  secretAccessKey?: string;
-  bucketName?: string;
+export type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other";
+
+export interface S3Config {
+  provider?: S3Provider;
   endpoint?: string;
+  region?: string;
   access_key?: string;
   secret_key?: string;
   bucket_name?: string;
-  region?: string;
 }
 
 export interface ServerConfig {
@@ -26,7 +25,7 @@ export interface AppSettings {
 }
 
 export interface AppConfig {
-  r2?: R2Config;
+  s3?: S3Config;
   server?: ServerConfig;
   app?: AppSettings;
 }

@@ -1,39 +1,75 @@
 import { describe, it, expect } from "vitest";
 import type {
-  R2Config,
+  S3Config,
   ServerInfo,
   TransferProgress,
-} from "../../../../../../src/main/contexts/cloud-storage/domain/entities/R2Config";
+} from "../../../../../../src/main/contexts/cloud-storage/domain/entities/S3Config";
 
-describe("R2Config", () => {
+describe("S3Config", () => {
   describe("interface", () => {
-    it("should create an R2 config with all required properties", () => {
-      const config: R2Config = {
+    it("should create an S3 config with all required properties", () => {
+      const config: S3Config = {
+        provider: "Cloudflare",
         endpoint: "https://xxxx.r2.cloudflarestorage.com",
         access_key: "access_key_123",
         secret_key: "secret_key_456",
         bucket_name: "my-bucket",
+        region: "auto",
       };
 
+      expect(config.provider).toBe("Cloudflare");
       expect(config.endpoint).toBe("https://xxxx.r2.cloudflarestorage.com");
       expect(config.access_key).toBe("access_key_123");
       expect(config.secret_key).toBe("secret_key_456");
       expect(config.bucket_name).toBe("my-bucket");
+      expect(config.region).toBe("auto");
+    });
+
+    it("should support AWS S3 provider", () => {
+      const config: S3Config = {
+        provider: "AWS",
+        endpoint: "https://s3.us-east-1.amazonaws.com",
+        access_key: "key",
+        secret_key: "secret",
+        bucket_name: "bucket",
+        region: "us-east-1",
+      };
+
+      expect(config.provider).toBe("AWS");
+      expect(config.endpoint).toContain("amazonaws.com");
+    });
+
+    it("should support MinIO provider", () => {
+      const config: S3Config = {
+        provider: "MinIO",
+        endpoint: "http://localhost:9000",
+        access_key: "key",
+        secret_key: "secret",
+        bucket_name: "bucket",
+        region: "us-east-1",
+      };
+
+      expect(config.provider).toBe("MinIO");
+      expect(config.endpoint).toContain("localhost");
     });
 
     it("should support different endpoint formats", () => {
-      const config1: R2Config = {
+      const config1: S3Config = {
+        provider: "Cloudflare",
         endpoint: "https://account-id.r2.cloudflarestorage.com",
         access_key: "key",
         secret_key: "secret",
         bucket_name: "bucket",
+        region: "auto",
       };
 
-      const config2: R2Config = {
+      const config2: S3Config = {
+        provider: "Other",
         endpoint: "https://custom-endpoint.example.com",
         access_key: "key",
         secret_key: "secret",
         bucket_name: "bucket",
+        region: "us-east-1",
       };
 
       expect(config1.endpoint).toContain("r2.cloudflarestorage.com");

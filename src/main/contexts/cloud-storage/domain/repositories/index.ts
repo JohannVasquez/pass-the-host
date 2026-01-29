@@ -1,4 +1,4 @@
-import { R2Config, ServerInfo, TransferProgress } from "../entities/R2Config";
+import { S3Config, ServerInfo, TransferProgress } from "../entities/S3Config";
 import { ServerLock } from "../entities/ServerLock";
 import { SessionMetadata, ServerStatistics } from "../entities/SessionMetadata";
 
@@ -14,44 +14,44 @@ export interface IRcloneRepository {
   install(onProgress?: (message: string) => void): Promise<boolean>;
 
   /**
-   * Test R2 connection
+   * Test S3-compatible storage connection
    */
-  testConnection(config: R2Config): Promise<boolean>;
+  testConnection(config: S3Config): Promise<boolean>;
 }
 
-export interface IR2ServerRepository {
+export interface IS3ServerRepository {
   /**
-   * List all servers in R2
+   * List all servers in S3-compatible storage
    */
-  listServers(config: R2Config): Promise<ServerInfo[]>;
+  listServers(config: S3Config): Promise<ServerInfo[]>;
 
   /**
-   * Download server from R2
+   * Download server from S3-compatible storage
    */
   downloadServer(
-    config: R2Config,
+    config: S3Config,
     serverId: string,
     onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean>;
 
   /**
-   * Upload server to R2
+   * Upload server to S3-compatible storage
    */
   uploadServer(
-    config: R2Config,
+    config: S3Config,
     serverId: string,
     onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean>;
 
   /**
-   * Delete server from R2
+   * Delete server from S3-compatible storage
    */
-  deleteServer(config: R2Config, serverId: string): Promise<{ success: boolean; error?: string }>;
+  deleteServer(config: S3Config, serverId: string): Promise<{ success: boolean; error?: string }>;
 
   /**
    * Check if server should be downloaded (compares timestamps)
    */
-  shouldDownloadServer(config: R2Config, serverId: string): Promise<boolean>;
+  shouldDownloadServer(config: S3Config, serverId: string): Promise<boolean>;
 }
 
 export interface IServerLockRepository {
@@ -61,19 +61,19 @@ export interface IServerLockRepository {
   createLock(serverId: string, username: string): boolean;
 
   /**
-   * Read server lock from R2
+   * Read server lock from S3-compatible storage
    */
-  readLock(config: R2Config, serverId: string): Promise<ServerLock>;
+  readLock(config: S3Config, serverId: string): Promise<ServerLock>;
 
   /**
-   * Upload lock file to R2
+   * Upload lock file to S3-compatible storage
    */
-  uploadLock(config: R2Config, serverId: string): Promise<boolean>;
+  uploadLock(config: S3Config, serverId: string): Promise<boolean>;
 
   /**
-   * Delete lock file from R2
+   * Delete lock file from S3-compatible storage
    */
-  deleteLock(config: R2Config, serverId: string): Promise<{ success: boolean; existed: boolean }>;
+  deleteLock(config: S3Config, serverId: string): Promise<{ success: boolean; existed: boolean }>;
 
   /**
    * Delete local lock file
@@ -93,9 +93,9 @@ export interface ISessionRepository {
   updateSession(serverId: string, username: string): boolean;
 
   /**
-   * Upload session metadata to R2
+   * Upload session metadata to S3-compatible storage
    */
-  uploadSession(config: R2Config, serverId: string): Promise<boolean>;
+  uploadSession(config: S3Config, serverId: string): Promise<boolean>;
 
   /**
    * Get server statistics

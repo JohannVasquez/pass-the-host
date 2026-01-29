@@ -1,13 +1,13 @@
 import { Container } from "inversify";
 import {
   IRcloneRepository,
-  IR2ServerRepository,
+  IS3ServerRepository,
   IServerLockRepository,
   ISessionRepository,
   IServerPropertiesRepository,
 } from "../domain/repositories";
 import { RcloneRepository } from "../infrastructure/repositories/RcloneRepository";
-import { R2ServerRepository } from "../infrastructure/repositories/R2ServerRepository";
+import { S3ServerRepository } from "../infrastructure/repositories/S3ServerRepository";
 import { ServerLockRepository } from "../infrastructure/repositories/ServerLockRepository";
 import { SessionRepository } from "../infrastructure/repositories/SessionRepository";
 import { ServerPropertiesRepository } from "../infrastructure/repositories/ServerPropertiesRepository";
@@ -39,12 +39,12 @@ export function configureCloudStorageContext(container: Container): void {
   container.bind<IRcloneRepository>(TYPES.RcloneRepository).to(RcloneRepository).inSingletonScope();
 
   container
-    .bind<IR2ServerRepository>(TYPES.R2ServerRepository)
+    .bind<IS3ServerRepository>(TYPES.S3ServerRepository)
     .toDynamicValue(() => {
       const rcloneRepo = container.get<IRcloneRepository>(
         TYPES.RcloneRepository,
       ) as RcloneRepository;
-      return new R2ServerRepository(rcloneRepo);
+      return new S3ServerRepository(rcloneRepo);
     })
     .inSingletonScope();
 
@@ -91,30 +91,30 @@ export function configureCloudStorageContext(container: Container): void {
   });
 
   container.bind<ListR2ServersUseCase>(ListR2ServersUseCase).toDynamicValue(() => {
-    return new ListR2ServersUseCase(container.get<IR2ServerRepository>(TYPES.R2ServerRepository));
+    return new ListR2ServersUseCase(container.get<IS3ServerRepository>(TYPES.S3ServerRepository));
   });
 
   container.bind<DownloadServerFromR2UseCase>(DownloadServerFromR2UseCase).toDynamicValue(() => {
     return new DownloadServerFromR2UseCase(
-      container.get<IR2ServerRepository>(TYPES.R2ServerRepository),
+      container.get<IS3ServerRepository>(TYPES.S3ServerRepository),
     );
   });
 
   container.bind<UploadServerToR2UseCase>(UploadServerToR2UseCase).toDynamicValue(() => {
     return new UploadServerToR2UseCase(
-      container.get<IR2ServerRepository>(TYPES.R2ServerRepository),
+      container.get<IS3ServerRepository>(TYPES.S3ServerRepository),
     );
   });
 
   container.bind<DeleteServerFromR2UseCase>(DeleteServerFromR2UseCase).toDynamicValue(() => {
     return new DeleteServerFromR2UseCase(
-      container.get<IR2ServerRepository>(TYPES.R2ServerRepository),
+      container.get<IS3ServerRepository>(TYPES.S3ServerRepository),
     );
   });
 
   container.bind<ShouldDownloadServerUseCase>(ShouldDownloadServerUseCase).toDynamicValue(() => {
     return new ShouldDownloadServerUseCase(
-      container.get<IR2ServerRepository>(TYPES.R2ServerRepository),
+      container.get<IS3ServerRepository>(TYPES.S3ServerRepository),
     );
   });
 
