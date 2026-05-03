@@ -143,6 +143,16 @@ const serverAPI = {
     ipcRenderer.on("server:stdout", listener);
     return () => ipcRenderer.removeListener("server:stdout", listener);
   },
+  onProcessExit: (
+    callback: (payload: { serverId: string; code: number | null }) => void,
+  ): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      payload: { serverId: string; code: number | null },
+    ): void => callback(payload);
+    ipcRenderer.on("server:process-exit", listener);
+    return () => ipcRenderer.removeListener("server:process-exit", listener);
+  },
   sendCommand: (serverId: string, command: string): Promise<boolean> =>
     ipcRenderer.invoke("server:send-command", serverId, command),
   openServerFolder: (serverId: string): Promise<boolean> =>

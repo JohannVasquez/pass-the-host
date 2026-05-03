@@ -73,8 +73,10 @@ export class ServerRuntimeIPCHandlers {
                 event.sender.send("server:stdout", data);
               }
             },
-            () => {
-              // Process closed
+            (code: number | null) => {
+              if (!event.sender.isDestroyed()) {
+                event.sender.send("server:process-exit", { serverId, code });
+              }
             },
           );
           return true;
