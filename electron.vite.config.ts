@@ -13,6 +13,15 @@ export default defineConfig({
   },
   preload: {},
   renderer: {
+    optimizeDeps: {
+      esbuildOptions: {
+        tsconfigRaw: {
+          compilerOptions: {
+            experimentalDecorators: true,
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         "@renderer": resolve("src/renderer/src"),
