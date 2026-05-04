@@ -85,6 +85,12 @@ const trayIcon =
   process.platform === "darwin"
     ? icon.resize({ width: 18, height: 18 })
     : icon;
+
+if (process.platform === "darwin" && app.dock) {
+  app.dock.setIcon(icon);
+}
+
+app.setName("Pass the host");
 // Auto-updater functions
 function setupAutoUpdater(container: Container): void {
   // Handle update-downloaded event
