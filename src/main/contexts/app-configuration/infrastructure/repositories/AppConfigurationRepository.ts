@@ -3,7 +3,11 @@ import { app } from "electron";
 import * as fs from "fs";
 import * as path from "path";
 import { IAppConfigurationRepository } from "@main/contexts/app-configuration/domain/repositories";
-import { S3Config, AppConfig, ConfigSaveResult } from "@main/contexts/app-configuration/domain/entities";
+import {
+  S3Config,
+  AppConfig,
+  ConfigSaveResult,
+} from "@main/contexts/app-configuration/domain/entities";
 import { FileSystemError } from "@shared/domain/errors";
 
 @injectable()

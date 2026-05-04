@@ -1,5 +1,9 @@
 import { IAppConfigurationRepository } from "@main/contexts/app-configuration/domain/repositories";
-import { S3Config, AppConfig, ConfigSaveResult } from "@main/contexts/app-configuration/domain/entities";
+import {
+  S3Config,
+  AppConfig,
+  ConfigSaveResult,
+} from "@main/contexts/app-configuration/domain/entities";
 
 export class LoadConfigUseCase {
   constructor(private repository: IAppConfigurationRepository) {}

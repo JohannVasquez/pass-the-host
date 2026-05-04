@@ -1,6 +1,10 @@
 import { injectable } from "inversify";
 import { IServerProcessRepository } from "@main/contexts/server-runtime/domain/repositories";
-import { ServerProcess, ServerRuntimeConfig, ForgeJvmArgs } from "@main/contexts/server-runtime/domain/entities";
+import {
+  ServerProcess,
+  ServerRuntimeConfig,
+  ForgeJvmArgs,
+} from "@main/contexts/server-runtime/domain/entities";
 
 @injectable()
 export class SpawnServerProcessUseCase {
