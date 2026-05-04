@@ -21,9 +21,8 @@ describe("ServerRuntimeIPCHandlers", () => {
       onClose?.(137);
     });
 
-    const { ServerRuntimeIPCHandlers } = await import(
-      "../../../../../../src/main/contexts/server-runtime/infrastructure/ipc/ServerRuntimeIPCHandlers"
-    );
+    const { ServerRuntimeIPCHandlers } =
+      await import("../../../../../../src/main/contexts/server-runtime/infrastructure/ipc/ServerRuntimeIPCHandlers");
 
     const handlers = new ServerRuntimeIPCHandlers(
       { execute: executeSpawn } as never,
@@ -42,7 +41,9 @@ describe("ServerRuntimeIPCHandlers", () => {
     expect(spawnRegistration).toBeDefined();
 
     const spawnHandler = spawnRegistration?.[1] as (
-      event: { sender: { isDestroyed: () => boolean; send: (channel: string, payload: unknown) => void } },
+      event: {
+        sender: { isDestroyed: () => boolean; send: (channel: string, payload: unknown) => void };
+      },
       serverId: string,
       command: string,
       args: string[],

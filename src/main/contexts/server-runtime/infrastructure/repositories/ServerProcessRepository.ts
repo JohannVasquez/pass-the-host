@@ -4,7 +4,11 @@ import * as fs from "fs";
 import * as path from "path";
 import { app, shell } from "electron";
 import { IServerProcessRepository } from "@main/contexts/server-runtime/domain/repositories";
-import { ServerProcess, ServerRuntimeConfig, ForgeJvmArgs } from "@main/contexts/server-runtime/domain/entities";
+import {
+  ServerProcess,
+  ServerRuntimeConfig,
+  ForgeJvmArgs,
+} from "@main/contexts/server-runtime/domain/entities";
 import { ProcessError, FileSystemError, NotFoundError } from "@shared/domain/errors";
 
 @injectable()

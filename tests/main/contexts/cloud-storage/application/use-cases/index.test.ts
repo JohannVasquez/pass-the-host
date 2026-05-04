@@ -27,10 +27,7 @@ import type {
   ISessionRepository,
   IServerPropertiesRepository,
 } from "@main/contexts/cloud-storage/domain/repositories";
-import type {
-  S3Config,
-  ServerInfo,
-} from "@main/contexts/cloud-storage/domain/entities/S3Config";
+import type { S3Config, ServerInfo } from "@main/contexts/cloud-storage/domain/entities/S3Config";
 import type { ServerLock } from "@main/contexts/cloud-storage/domain/entities/ServerLock";
 import type { ServerStatistics } from "@main/contexts/cloud-storage/domain/entities/SessionMetadata";
 

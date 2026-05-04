@@ -1,5 +1,8 @@
 import { ServerProcess } from "@main/contexts/server-runtime/domain/entities/ServerProcess";
-import { ServerRuntimeConfig, ForgeJvmArgs } from "@main/contexts/server-runtime/domain/entities/ServerRuntimeConfig";
+import {
+  ServerRuntimeConfig,
+  ForgeJvmArgs,
+} from "@main/contexts/server-runtime/domain/entities/ServerRuntimeConfig";
 
 export interface IServerProcessRepository {
   /**

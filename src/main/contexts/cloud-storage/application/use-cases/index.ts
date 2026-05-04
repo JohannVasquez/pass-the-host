@@ -6,7 +6,11 @@ import {
   ISessionRepository,
   IServerPropertiesRepository,
 } from "@main/contexts/cloud-storage/domain/repositories";
-import { S3Config, ServerInfo, TransferProgress } from "@main/contexts/cloud-storage/domain/entities/S3Config";
+import {
+  S3Config,
+  ServerInfo,
+  TransferProgress,
+} from "@main/contexts/cloud-storage/domain/entities/S3Config";
 import { ServerLock } from "@main/contexts/cloud-storage/domain/entities/ServerLock";
 import { ServerStatistics } from "@main/contexts/cloud-storage/domain/entities/SessionMetadata";
 @injectable()
