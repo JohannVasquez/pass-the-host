@@ -81,6 +81,10 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 const icon = nativeImage.createFromPath(join(__dirname, "../../resources/icon.png"));
+const trayIcon =
+  process.platform === "darwin"
+    ? icon.resize({ width: 18, height: 18 })
+    : icon;
 // Auto-updater functions
 function setupAutoUpdater(container: Container): void {
   // Handle update-downloaded event
@@ -188,7 +192,7 @@ function createWindow(): void {
 }
 // System tray config
 function createTray() {
-  tray = new Tray(icon);
+  tray = new Tray(trayIcon);
   const contextMenu = Menu.buildFromTemplate([
     {
       label: "Abrir Pass the host",
