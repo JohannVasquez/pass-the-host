@@ -128,6 +128,9 @@ interface ServerAPI {
     serverId: string,
   ) => Promise<{ success: boolean; error?: string }>;
   deleteLocally: (serverId: string) => Promise<{ success: boolean; error?: string }>;
+  listLocalServers: () => Promise<
+    Array<{ id: string; name: string; version: string; type: "vanilla" | "forge" | "unknown" }>
+  >;
 }
 
 interface JavaAPI {

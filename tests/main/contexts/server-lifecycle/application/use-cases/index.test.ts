@@ -3,9 +3,11 @@ import {
   CreateMinecraftServerUseCase,
   DeleteServerLocallyUseCase,
   GetLocalServerPathUseCase,
+  ListLocalServersUseCase,
 } from "@main/contexts/server-lifecycle/application/use-cases";
 import type { IServerLifecycleRepository } from "@main/contexts/server-lifecycle/domain/repositories";
 import type {
+  LocalServerInfo,
   MinecraftServerConfig,
   ServerCreationResult,
   ServerDeletionResult,
@@ -15,6 +17,7 @@ function createMockRepository(): IServerLifecycleRepository {
   return {
     createServer: vi.fn(),
     deleteServerLocally: vi.fn(),
+    listLocalServers: vi.fn(),
     getLocalServerPath: vi.fn(),
   };
 }
@@ -204,5 +207,37 @@ describe("GetLocalServerPathUseCase", () => {
     const result = useCase.execute("my-server");
 
     expect(result).toBe(expectedPath);
+  });
+});
+
+describe("ListLocalServersUseCase", () => {
+  let repository: IServerLifecycleRepository;
+  let useCase: ListLocalServersUseCase;
+
+  beforeEach(() => {
+    repository = createMockRepository();
+    useCase = new ListLocalServersUseCase(repository);
+  });
+
+  it("should return local servers", () => {
+    const expectedServers: LocalServerInfo[] = [
+      { id: "server-1", name: "server-1", version: "1.20.4", type: "vanilla" },
+      { id: "server-2", name: "server-2", version: "1.20.1", type: "forge" },
+    ];
+
+    (repository.listLocalServers as ReturnType<typeof vi.fn>).mockReturnValue(expectedServers);
+
+    const result = useCase.execute();
+
+    expect(result).toEqual(expectedServers);
+    expect(repository.listLocalServers).toHaveBeenCalledWith();
+  });
+
+  it("should return empty array when there are no local servers", () => {
+    (repository.listLocalServers as ReturnType<typeof vi.fn>).mockReturnValue([]);
+
+    const result = useCase.execute();
+
+    expect(result).toEqual([]);
   });
 });

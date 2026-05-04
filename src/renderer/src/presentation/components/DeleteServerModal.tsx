@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 interface DeleteServerModalProps {
   open: boolean;
   serverName: string | null;
+  cloudSyncEnabled: boolean;
   onClose: () => void;
   onConfirm: (deleteLocally: boolean) => Promise<void>;
 }
@@ -26,6 +27,7 @@ interface DeleteServerModalProps {
 export const DeleteServerModal: React.FC<DeleteServerModalProps> = ({
   open,
   serverName,
+  cloudSyncEnabled,
   onClose,
   onConfirm,
 }) => {
@@ -39,7 +41,7 @@ export const DeleteServerModal: React.FC<DeleteServerModalProps> = ({
     if (inputValue === serverName) {
       setIsDeleting(true);
       try {
-        await onConfirm(deleteLocally);
+        await onConfirm(cloudSyncEnabled ? deleteLocally : true);
         handleClose();
       } catch (e) {
         console.error("Error deleting server:", e);
@@ -55,9 +57,13 @@ export const DeleteServerModal: React.FC<DeleteServerModalProps> = ({
     if (isDeleting) return; // Don't allow closing while deleting
     setInputValue("");
     setError(false);
-    setDeleteLocally(false);
+    setDeleteLocally(!cloudSyncEnabled);
     onClose();
   };
+
+  React.useEffect(() => {
+    setDeleteLocally(!cloudSyncEnabled);
+  }, [cloudSyncEnabled, open]);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
     setInputValue(event.target.value);
@@ -82,7 +88,11 @@ export const DeleteServerModal: React.FC<DeleteServerModalProps> = ({
               {t("deleteServerModal.warning")}
             </Typography>
             <Typography variant="body2">
-              {deleteLocally ? t("deleteServerModal.alsoLocal") : t("deleteServerModal.cloudOnly")}
+              {!cloudSyncEnabled
+                ? t("deleteServerModal.localOnly")
+                : deleteLocally
+                  ? t("deleteServerModal.alsoLocal")
+                  : t("deleteServerModal.cloudOnly")}
             </Typography>
           </Alert>
 
@@ -93,7 +103,7 @@ export const DeleteServerModal: React.FC<DeleteServerModalProps> = ({
                 checked={deleteLocally}
                 onChange={(e) => setDeleteLocally(e.target.checked)}
                 color="error"
-                disabled={isDeleting}
+                disabled={isDeleting || !cloudSyncEnabled}
               />
             }
             label={t("deleteServerModal.deleteLocalFiles")}
