@@ -1,6 +1,4 @@
-export enum ServerStatus {
-  STOPPED = "stopped",
-  STARTING = "starting",
-  RUNNING = "running",
-  STOPPING = "stopping",
-}
+export {
+  ServerRuntimeState as ServerStatus,
+  canTransitionServerRuntimeState as canTransitionServerStatus,
+} from "@shared/domain";

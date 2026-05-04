@@ -3,7 +3,7 @@ import type {
   S3Config,
   ServerInfo,
   TransferProgress,
-} from "../../../../../../src/main/contexts/cloud-storage/domain/entities/S3Config";
+} from "@main/contexts/cloud-storage/domain/entities/S3Config";
 
 describe("S3Config", () => {
   describe("interface", () => {

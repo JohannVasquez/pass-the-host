@@ -1,14 +1,14 @@
 import { Container } from "inversify";
-import { TYPES } from "../application/use-cases/types";
-import { IAppConfigurationRepository } from "../domain/repositories";
-import { AppConfigurationRepository } from "../infrastructure/repositories";
+import { TYPES } from "@main/contexts/app-configuration/application/use-cases/types";
+import { IAppConfigurationRepository } from "@main/contexts/app-configuration/domain/repositories";
+import { AppConfigurationRepository } from "@main/contexts/app-configuration/infrastructure/repositories";
 import {
   LoadConfigUseCase,
   SaveS3ConfigUseCase,
   SaveUsernameUseCase,
   SaveRamConfigUseCase,
   SaveLanguageUseCase,
-} from "../application/use-cases";
+} from "@main/contexts/app-configuration/application/use-cases";
 
 export function configureAppConfigurationContext(container: Container): void {
   // Repository

@@ -35,7 +35,7 @@ import {
   UsernameChangedEvent,
   RamConfigChangedEvent,
   ConfigurationSavedEvent,
-} from "../../../../src/contexts/shared/domain/DomainEvents";
+} from "@shared/domain/DomainEvents";
 
 describe("DomainEvents", () => {
   describe("Server Lifecycle Events", () => {

@@ -29,7 +29,7 @@ import { ServerStatisticsModal } from "./presentation/components/ServerStatistic
 import { CreateServerModal } from "./presentation/components/CreateServerModal";
 import { ServerExistsModal } from "./presentation/components/ServerExistsModal";
 import { DeleteServerModal } from "./presentation/components/DeleteServerModal";
-import { ServerStatus } from "./domain/entities/ServerStatus";
+import { ServerStatus, canTransitionServerStatus } from "./domain/entities/ServerStatus";
 import { S3Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
 import { Server } from "./domain/entities/Server";
@@ -151,9 +151,63 @@ function AppContent(): React.JSX.Element {
   const [selectedServerSize, setSelectedServerSize] = React.useState<number>(0);
   const [isLoadingBucketSize, setIsLoadingBucketSize] = React.useState<boolean>(false);
   const [isLoadingServerSize, setIsLoadingServerSize] = React.useState<boolean>(false);
+  const serverProcessRef = React.useRef<boolean>(false);
+  const serverStatusRef = React.useRef<ServerStatus>(ServerStatus.STOPPED);
+
+  const updateServerStatus = React.useCallback(
+    (next: ServerStatus, reason: string, options?: { force?: boolean }): boolean => {
+      const current = serverStatusRef.current;
+      const forceTransition = options?.force === true;
+
+      if (!forceTransition && !canTransitionServerStatus(current, next)) {
+        console.warn(`[ServerStatus] Invalid transition ${current} -> ${next}. Reason: ${reason}`);
+        return false;
+      }
+
+      if (current !== next) {
+        serverStatusRef.current = next;
+        setServerStatus(next);
+      }
+
+      return true;
+    },
+    [],
+  );
+
+  React.useEffect(() => {
+    serverStatusRef.current = serverStatus;
+  }, [serverStatus]);
 
   // Monitor server lock status when server is stopped and selected
   useLockMonitor(selectedServer, s3Config, serverStatus === ServerStatus.STOPPED && isS3Configured);
+
+  React.useEffect(() => {
+    const unsubscribe = window.serverAPI.onProcessExit(({ serverId, code }) => {
+      if (!selectedServer || serverId !== selectedServer) {
+        return;
+      }
+
+      updateServerStatus(ServerStatus.STOPPED, "server process exited", { force: true });
+      setServerStartTime(null);
+      serverProcessRef.current = false;
+
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message:
+            code === 0
+              ? "Server process exited"
+              : `Server process stopped unexpectedly${code !== null ? ` (exit code ${code})` : ""}`,
+          type: code === 0 ? "info" : "warning",
+        },
+      ]);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [selectedServer, updateServerStatus]);
 
   // Subscribe to lock monitoring events
   React.useEffect(() => {
@@ -866,9 +920,6 @@ function AppContent(): React.JSX.Element {
     }
   };
 
-  // Store the server process reference (used for tracking if process is started)
-  const serverProcessRef = React.useRef<boolean>(false);
-
   const handleStartStop = async (): Promise<void> => {
     if (serverStatus === ServerStatus.STOPPED) {
       if (!selectedServer) {
@@ -889,7 +940,7 @@ function AppContent(): React.JSX.Element {
         ]);
         return;
       }
-      setServerStatus(ServerStatus.STARTING);
+      updateServerStatus(ServerStatus.STARTING, "start flow initiated");
       setLogs((prev) => [
         ...prev,
         { timestamp: new Date(), message: `Starting server: ${selectedServer}`, type: "info" },
@@ -916,7 +967,7 @@ function AppContent(): React.JSX.Element {
           startedAt: lockInfo.startedAt || new Date().toISOString(),
         });
         setIsServerLockedModalOpen(true);
-        setServerStatus(ServerStatus.STOPPED);
+        updateServerStatus(ServerStatus.STOPPED, "remote lock detected");
         return;
       }
 
@@ -950,7 +1001,7 @@ function AppContent(): React.JSX.Element {
             ...prev,
             { timestamp: new Date(), message: "Failed to download server files", type: "error" },
           ]);
-          setServerStatus(ServerStatus.STOPPED);
+          updateServerStatus(ServerStatus.STOPPED, "download failed");
           return;
         }
         setLogs((prev) => [
@@ -988,7 +1039,7 @@ function AppContent(): React.JSX.Element {
           ...prev,
           { timestamp: new Date(), message: "Server info not found", type: "error" },
         ]);
-        setServerStatus(ServerStatus.STOPPED);
+        updateServerStatus(ServerStatus.STOPPED, "server metadata not found");
         return;
       }
       // Java check
@@ -1015,7 +1066,7 @@ function AppContent(): React.JSX.Element {
               type: "error",
             },
           ]);
-          setServerStatus(ServerStatus.STOPPED);
+          updateServerStatus(ServerStatus.STOPPED, "java setup failed");
           return;
         }
         setLogs((prev) => [
@@ -1037,7 +1088,7 @@ function AppContent(): React.JSX.Element {
             type: "error",
           },
         ]);
-        setServerStatus(ServerStatus.STOPPED);
+        updateServerStatus(ServerStatus.STOPPED, "java setup error");
         return;
       }
       // Create server lock
@@ -1116,7 +1167,7 @@ function AppContent(): React.JSX.Element {
           ...prev,
           { timestamp: new Date(), message: "Could not get local server path", type: "error" },
         ]);
-        setServerStatus(ServerStatus.STOPPED);
+        updateServerStatus(ServerStatus.STOPPED, "failed to get local server path");
         return;
       }
       // Prepare command and args
@@ -1135,7 +1186,7 @@ function AppContent(): React.JSX.Element {
           ...prev,
           { timestamp: new Date(), message: "Could not get Java path", type: "error" },
         ]);
-        setServerStatus(ServerStatus.STOPPED);
+        updateServerStatus(ServerStatus.STOPPED, "failed to resolve java path");
         return;
       }
       if (server.type === "vanilla") {
@@ -1158,7 +1209,7 @@ function AppContent(): React.JSX.Element {
               type: "error",
             },
           ]);
-          setServerStatus(ServerStatus.STOPPED);
+          updateServerStatus(ServerStatus.STOPPED, "unsupported forge version");
           return;
         }
         try {
@@ -1210,7 +1261,7 @@ function AppContent(): React.JSX.Element {
               type: "error",
             },
           ]);
-          setServerStatus(ServerStatus.STOPPED);
+          updateServerStatus(ServerStatus.STOPPED, "failed reading forge jvm args");
           return;
         }
       } else {
@@ -1222,7 +1273,7 @@ function AppContent(): React.JSX.Element {
             type: "error",
           },
         ]);
-        setServerStatus(ServerStatus.STOPPED);
+        updateServerStatus(ServerStatus.STOPPED, "unsupported server type");
         return;
       }
       try {
@@ -1238,7 +1289,7 @@ function AppContent(): React.JSX.Element {
           { timestamp: new Date(), message: "Server started successfully", type: "info" },
         ]);
         setServerStartTime(new Date());
-        setServerStatus(ServerStatus.RUNNING);
+        updateServerStatus(ServerStatus.RUNNING, "process spawn succeeded");
       } catch (e) {
         setLogs((prev) => [
           ...prev,
@@ -1248,10 +1299,10 @@ function AppContent(): React.JSX.Element {
             type: "error",
           },
         ]);
-        setServerStatus(ServerStatus.STOPPED);
+        updateServerStatus(ServerStatus.STOPPED, "process spawn failed");
       }
     } else if (serverStatus === ServerStatus.RUNNING) {
-      setServerStatus(ServerStatus.STOPPING);
+      updateServerStatus(ServerStatus.STOPPING, "stop flow initiated");
       setLogs((prev) => [
         ...prev,
         { timestamp: new Date(), message: "Stopping server...", type: "info" },
@@ -1388,7 +1439,7 @@ function AppContent(): React.JSX.Element {
           }
         }
         setServerStartTime(null);
-        setServerStatus(ServerStatus.STOPPED);
+        updateServerStatus(ServerStatus.STOPPED, "stop flow completed", { force: true });
         setLogs((prev) => [
           ...prev,
           { timestamp: new Date(), message: "Server stopped", type: "info" },

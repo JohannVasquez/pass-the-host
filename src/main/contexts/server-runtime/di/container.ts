@@ -1,6 +1,6 @@
 import { Container } from "inversify";
-import { IServerProcessRepository } from "../domain/repositories";
-import { ServerProcessRepository } from "../infrastructure/repositories/ServerProcessRepository";
+import { IServerProcessRepository } from "@main/contexts/server-runtime/domain/repositories";
+import { ServerProcessRepository } from "@main/contexts/server-runtime/infrastructure/repositories/ServerProcessRepository";
 import {
   SpawnServerProcessUseCase,
   SendCommandUseCase,
@@ -8,8 +8,8 @@ import {
   ReadForgeJvmArgsUseCase,
   EditForgeJvmArgsUseCase,
   OpenServerFolderUseCase,
-} from "../application/use-cases";
-import { TYPES } from "../application/use-cases/types";
+} from "@main/contexts/server-runtime/application/use-cases";
+import { TYPES } from "@main/contexts/server-runtime/application/use-cases/types";
 
 export function configureServerRuntimeContext(container: Container): void {
   // Repositories

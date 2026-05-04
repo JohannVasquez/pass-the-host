@@ -5,13 +5,13 @@ import {
   SaveUsernameUseCase,
   SaveRamConfigUseCase,
   SaveLanguageUseCase,
-} from "../../../../../../src/main/contexts/app-configuration/application/use-cases";
-import type { IAppConfigurationRepository } from "../../../../../../src/main/contexts/app-configuration/domain/repositories";
+} from "@main/contexts/app-configuration/application/use-cases";
+import type { IAppConfigurationRepository } from "@main/contexts/app-configuration/domain/repositories";
 import type {
   AppConfig,
   S3Config,
   ConfigSaveResult,
-} from "../../../../../../src/main/contexts/app-configuration/domain/entities";
+} from "@main/contexts/app-configuration/domain/entities";
 
 describe("App Configuration Use Cases", () => {
   const mockRepository: IAppConfigurationRepository = {

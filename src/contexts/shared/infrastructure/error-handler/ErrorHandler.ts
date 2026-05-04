@@ -1,5 +1,5 @@
 import { CustomError } from "@shared/domain/errors";
-import { logger } from "../logger";
+import { logger } from "@shared/infrastructure/logger";
 
 /**
  * Error handler utility for consistent error handling across the application

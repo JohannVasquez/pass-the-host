@@ -1,5 +1,5 @@
-import type { ServerStatus } from "../entities/ServerStatus";
-import type { LogEntry } from "../entities/LogEntry";
+import type { ServerStatus } from "@server-runtime/domain/entities/ServerStatus";
+import type { LogEntry } from "@server-runtime/domain/entities/LogEntry";
 
 /**
  * Server Runtime Repository interface

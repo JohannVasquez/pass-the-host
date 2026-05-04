@@ -1,11 +1,11 @@
 import { ipcMain, IpcMainInvokeEvent } from "electron";
 import { Container } from "inversify";
 import { ErrorHandler } from "@shared/infrastructure/error-handler";
-import { TYPES } from "../../application/use-cases/types";
+import { TYPES } from "@main/contexts/server-lifecycle/application/use-cases/types";
 import {
   CreateMinecraftServerUseCase,
   DeleteServerLocallyUseCase,
-} from "../../application/use-cases";
+} from "@main/contexts/server-lifecycle/application/use-cases";
 
 export class ServerLifecycleIPCHandlers {
   constructor(private readonly container: Container) {}

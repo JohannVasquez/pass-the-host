@@ -1,14 +1,14 @@
 import { ipcMain } from "electron";
 import { Container } from "inversify";
 import { ErrorHandler } from "@shared/infrastructure/error-handler";
-import { TYPES } from "../../application/use-cases/types";
+import { TYPES } from "@main/contexts/app-configuration/application/use-cases/types";
 import {
   LoadConfigUseCase,
   SaveS3ConfigUseCase,
   SaveUsernameUseCase,
   SaveRamConfigUseCase,
   SaveLanguageUseCase,
-} from "../../application/use-cases";
+} from "@main/contexts/app-configuration/application/use-cases";
 
 export class AppConfigurationIPCHandlers {
   constructor(private readonly container: Container) {}

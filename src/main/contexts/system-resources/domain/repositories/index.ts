@@ -4,7 +4,7 @@ import {
   JavaInstallationResult,
   SystemMemoryInfo,
   NetworkInterface,
-} from "../entities";
+} from "@main/contexts/system-resources/domain/entities";
 
 export interface ISystemResourcesRepository {
   getInstalledJavaVersions(): JavaVersion[];

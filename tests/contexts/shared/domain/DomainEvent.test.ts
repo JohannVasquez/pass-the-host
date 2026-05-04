@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BaseDomainEvent } from "../../../../src/contexts/shared/domain/DomainEvent";
+import { BaseDomainEvent } from "@shared/domain/DomainEvent";
 
 class TestEvent extends BaseDomainEvent {
   constructor(

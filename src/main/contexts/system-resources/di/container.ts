@@ -1,14 +1,14 @@
 import { Container } from "inversify";
-import { TYPES } from "../application/use-cases/types";
-import { ISystemResourcesRepository } from "../domain/repositories";
-import { SystemResourcesRepository } from "../infrastructure/repositories";
+import { TYPES } from "@main/contexts/system-resources/application/use-cases/types";
+import { ISystemResourcesRepository } from "@main/contexts/system-resources/domain/repositories";
+import { SystemResourcesRepository } from "@main/contexts/system-resources/infrastructure/repositories";
 import {
   EnsureJavaForMinecraftUseCase,
   GetInstalledJavaVersionsUseCase,
   GetRequiredJavaVersionUseCase,
   GetTotalMemoryUseCase,
   GetNetworkInterfacesUseCase,
-} from "../application/use-cases";
+} from "@main/contexts/system-resources/application/use-cases";
 
 export function configureSystemResourcesContext(container: Container): void {
   // Repository

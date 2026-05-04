@@ -1,4 +1,4 @@
-import type { AppConfig } from "../entities";
+import type { AppConfig } from "@app-configuration/domain/entities";
 
 /**
  * Configuration Repository interface

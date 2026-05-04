@@ -7,13 +7,13 @@ import {
   ReadForgeJvmArgsUseCase,
   EditForgeJvmArgsUseCase,
   OpenServerFolderUseCase,
-} from "../../../../../../src/main/contexts/server-runtime/application/use-cases";
-import type { IServerProcessRepository } from "../../../../../../src/main/contexts/server-runtime/domain/repositories";
+} from "@main/contexts/server-runtime/application/use-cases";
+import type { IServerProcessRepository } from "@main/contexts/server-runtime/domain/repositories";
 import type {
   ServerProcess,
   ServerRuntimeConfig,
   ForgeJvmArgs,
-} from "../../../../../../src/main/contexts/server-runtime/domain/entities";
+} from "@main/contexts/server-runtime/domain/entities";
 
 function createMockRepository(): IServerProcessRepository {
   return {

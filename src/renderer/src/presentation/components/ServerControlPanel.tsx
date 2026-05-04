@@ -26,8 +26,8 @@ import {
   Lock as LockIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
-import { ServerStatus } from "../../domain/entities/ServerStatus";
-import { Server } from "../../domain/entities/Server";
+import { ServerStatus } from "@renderer/domain/entities/ServerStatus";
+import { Server } from "@renderer/domain/entities/Server";
 
 interface ServerControlPanelProps {
   status: ServerStatus;
