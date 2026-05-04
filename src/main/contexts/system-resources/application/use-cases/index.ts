@@ -1,11 +1,11 @@
-import { ISystemResourcesRepository } from "../../domain/repositories";
+import { ISystemResourcesRepository } from "@main/contexts/system-resources/domain/repositories";
 import {
   JavaInstallationResult,
   JavaVersion,
   JavaRequirement,
   SystemMemoryInfo,
   NetworkInterface,
-} from "../../domain/entities";
+} from "@main/contexts/system-resources/domain/entities";
 
 export class EnsureJavaForMinecraftUseCase {
   constructor(private repository: ISystemResourcesRepository) {}

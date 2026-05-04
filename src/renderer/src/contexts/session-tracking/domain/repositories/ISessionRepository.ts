@@ -1,5 +1,5 @@
 import type { S3Config } from "@cloud-storage/domain/entities";
-import type { ServerStatistics } from "../entities";
+import type { ServerStatistics } from "@session-tracking/domain/entities";
 
 /**
  * Session Repository interface

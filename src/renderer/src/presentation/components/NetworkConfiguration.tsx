@@ -11,7 +11,7 @@ import {
   TextField,
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { NetworkInterface } from "../../domain/entities/ServerConfig";
+import { NetworkInterface } from "@renderer/domain/entities/ServerConfig";
 
 interface NetworkConfigurationProps {
   availableIps: NetworkInterface[];

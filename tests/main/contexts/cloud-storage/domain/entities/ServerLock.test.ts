@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { ServerLock } from "../../../../../../src/main/contexts/cloud-storage/domain/entities/ServerLock";
+import type { ServerLock } from "@main/contexts/cloud-storage/domain/entities/ServerLock";
 
 describe("ServerLock", () => {
   describe("interface", () => {

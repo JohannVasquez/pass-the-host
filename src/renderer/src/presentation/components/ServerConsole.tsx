@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Paper, Typography, List, ListItem, ListItemText } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { LogEntry } from "../../domain/entities/LogEntry";
+import { LogEntry } from "@renderer/domain/entities/LogEntry";
 
 interface ServerConsoleProps {
   logs: LogEntry[];

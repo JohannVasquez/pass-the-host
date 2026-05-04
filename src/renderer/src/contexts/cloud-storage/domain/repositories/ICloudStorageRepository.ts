@@ -1,4 +1,4 @@
-import type { S3Config, RemoteServer, TransferProgress } from "../entities";
+import type { S3Config, RemoteServer, TransferProgress } from "@cloud-storage/domain/entities";
 
 /**
  * Cloud Storage Repository interface

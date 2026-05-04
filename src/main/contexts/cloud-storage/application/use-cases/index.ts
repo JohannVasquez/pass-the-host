@@ -5,10 +5,10 @@ import {
   IServerLockRepository,
   ISessionRepository,
   IServerPropertiesRepository,
-} from "../../domain/repositories";
-import { S3Config, ServerInfo, TransferProgress } from "../../domain/entities/S3Config";
-import { ServerLock } from "../../domain/entities/ServerLock";
-import { ServerStatistics } from "../../domain/entities/SessionMetadata";
+} from "@main/contexts/cloud-storage/domain/repositories";
+import { S3Config, ServerInfo, TransferProgress } from "@main/contexts/cloud-storage/domain/entities/S3Config";
+import { ServerLock } from "@main/contexts/cloud-storage/domain/entities/ServerLock";
+import { ServerStatistics } from "@main/contexts/cloud-storage/domain/entities/SessionMetadata";
 @injectable()
 export class CheckRcloneInstallationUseCase {
   constructor(private rcloneRepository: IRcloneRepository) {}

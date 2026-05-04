@@ -1,5 +1,5 @@
 import type { S3Config } from "@cloud-storage/domain/entities";
-import type { LockCheckResult, LockOperationResult } from "../entities";
+import type { LockCheckResult, LockOperationResult } from "@server-locking/domain/entities";
 
 /**
  * Server Lock Repository interface

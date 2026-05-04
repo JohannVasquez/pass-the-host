@@ -5,12 +5,12 @@ import {
   IServerLockRepository,
   ISessionRepository,
   IServerPropertiesRepository,
-} from "../domain/repositories";
-import { RcloneRepository } from "../infrastructure/repositories/RcloneRepository";
-import { S3ServerRepository } from "../infrastructure/repositories/S3ServerRepository";
-import { ServerLockRepository } from "../infrastructure/repositories/ServerLockRepository";
-import { SessionRepository } from "../infrastructure/repositories/SessionRepository";
-import { ServerPropertiesRepository } from "../infrastructure/repositories/ServerPropertiesRepository";
+} from "@main/contexts/cloud-storage/domain/repositories";
+import { RcloneRepository } from "@main/contexts/cloud-storage/infrastructure/repositories/RcloneRepository";
+import { S3ServerRepository } from "@main/contexts/cloud-storage/infrastructure/repositories/S3ServerRepository";
+import { ServerLockRepository } from "@main/contexts/cloud-storage/infrastructure/repositories/ServerLockRepository";
+import { SessionRepository } from "@main/contexts/cloud-storage/infrastructure/repositories/SessionRepository";
+import { ServerPropertiesRepository } from "@main/contexts/cloud-storage/infrastructure/repositories/ServerPropertiesRepository";
 import {
   CheckRcloneInstallationUseCase,
   InstallRcloneUseCase,
@@ -33,8 +33,8 @@ import {
   WriteServerPortUseCase,
   GetBucketSizeUseCase,
   GetServerSizeUseCase,
-} from "../application/use-cases";
-import { TYPES } from "../application/use-cases/types";
+} from "@main/contexts/cloud-storage/application/use-cases";
+import { TYPES } from "@main/contexts/cloud-storage/application/use-cases/types";
 
 export function configureCloudStorageContext(container: Container): void {
   // Repositories

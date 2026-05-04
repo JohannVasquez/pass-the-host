@@ -19,20 +19,20 @@ import {
   GetServerStatisticsUseCase,
   ReadServerPortUseCase,
   WriteServerPortUseCase,
-} from "../../../../../../src/main/contexts/cloud-storage/application/use-cases";
+} from "@main/contexts/cloud-storage/application/use-cases";
 import type {
   IRcloneRepository,
   IS3ServerRepository,
   IServerLockRepository,
   ISessionRepository,
   IServerPropertiesRepository,
-} from "../../../../../../src/main/contexts/cloud-storage/domain/repositories";
+} from "@main/contexts/cloud-storage/domain/repositories";
 import type {
   S3Config,
   ServerInfo,
-} from "../../../../../../src/main/contexts/cloud-storage/domain/entities/S3Config";
-import type { ServerLock } from "../../../../../../src/main/contexts/cloud-storage/domain/entities/ServerLock";
-import type { ServerStatistics } from "../../../../../../src/main/contexts/cloud-storage/domain/entities/SessionMetadata";
+} from "@main/contexts/cloud-storage/domain/entities/S3Config";
+import type { ServerLock } from "@main/contexts/cloud-storage/domain/entities/ServerLock";
+import type { ServerStatistics } from "@main/contexts/cloud-storage/domain/entities/SessionMetadata";
 
 function createMockRcloneRepository(): IRcloneRepository {
   return {

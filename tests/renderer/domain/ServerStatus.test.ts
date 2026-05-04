@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   ServerStatus as AppServerStatus,
   canTransitionServerStatus as canTransitionAppServerStatus,
-} from "../../../src/renderer/src/domain/entities/ServerStatus";
+} from "@renderer/domain/entities/ServerStatus";
 import {
   ServerStatus as RuntimeServerStatus,
   canTransitionServerStatus as canTransitionRuntimeServerStatus,
-} from "../../../src/renderer/src/contexts/server-runtime/domain/entities/ServerStatus";
+} from "@renderer/contexts/server-runtime/domain/entities/ServerStatus";
 
 describe("ServerStatus renderer exports", () => {
   it("re-exports the same enum values in both modules", () => {

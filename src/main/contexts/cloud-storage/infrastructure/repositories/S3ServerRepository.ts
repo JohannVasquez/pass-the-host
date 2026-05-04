@@ -5,8 +5,8 @@ import * as fs from "fs";
 import { spawn } from "child_process";
 import { promisify } from "util";
 import { exec } from "child_process";
-import { IS3ServerRepository } from "../../domain/repositories";
-import { S3Config, ServerInfo, TransferProgress, SessionMetadata } from "../../domain/entities";
+import { IS3ServerRepository } from "@main/contexts/cloud-storage/domain/repositories";
+import { S3Config, ServerInfo, TransferProgress, SessionMetadata } from "@main/contexts/cloud-storage/domain/entities";
 import { RcloneRepository } from "./RcloneRepository";
 import { ExternalServiceError } from "@shared/domain/errors";
 

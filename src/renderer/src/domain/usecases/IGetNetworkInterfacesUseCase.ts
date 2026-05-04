@@ -1,4 +1,4 @@
-import { NetworkInterface } from "../entities/ServerConfig";
+import { NetworkInterface } from "@renderer/domain/entities/ServerConfig";
 
 /**
  * Use case interface for retrieving network interfaces

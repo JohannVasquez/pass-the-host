@@ -1,4 +1,4 @@
-import { S3Config, AppConfig, ConfigSaveResult } from "../entities";
+import { S3Config, AppConfig, ConfigSaveResult } from "@main/contexts/app-configuration/domain/entities";
 
 export interface IAppConfigurationRepository {
   loadConfig(): Promise<AppConfig | null>;
