@@ -1,6 +1,6 @@
 {
   "name": "pass-the-host",
-  "productName": "Pass-the-host",
+  "productName": "Pass the host",
   "version": "2.0.0",
   "description": "Minecraft server manager using Cloudflare R2",
   "main": "./out/main/index.js",
@@ -26,7 +26,13 @@
   },
   "build": {
     "appId": "cl.jvdev.passthehost",
-    "productName": "Pass-the-host",
+    "productName": "Pass the host",
+    "directories": {
+      "buildResources": "resources"
+    },
+    "mac": {
+      "icon": "resources/icon.icns"
+    },
     "win": {
       "executableName": "Pass the host",
       "target": "nsis",

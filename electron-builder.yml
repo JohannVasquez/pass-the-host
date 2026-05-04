@@ -1,5 +1,5 @@
 appId: cl.jvdev.passthehost
-productName: "Pass-the-host"
+productName: "Pass the host"
 directories:
   buildResources: resources
 files:
@@ -22,6 +22,7 @@ nsis:
   installerIcon: resources/icon.ico
   uninstallerIcon: resources/icon.ico
 mac:
+  icon: resources/icon.icns
   entitlementsInherit: build/entitlements.mac.plist
 
   notarize: false
