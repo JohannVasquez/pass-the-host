@@ -3,6 +3,7 @@ import { app } from "electron";
 import * as fs from "fs";
 import * as path from "path";
 import { IAppConfigurationRepository } from "@main/contexts/app-configuration/domain/repositories";
+import { getDefaultRelativeJavaPath } from "@main/utils/javaRuntime";
 import {
   S3Config,
   AppConfig,
@@ -12,6 +13,18 @@ import { FileSystemError } from "@shared/domain/errors";
 
 @injectable()
 export class AppConfigurationRepository implements IAppConfigurationRepository {
+  private createDefaultServerConfig(): NonNullable<AppConfig["server"]> {
+    return {
+      server_path: "./server_files",
+      java_path: getDefaultRelativeJavaPath(),
+      server_jar: "server.jar",
+      server_type: "vanilla",
+      memory_min: "2G",
+      memory_max: "4G",
+      server_port: 25565,
+    };
+  }
+
   private getConfigPath(): string {
     // Store config in userData directory so it persists and is writable
     return path.join(app.getPath("userData"), "config.json");
@@ -34,22 +47,18 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
             region: "auto",
           };
 
+        const appSettings = {
+          owner_name: null,
+          language: "en",
+          cloud_sync_enabled: false,
+          ...fileContent.app,
+        };
+
         // Return the config with s3 property
         return {
           s3: s3Config,
-          server: fileContent.server || {
-            server_path: "./server_files",
-            java_path: "./java_runtime/bin/java.exe",
-            server_jar: "server.jar",
-            server_type: "vanilla",
-            memory_min: "2G",
-            memory_max: "4G",
-            server_port: 25565,
-          },
-          app: fileContent.app || {
-            owner_name: null,
-            language: "en",
-          },
+          server: fileContent.server || this.createDefaultServerConfig(),
+          app: appSettings,
         };
       } else {
         // Return default config if file doesn't exist yet
@@ -62,18 +71,11 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
             provider: "Cloudflare",
             region: "auto",
           },
-          server: {
-            server_path: "./server_files",
-            java_path: "./java_runtime/bin/java.exe",
-            server_jar: "server.jar",
-            server_type: "vanilla",
-            memory_min: "2G",
-            memory_max: "4G",
-            server_port: 25565,
-          },
+          server: this.createDefaultServerConfig(),
           app: {
             owner_name: null,
             language: "en",
+            cloud_sync_enabled: false,
           },
         };
       }
@@ -99,18 +101,11 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
         // Initialize default config structure if file doesn't exist
         config = {
           s3: {},
-          server: {
-            server_path: "./server_files",
-            java_path: "./java_runtime/bin/java.exe",
-            server_jar: "server.jar",
-            server_type: "vanilla",
-            memory_min: "2G",
-            memory_max: "4G",
-            server_port: 25565,
-          },
+          server: this.createDefaultServerConfig(),
           app: {
             owner_name: null,
             language: "en",
+            cloud_sync_enabled: false,
           },
         };
       }
@@ -129,6 +124,40 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
     } catch (e: unknown) {
       throw new FileSystemError(
         `Failed to save S3 config: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  }
+
+  async saveCloudSyncEnabled(enabled: boolean): Promise<ConfigSaveResult> {
+    const configPath = this.getConfigPath();
+    try {
+      let config: Partial<AppConfig> = {};
+
+      if (fs.existsSync(configPath)) {
+        config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      } else {
+        config = {
+          s3: {},
+          server: this.createDefaultServerConfig(),
+          app: {
+            owner_name: null,
+            language: "en",
+            cloud_sync_enabled: false,
+          },
+        };
+      }
+
+      if (!config.app) {
+        config.app = {};
+      }
+
+      config.app.cloud_sync_enabled = enabled;
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf-8");
+
+      return { success: true };
+    } catch (e: unknown) {
+      throw new FileSystemError(
+        `Failed to save cloud sync setting: ${e instanceof Error ? e.message : String(e)}`,
       );
     }
   }
@@ -157,18 +186,11 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
             provider: "Cloudflare",
             region: "auto",
           },
-          server: {
-            server_path: "./server_files",
-            java_path: "./java_runtime/bin/java.exe",
-            server_jar: "server.jar",
-            server_type: "vanilla",
-            memory_min: "2G",
-            memory_max: "4G",
-            server_port: 25565,
-          },
+          server: this.createDefaultServerConfig(),
           app: {
             owner_name: null,
             language: "en",
+            cloud_sync_enabled: false,
           },
         };
       }
@@ -211,33 +233,18 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
             provider: "Cloudflare",
             region: "auto",
           },
-          server: {
-            server_path: "./server_files",
-            java_path: "./java_runtime/bin/java.exe",
-            server_jar: "server.jar",
-            server_type: "vanilla",
-            memory_min: "2G",
-            memory_max: "4G",
-            server_port: 25565,
-          },
+          server: this.createDefaultServerConfig(),
           app: {
             owner_name: null,
             language: "en",
+            cloud_sync_enabled: false,
           },
         };
       }
 
       // Ensure server section exists
       if (!config.server) {
-        config.server = {
-          server_path: "./server_files",
-          java_path: "./java_runtime/bin/java.exe",
-          server_jar: "server.jar",
-          server_type: "vanilla",
-          memory_min: "2G",
-          memory_max: "4G",
-          server_port: 25565,
-        };
+        config.server = this.createDefaultServerConfig();
       }
 
       // Update RAM config
