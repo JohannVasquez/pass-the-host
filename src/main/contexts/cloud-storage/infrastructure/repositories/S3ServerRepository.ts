@@ -450,7 +450,7 @@ export class S3ServerRepository implements IS3ServerRepository {
           "8",
           ...extraArgs,
         ],
-        { shell: true },
+        { shell: false },
       );
 
       let lastProgress = "";
@@ -505,7 +505,16 @@ export class S3ServerRepository implements IS3ServerRepository {
           onProgress?.({ percent: 100, transferred: "Complete", total: "Complete" });
           resolve(true);
         } else {
-          reject(new Error(`Sync failed with code ${code}`));
+          const details = [stderrBuffer.trim(), stdoutBuffer.trim()].filter(Boolean).join(" | ");
+          const reason = this.getRcloneProcessErrorReason(code);
+
+          reject(
+            new Error(
+              details
+                ? `${reason} (code ${code}) at ${rclonePath}. Output: ${details}`
+                : `${reason} (code ${code}) at ${rclonePath}`,
+            ),
+          );
         }
       });
 
@@ -514,5 +523,16 @@ export class S3ServerRepository implements IS3ServerRepository {
         reject(error);
       });
     });
+  }
+
+  private getRcloneProcessErrorReason(code: number | null): string {
+    switch (code) {
+      case 126:
+        return "Rclone executable is not allowed to run";
+      case 127:
+        return "Rclone executable could not be launched";
+      default:
+        return "Rclone sync failed";
+    }
   }
 }
