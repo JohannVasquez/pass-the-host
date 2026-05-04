@@ -5,6 +5,7 @@ import * as fs from "fs";
 import * as https from "https";
 import { spawn } from "child_process";
 import { IServerLifecycleRepository } from "@main/contexts/server-lifecycle/domain/repositories";
+import { findBundledJavaPath } from "@main/utils/javaRuntime";
 import {
   LocalServerInfo,
   MinecraftServerConfig,
@@ -264,11 +265,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
       }
 
       const javaDir = path.join(JAVA_RUNTIME_DIR, `java${javaVersion}`);
-      const isWindows = process.platform === "win32";
-      const javaBinary = isWindows ? "java.exe" : "java";
-      const javaPath = path.join(javaDir, "bin", javaBinary);
-
-      return javaPath;
+      return findBundledJavaPath(javaDir, fs.existsSync);
     } catch {
       return null;
     }
