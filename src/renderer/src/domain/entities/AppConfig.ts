@@ -17,5 +17,7 @@ export interface AppConfig {
   };
   app: {
     owner_name: string;
+    language?: string;
+    cloud_sync_enabled?: boolean;
   };
 }

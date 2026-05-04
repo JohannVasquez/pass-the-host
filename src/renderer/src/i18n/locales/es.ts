@@ -26,6 +26,7 @@ export const es = {
       saveError: "Error al guardar la configuración",
       lock: "Bloquear configuración",
       unlock: "Desbloquear configuración",
+      enableSync: "Habilitar sincronizacion en la nube",
     },
     serverControl: {
       title: "Control del Servidor",

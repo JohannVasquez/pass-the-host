@@ -6,6 +6,7 @@ import { promisify } from "util";
 import { exec } from "child_process";
 import { ISessionRepository } from "@main/contexts/cloud-storage/domain/repositories";
 import {
+  CloudSyncState,
   S3Config,
   SessionMetadata,
   ServerStatistics,
@@ -55,6 +56,10 @@ export class SessionRepository implements ISessionRepository {
       };
 
       fs.writeFileSync(sessionFilePath, JSON.stringify(sessionData, null, 2), "utf-8");
+      this.writeCloudSyncState(serverId, {
+        localChangesPendingUpload: true,
+        lastLocalChangeTimestamp: nowTimestamp,
+      });
       console.log(`[SESSION] Created session metadata for ${serverId} (user: ${username})`);
       return true;
     } catch (error) {
@@ -111,6 +116,10 @@ export class SessionRepository implements ISessionRepository {
       sessionData.username = username;
 
       fs.writeFileSync(sessionFilePath, JSON.stringify(sessionData, null, 2), "utf-8");
+      this.writeCloudSyncState(serverId, {
+        localChangesPendingUpload: true,
+        lastLocalChangeTimestamp: now,
+      });
       return true;
     } catch (error) {
       throw new FileSystemError(
@@ -133,12 +142,14 @@ export class SessionRepository implements ISessionRepository {
     }
 
     try {
+      this.clearPendingUpload(serverId);
       const copyCommand = `"${rclonePath}" copyto "${sessionFilePath}" ${r2SessionPath}`;
       await execAsync(copyCommand, { maxBuffer: 1024 * 1024 });
 
       console.log(`[SESSION] Uploaded session metadata to R2 for ${serverId}`);
       return true;
     } catch (error) {
+      this.markPendingUpload(serverId);
       throw new ExternalServiceError(
         "R2",
         `Failed to upload session for ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
@@ -198,5 +209,43 @@ export class SessionRepository implements ISessionRepository {
 
   private getLocalServerPath(serverId: string): string {
     return path.join(app.getPath("userData"), "servers", serverId);
+  }
+
+  private getCloudSyncStatePath(serverId: string): string {
+    return path.join(this.getLocalServerPath(serverId), ".cloud-sync-state.json");
+  }
+
+  private writeCloudSyncState(serverId: string, state: CloudSyncState): void {
+    const statePath = this.getCloudSyncStatePath(serverId);
+    fs.writeFileSync(statePath, JSON.stringify(state, null, 2), "utf-8");
+  }
+
+  private markPendingUpload(serverId: string): void {
+    const existingState = this.readCloudSyncState(serverId);
+    this.writeCloudSyncState(serverId, {
+      localChangesPendingUpload: true,
+      lastLocalChangeTimestamp: existingState?.lastLocalChangeTimestamp || Date.now(),
+    });
+  }
+
+  private clearPendingUpload(serverId: string): void {
+    this.writeCloudSyncState(serverId, {
+      localChangesPendingUpload: false,
+      lastLocalChangeTimestamp: Date.now(),
+    });
+  }
+
+  private readCloudSyncState(serverId: string): CloudSyncState | null {
+    const statePath = this.getCloudSyncStatePath(serverId);
+
+    if (!fs.existsSync(statePath)) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(fs.readFileSync(statePath, "utf-8")) as CloudSyncState;
+    } catch {
+      return null;
+    }
   }
 }

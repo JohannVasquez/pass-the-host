@@ -11,9 +11,11 @@ import {
   Tooltip,
   Box,
   FormControl,
+  FormControlLabel,
   InputLabel,
   Select,
   MenuItem,
+  Switch,
   type SelectChangeEvent,
 } from "@mui/material";
 import {
@@ -28,6 +30,8 @@ import { S3Config, S3Provider } from "@renderer/domain/entities/ServerConfig";
 interface S3ConfigurationProps {
   config: S3Config;
   onSave: (config: S3Config) => void;
+  cloudSyncEnabled: boolean;
+  onToggleCloudSync: (enabled: boolean) => void;
   disabled?: boolean;
 }
 
@@ -54,6 +58,8 @@ const PROVIDER_REGIONS: Record<S3Provider, string> = {
 export const S3Configuration: React.FC<S3ConfigurationProps> = ({
   config,
   onSave,
+  cloudSyncEnabled,
+  onToggleCloudSync,
   disabled = false,
 }): React.JSX.Element => {
   const { t } = useTranslation();
@@ -64,6 +70,7 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
 
   // Lock automatically when disabled from parent
   const effectivelyLocked = isLocked || disabled;
+  const storageFieldsDisabled = effectivelyLocked || !cloudSyncEnabled;
 
   // Update localConfig when config prop changes
   React.useEffect(() => {
@@ -126,7 +133,17 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
       </AccordionSummary>
       <AccordionDetails>
         <Stack spacing={2}>
-          <FormControl fullWidth size="small" disabled={effectivelyLocked}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={cloudSyncEnabled}
+                onChange={(_event, checked) => onToggleCloudSync(checked)}
+                disabled={disabled}
+              />
+            }
+            label={t("s3Configuration.enableSync")}
+          />
+          <FormControl fullWidth size="small" disabled={storageFieldsDisabled}>
             <InputLabel id="s3-provider-label">{t("s3Configuration.provider")}</InputLabel>
             <Select
               labelId="s3-provider-label"
@@ -148,7 +165,7 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
             onChange={(e) => handleChange("endpoint", e.target.value)}
             fullWidth
             size="small"
-            disabled={effectivelyLocked}
+            disabled={storageFieldsDisabled}
             placeholder={PROVIDER_ENDPOINTS[localConfig.provider]}
           />
           <TextField
@@ -157,7 +174,7 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
             onChange={(e) => handleChange("region", e.target.value)}
             fullWidth
             size="small"
-            disabled={effectivelyLocked}
+            disabled={storageFieldsDisabled}
             placeholder={PROVIDER_REGIONS[localConfig.provider]}
           />
           <TextField
@@ -166,7 +183,7 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
             onChange={(e) => handleChange("access_key", e.target.value)}
             fullWidth
             size="small"
-            disabled={effectivelyLocked}
+            disabled={storageFieldsDisabled}
           />
           <TextField
             label={t("s3Configuration.secret_key")}
@@ -175,7 +192,7 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
             onChange={(e) => handleChange("secret_key", e.target.value)}
             fullWidth
             size="small"
-            disabled={effectivelyLocked}
+            disabled={storageFieldsDisabled}
           />
           <TextField
             label={t("s3Configuration.bucket_name")}
@@ -183,14 +200,14 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
             onChange={(e) => handleChange("bucket_name", e.target.value)}
             fullWidth
             size="small"
-            disabled={effectivelyLocked}
+            disabled={storageFieldsDisabled}
           />
           <Button
             variant="contained"
             startIcon={<SaveIcon />}
             onClick={handleSave}
             fullWidth
-            disabled={effectivelyLocked}
+            disabled={storageFieldsDisabled}
           >
             {t("s3Configuration.save")}
           </Button>

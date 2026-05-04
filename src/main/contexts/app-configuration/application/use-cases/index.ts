@@ -21,6 +21,14 @@ export class SaveS3ConfigUseCase {
   }
 }
 
+export class SaveCloudSyncEnabledUseCase {
+  constructor(private repository: IAppConfigurationRepository) {}
+
+  async execute(enabled: boolean): Promise<ConfigSaveResult> {
+    return this.repository.saveCloudSyncEnabled(enabled);
+  }
+}
+
 export class SaveUsernameUseCase {
   constructor(private repository: IAppConfigurationRepository) {}
 

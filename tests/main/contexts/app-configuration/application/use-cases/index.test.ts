@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   LoadConfigUseCase,
   SaveS3ConfigUseCase,
+  SaveCloudSyncEnabledUseCase,
   SaveUsernameUseCase,
   SaveRamConfigUseCase,
   SaveLanguageUseCase,
@@ -17,6 +18,7 @@ describe("App Configuration Use Cases", () => {
   const mockRepository: IAppConfigurationRepository = {
     loadConfig: vi.fn(),
     saveS3Config: vi.fn(),
+    saveCloudSyncEnabled: vi.fn(),
     saveUsername: vi.fn(),
     saveRamConfig: vi.fn(),
     saveLanguage: vi.fn(),
@@ -110,6 +112,30 @@ describe("App Configuration Use Cases", () => {
 
       expect(result.success).toBe(true);
       expect(mockRepository.saveUsername).toHaveBeenCalledWith("");
+    });
+  });
+
+  describe("SaveCloudSyncEnabledUseCase", () => {
+    it("should save cloud sync toggle via repository", async () => {
+      const expectedResult: ConfigSaveResult = { success: true };
+      vi.mocked(mockRepository.saveCloudSyncEnabled).mockResolvedValue(expectedResult);
+
+      const useCase = new SaveCloudSyncEnabledUseCase(mockRepository);
+      const result = await useCase.execute(true);
+
+      expect(result).toEqual(expectedResult);
+      expect(mockRepository.saveCloudSyncEnabled).toHaveBeenCalledWith(true);
+    });
+
+    it("should save disabled state via repository", async () => {
+      const expectedResult: ConfigSaveResult = { success: true };
+      vi.mocked(mockRepository.saveCloudSyncEnabled).mockResolvedValue(expectedResult);
+
+      const useCase = new SaveCloudSyncEnabledUseCase(mockRepository);
+      const result = await useCase.execute(false);
+
+      expect(result).toEqual(expectedResult);
+      expect(mockRepository.saveCloudSyncEnabled).toHaveBeenCalledWith(false);
     });
   });
 
