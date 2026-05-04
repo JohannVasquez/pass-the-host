@@ -6,6 +6,7 @@ import {
   CreateMinecraftServerUseCase,
   DeleteServerLocallyUseCase,
   GetLocalServerPathUseCase,
+  ListLocalServersUseCase,
 } from "@main/contexts/server-lifecycle/application/use-cases";
 
 export function configureServerLifecycleContainer(container: Container): void {
@@ -33,6 +34,16 @@ export function configureServerLifecycleContainer(container: Container): void {
         TYPES.IServerLifecycleRepository,
       );
       return new DeleteServerLocallyUseCase(repository);
+    })
+    .inTransientScope();
+
+  container
+    .bind<ListLocalServersUseCase>(TYPES.ListLocalServersUseCase)
+    .toDynamicValue(() => {
+      const repository = container.get<IServerLifecycleRepository>(
+        TYPES.IServerLifecycleRepository,
+      );
+      return new ListLocalServersUseCase(repository);
     })
     .inTransientScope();
 

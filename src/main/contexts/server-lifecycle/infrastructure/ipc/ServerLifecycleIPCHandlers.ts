@@ -5,6 +5,7 @@ import { TYPES } from "@main/contexts/server-lifecycle/application/use-cases/typ
 import {
   CreateMinecraftServerUseCase,
   DeleteServerLocallyUseCase,
+  ListLocalServersUseCase,
 } from "@main/contexts/server-lifecycle/application/use-cases";
 
 export class ServerLifecycleIPCHandlers {
@@ -40,6 +41,14 @@ export class ServerLifecycleIPCHandlers {
           TYPES.DeleteServerLocallyUseCase,
         );
         return useCase.execute(serverId);
+      }),
+    );
+
+    ipcMain.handle(
+      "server:list-local",
+      this.handleIPC("listLocalServers", async () => {
+        const useCase = this.container.get<ListLocalServersUseCase>(TYPES.ListLocalServersUseCase);
+        return useCase.execute();
       }),
     );
   }

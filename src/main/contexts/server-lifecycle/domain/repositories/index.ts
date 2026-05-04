@@ -1,4 +1,5 @@
 import {
+  LocalServerInfo,
   MinecraftServerConfig,
   ServerCreationResult,
   ServerDeletionResult,
@@ -22,6 +23,12 @@ export interface IServerLifecycleRepository {
    * @returns Result with success status
    */
   deleteServerLocally(serverId: string): ServerDeletionResult;
+
+  /**
+   * Lists servers available in local storage
+   * @returns Server metadata discovered under the local servers directory
+   */
+  listLocalServers(): LocalServerInfo[];
 
   /**
    * Gets the local path for a server
