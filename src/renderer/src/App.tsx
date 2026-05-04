@@ -1469,6 +1469,32 @@ function AppContent(): React.JSX.Element {
               },
             ]);
           }
+
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Updating session metadata...",
+              type: "info",
+            },
+          ]);
+
+          const sessionUpdateSuccess = await window.serverAPI.updateSession(
+            selectedServer,
+            username || "Unknown",
+          );
+
+          if (!sessionUpdateSuccess) {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Warning: Failed to update session metadata",
+                type: "warning",
+              },
+            ]);
+          }
+
           if (isCloudSyncEnabled) {
             setLogs((prev) => [
               ...prev,
@@ -1495,21 +1521,6 @@ function AppContent(): React.JSX.Element {
                   type: "info",
                 },
               ]);
-
-              // Update and upload session metadata
-              setLogs((prev) => [
-                ...prev,
-                {
-                  timestamp: new Date(),
-                  message: "Updating session metadata...",
-                  type: "info",
-                },
-              ]);
-
-              const sessionUpdateSuccess = await window.serverAPI.updateSession(
-                selectedServer,
-                username || "Unknown",
-              );
               if (sessionUpdateSuccess) {
                 const sessionUploadSuccess = await window.serverAPI.uploadSession(
                   s3Config,
