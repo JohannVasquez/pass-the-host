@@ -12,6 +12,7 @@ import {
   ServerStatistics,
   SessionEntry,
 } from "@main/contexts/cloud-storage/domain/entities";
+import { mergeSessionMetadata } from "@main/contexts/cloud-storage/domain/utils/mergeSessionMetadata";
 import { RcloneRepository } from "./RcloneRepository";
 import { FileSystemError, ExternalServiceError, NotFoundError } from "@shared/domain/errors";
 
@@ -142,9 +143,19 @@ export class SessionRepository implements ISessionRepository {
     }
 
     try {
-      this.clearPendingUpload(serverId);
+      const localSession = this.readLocalSession(serverId);
+      const remoteSession = await this.readRemoteSession(rclonePath, r2SessionPath);
+      const mergedSession = mergeSessionMetadata(localSession, remoteSession);
+
+      if (!mergedSession) {
+        throw new NotFoundError("Merged session metadata", sessionFilePath);
+      }
+
+      fs.writeFileSync(sessionFilePath, JSON.stringify(mergedSession, null, 2), "utf-8");
+
       const copyCommand = `"${rclonePath}" copyto "${sessionFilePath}" ${r2SessionPath}`;
       await execAsync(copyCommand, { maxBuffer: 1024 * 1024 });
+      this.clearPendingUpload(serverId);
 
       console.log(`[SESSION] Uploaded session metadata to R2 for ${serverId}`);
       return true;
@@ -244,6 +255,19 @@ export class SessionRepository implements ISessionRepository {
 
     try {
       return JSON.parse(fs.readFileSync(statePath, "utf-8")) as CloudSyncState;
+    } catch {
+      return null;
+    }
+  }
+
+  private async readRemoteSession(
+    rclonePath: string,
+    remoteSessionPath: string,
+  ): Promise<SessionMetadata | null> {
+    try {
+      const catCommand = `"${rclonePath}" cat ${remoteSessionPath}`;
+      const { stdout } = await execAsync(catCommand, { maxBuffer: 1024 * 1024 });
+      return JSON.parse(stdout.trim()) as SessionMetadata;
     } catch {
       return null;
     }

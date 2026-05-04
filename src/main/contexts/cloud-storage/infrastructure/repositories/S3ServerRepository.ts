@@ -120,7 +120,13 @@ export class S3ServerRepository implements IS3ServerRepository {
       console.log(`[RCLONE] Starting download from ${s3ServerPath} to ${localServerPath}`);
       onProgress?.({ percent: 0, transferred: "0 B", total: "0 B" });
 
-      const result = await this.syncWithProgress(rclonePath, s3ServerPath, localServerPath, onProgress);
+      const result = await this.syncWithProgress(
+        rclonePath,
+        s3ServerPath,
+        localServerPath,
+        [],
+        onProgress,
+      );
       if (result) {
         this.writeCloudSyncState(serverId, {
           localChangesPendingUpload: false,
@@ -156,7 +162,13 @@ export class S3ServerRepository implements IS3ServerRepository {
       console.log(`[RCLONE] Starting upload from ${localServerPath} to ${s3ServerPath}`);
       onProgress?.({ percent: 0, transferred: "0 B", total: "0 B" });
 
-      const result = await this.syncWithProgress(rclonePath, localServerPath, s3ServerPath, onProgress);
+      const result = await this.syncWithProgress(
+        rclonePath,
+        localServerPath,
+        s3ServerPath,
+        ["--exclude", "session.json", "--exclude", ".cloud-sync-state.json"],
+        onProgress,
+      );
       if (result) {
         this.writeCloudSyncState(serverId, {
           localChangesPendingUpload: false,
@@ -421,12 +433,23 @@ export class S3ServerRepository implements IS3ServerRepository {
     rclonePath: string,
     source: string,
     destination: string,
+    extraArgs: string[] = [],
     onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean> {
     return new Promise<boolean>((resolve, reject) => {
       const rcloneProcess = spawn(
         rclonePath,
-        ["sync", source, destination, "--progress", "--stats", "500ms", "--transfers", "8"],
+        [
+          "sync",
+          source,
+          destination,
+          "--progress",
+          "--stats",
+          "500ms",
+          "--transfers",
+          "8",
+          ...extraArgs,
+        ],
         { shell: true },
       );
 
