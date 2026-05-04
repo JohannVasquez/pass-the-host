@@ -1,0 +1,10 @@
+{
+  "extends": ["@electron-toolkit/tsconfig/tsconfig.node.json", "./tsconfig.base.json"],
+  "include": ["tests/**/*.ts", "src/preload/index.d.ts"],
+  "compilerOptions": {
+    "composite": false,
+    "emitDecoratorMetadata": false,
+    "isolatedModules": false,
+    "types": ["vitest/globals", "node"]
+  }
+}

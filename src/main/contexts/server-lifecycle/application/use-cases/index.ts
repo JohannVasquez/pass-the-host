@@ -1,10 +1,10 @@
 import { injectable } from "inversify";
-import { IServerLifecycleRepository } from "../../domain/repositories";
+import { IServerLifecycleRepository } from "@main/contexts/server-lifecycle/domain/repositories";
 import {
   MinecraftServerConfig,
   ServerCreationResult,
   ServerDeletionResult,
-} from "../../domain/entities";
+} from "@main/contexts/server-lifecycle/domain/entities";
 
 @injectable()
 export class CreateMinecraftServerUseCase {

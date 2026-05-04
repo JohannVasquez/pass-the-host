@@ -1,6 +1,6 @@
-import { IServerRepository } from "../../domain/repositories/IServerRepository";
-import { Server, ServerType } from "../../domain/entities/Server";
-import { S3Config } from "../../domain/entities/ServerConfig";
+import { IServerRepository } from "@renderer/domain/repositories/IServerRepository";
+import { Server, ServerType } from "@renderer/domain/entities/Server";
+import { S3Config } from "@renderer/domain/entities/ServerConfig";
 
 /**
  * S3-compatible Server Repository implementation

@@ -5,8 +5,8 @@ import * as fs from "fs";
 import * as https from "https";
 import { execSync, exec } from "child_process";
 import { promisify } from "util";
-import { IRcloneRepository } from "../../domain/repositories";
-import { S3Config, S3Provider } from "../../domain/entities";
+import { IRcloneRepository } from "@main/contexts/cloud-storage/domain/repositories";
+import { S3Config, S3Provider } from "@main/contexts/cloud-storage/domain/entities";
 import { FileSystemError, ExternalServiceError } from "@shared/domain/errors";
 
 const execAsync = promisify(exec);

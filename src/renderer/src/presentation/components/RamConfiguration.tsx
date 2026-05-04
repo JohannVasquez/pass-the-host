@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Box, Typography, Paper, Stack, Slider } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { RamConfig } from "../../domain/entities/ServerConfig";
+import { RamConfig } from "@renderer/domain/entities/ServerConfig";
 
 interface RamConfigurationProps {
   ramConfig: RamConfig;

@@ -2,8 +2,12 @@ import { injectable } from "inversify";
 import { app } from "electron";
 import * as fs from "fs";
 import * as path from "path";
-import { IAppConfigurationRepository } from "../../domain/repositories";
-import { S3Config, AppConfig, ConfigSaveResult } from "../../domain/entities";
+import { IAppConfigurationRepository } from "@main/contexts/app-configuration/domain/repositories";
+import {
+  S3Config,
+  AppConfig,
+  ConfigSaveResult,
+} from "@main/contexts/app-configuration/domain/entities";
 import { FileSystemError } from "@shared/domain/errors";
 
 @injectable()

@@ -1,4 +1,4 @@
-import { Server } from "../entities/Server";
+import { Server } from "@server-lifecycle/domain/entities/Server";
 
 /**
  * Server Repository interface

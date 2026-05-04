@@ -91,6 +91,9 @@ interface ServerAPI {
   editForgeJvmArgs: (serverId: string, minRam: number, maxRam: number) => Promise<void>;
   readForgeJvmArgs: (serverId: string) => Promise<{ allArgs: string[] } | null>;
   onStdout: (callback: (data: string) => void) => () => void;
+  onProcessExit: (
+    callback: (payload: { serverId: string; code: number | null }) => void,
+  ) => () => void;
   sendCommand: (serverId: string, command: string) => Promise<boolean>;
   openServerFolder: (serverId: string) => Promise<boolean>;
   createSession: (serverId: string, username: string) => Promise<boolean>;

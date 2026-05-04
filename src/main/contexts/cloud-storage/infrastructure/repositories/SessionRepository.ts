@@ -4,8 +4,13 @@ import * as path from "path";
 import * as fs from "fs";
 import { promisify } from "util";
 import { exec } from "child_process";
-import { ISessionRepository } from "../../domain/repositories";
-import { S3Config, SessionMetadata, ServerStatistics, SessionEntry } from "../../domain/entities";
+import { ISessionRepository } from "@main/contexts/cloud-storage/domain/repositories";
+import {
+  S3Config,
+  SessionMetadata,
+  ServerStatistics,
+  SessionEntry,
+} from "@main/contexts/cloud-storage/domain/entities";
 import { RcloneRepository } from "./RcloneRepository";
 import { FileSystemError, ExternalServiceError, NotFoundError } from "@shared/domain/errors";
 

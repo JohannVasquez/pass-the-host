@@ -4,8 +4,8 @@ import * as path from "path";
 import * as fs from "fs";
 import { promisify } from "util";
 import { exec } from "child_process";
-import type { IServerLockRepository } from "../../domain/repositories";
-import type { S3Config, ServerLock } from "../../domain/entities";
+import type { IServerLockRepository } from "@main/contexts/cloud-storage/domain/repositories";
+import type { S3Config, ServerLock } from "@main/contexts/cloud-storage/domain/entities";
 import { RcloneRepository } from "./RcloneRepository";
 import { NotFoundError, FileSystemError, ExternalServiceError } from "@shared/domain/errors";
 
