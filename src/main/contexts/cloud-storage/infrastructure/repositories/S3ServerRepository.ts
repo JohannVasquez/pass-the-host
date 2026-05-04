@@ -7,6 +7,7 @@ import { promisify } from "util";
 import { exec } from "child_process";
 import { IS3ServerRepository } from "@main/contexts/cloud-storage/domain/repositories";
 import {
+  CloudSyncState,
   S3Config,
   ServerInfo,
   TransferProgress,
@@ -119,7 +120,15 @@ export class S3ServerRepository implements IS3ServerRepository {
       console.log(`[RCLONE] Starting download from ${s3ServerPath} to ${localServerPath}`);
       onProgress?.({ percent: 0, transferred: "0 B", total: "0 B" });
 
-      return await this.syncWithProgress(rclonePath, s3ServerPath, localServerPath, onProgress);
+      const result = await this.syncWithProgress(rclonePath, s3ServerPath, localServerPath, onProgress);
+      if (result) {
+        this.writeCloudSyncState(serverId, {
+          localChangesPendingUpload: false,
+          lastLocalChangeTimestamp: Date.now(),
+        });
+      }
+
+      return result;
     } catch (error) {
       throw new ExternalServiceError(
         "S3",
@@ -147,7 +156,15 @@ export class S3ServerRepository implements IS3ServerRepository {
       console.log(`[RCLONE] Starting upload from ${localServerPath} to ${s3ServerPath}`);
       onProgress?.({ percent: 0, transferred: "0 B", total: "0 B" });
 
-      return await this.syncWithProgress(rclonePath, localServerPath, s3ServerPath, onProgress);
+      const result = await this.syncWithProgress(rclonePath, localServerPath, s3ServerPath, onProgress);
+      if (result) {
+        this.writeCloudSyncState(serverId, {
+          localChangesPendingUpload: false,
+          lastLocalChangeTimestamp: Date.now(),
+        });
+      }
+
+      return result;
     } catch (error) {
       throw new ExternalServiceError(
         "S3",
@@ -202,6 +219,12 @@ export class S3ServerRepository implements IS3ServerRepository {
 
   async shouldDownloadServer(config: S3Config, serverId: string): Promise<boolean> {
     try {
+      const cloudSyncState = this.readCloudSyncState(serverId);
+      if (cloudSyncState?.localChangesPendingUpload) {
+        console.log(`[SESSION] Local changes pending upload for ${serverId}, skipping download`);
+        return false;
+      }
+
       // Read local session directly instead of using SessionRepository
       const localSession = this.readLocalSession(serverId);
       console.log(
@@ -274,6 +297,29 @@ export class S3ServerRepository implements IS3ServerRepository {
       // Expected case: file doesn't exist or can't be parsed
       return null;
     }
+  }
+
+  private getCloudSyncStatePath(serverId: string): string {
+    return path.join(app.getPath("userData"), "servers", serverId, ".cloud-sync-state.json");
+  }
+
+  private readCloudSyncState(serverId: string): CloudSyncState | null {
+    try {
+      const statePath = this.getCloudSyncStatePath(serverId);
+
+      if (!fs.existsSync(statePath)) {
+        return null;
+      }
+
+      return JSON.parse(fs.readFileSync(statePath, "utf-8")) as CloudSyncState;
+    } catch {
+      return null;
+    }
+  }
+
+  private writeCloudSyncState(serverId: string, state: CloudSyncState): void {
+    const statePath = this.getCloudSyncStatePath(serverId);
+    fs.writeFileSync(statePath, JSON.stringify(state, null, 2), "utf-8");
   }
 
   private async detectServerVersionAndType(

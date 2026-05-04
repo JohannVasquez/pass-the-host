@@ -87,6 +87,7 @@ function AppContent(): React.JSX.Element {
   const [serverStatus, setServerStatus] = React.useState<ServerStatus>(ServerStatus.STOPPED);
   const [servers, setServers] = React.useState<Server[]>([]);
   const [selectedServer, setSelectedServer] = React.useState<string | null>(null);
+  const [isCloudSyncEnabledByUser, setIsCloudSyncEnabledByUser] = React.useState<boolean>(false);
   const [isS3Configured, setIsS3Configured] = React.useState<boolean>(false);
   const [isRcloneReady, setIsRcloneReady] = React.useState<boolean>(false);
   const [rcloneCheckCompleted, setRcloneCheckCompleted] = React.useState<boolean>(false);
@@ -178,7 +179,7 @@ function AppContent(): React.JSX.Element {
     serverStatusRef.current = serverStatus;
   }, [serverStatus]);
 
-  const isCloudSyncEnabled = isS3Configured && isRcloneReady;
+  const isCloudSyncEnabled = isCloudSyncEnabledByUser && isS3Configured && isRcloneReady;
 
   // Monitor server lock status when server is stopped and selected
   useLockMonitor(
@@ -340,6 +341,7 @@ function AppContent(): React.JSX.Element {
 
         // Load username
         setUsername(config.app?.owner_name || "");
+        setIsCloudSyncEnabledByUser(config.app?.cloud_sync_enabled === true);
 
         // Load and set language
         const savedLanguage = config.app?.language || "en";
@@ -473,6 +475,116 @@ function AppContent(): React.JSX.Element {
     );
   };
 
+  const ensureCloudSyncReady = async (config: S3Config): Promise<boolean> => {
+    if (!validateS3Config(config)) {
+      setIsS3Configured(false);
+      setIsRcloneReady(false);
+      await loadLocalServers();
+      return false;
+    }
+
+    setIsS3Configured(true);
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "Checking rclone installation...",
+        type: "info",
+      },
+    ]);
+
+    const rcloneExists = await window.rclone.checkInstallation();
+
+    if (!rcloneExists) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Rclone not found. Installing...",
+          type: "warning",
+        },
+      ]);
+
+      setIsRcloneDownloading(true);
+      setRcloneProgressMessage("Preparing to download rclone...");
+
+      const installSuccess = await window.rclone.installRclone();
+
+      setIsRcloneDownloading(false);
+      setRcloneProgressMessage("");
+
+      if (!installSuccess) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Failed to install rclone. Please install manually.",
+            type: "error",
+          },
+        ]);
+        setIsRcloneReady(false);
+        await loadLocalServers();
+        return false;
+      }
+
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Rclone installed successfully",
+          type: "info",
+        },
+      ]);
+    } else {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Rclone is already installed",
+          type: "info",
+        },
+      ]);
+    }
+
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "Testing cloud storage connection...",
+        type: "info",
+      },
+    ]);
+
+    const connectionSuccess = await window.rclone.testConnection(config);
+
+    if (!connectionSuccess) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Failed to connect to cloud storage. Please check your configuration.",
+          type: "error",
+        },
+      ]);
+      setIsRcloneReady(false);
+      await loadLocalServers();
+      return false;
+    }
+
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "Cloud storage connection successful",
+        type: "info",
+      },
+    ]);
+    setIsRcloneReady(true);
+    await loadServersFromS3();
+
+    return true;
+  };
+
   // Check if rclone is installed and verify S3 connection
   React.useEffect(() => {
     // Wait for config to load first
@@ -487,115 +599,13 @@ function AppContent(): React.JSX.Element {
 
     const checkRcloneAndS3 = async (): Promise<void> => {
       try {
-        if (!validateS3Config(s3Config)) {
+        if (!isCloudSyncEnabledByUser) {
           setIsRcloneReady(false);
           await loadLocalServers();
           return;
         }
 
-        // Check if rclone exists
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: "Checking rclone installation...",
-            type: "info",
-          },
-        ]);
-
-        const rcloneExists = await window.rclone.checkInstallation();
-
-        if (!rcloneExists) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Rclone not found. Installing...",
-              type: "warning",
-            },
-          ]);
-
-          // Show rclone download modal
-          setIsRcloneDownloading(true);
-          setRcloneProgressMessage("Preparing to download rclone...");
-
-          const installSuccess = await window.rclone.installRclone();
-
-          // Hide rclone download modal
-          setIsRcloneDownloading(false);
-          setRcloneProgressMessage("");
-
-          if (!installSuccess) {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Failed to install rclone. Please install manually.",
-                type: "error",
-              },
-            ]);
-            setIsRcloneReady(false);
-            return;
-          }
-
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Rclone installed successfully",
-              type: "info",
-            },
-          ]);
-        } else {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Rclone is already installed",
-              type: "info",
-            },
-          ]);
-        }
-
-        // If S3 is configured, test the connection
-
-        if (validateS3Config(s3Config)) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Testing cloud storage connection...",
-              type: "info",
-            },
-          ]);
-
-          const connectionSuccess = await window.rclone.testConnection(s3Config);
-
-          if (connectionSuccess) {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Cloud storage connection successful",
-                type: "info",
-              },
-            ]);
-            setIsRcloneReady(true);
-
-            // Load servers from cloud storage
-            loadServersFromS3();
-          } else {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Failed to connect to cloud storage. Please check your configuration.",
-                type: "error",
-              },
-            ]);
-            setIsRcloneReady(false);
-          }
-        }
+        await ensureCloudSyncReady(s3Config);
       } catch (error) {
         console.error("Error checking rclone:", error);
         setLogs((prev) => [
@@ -614,12 +624,20 @@ function AppContent(): React.JSX.Element {
 
     checkRcloneAndS3();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configLoaded, rcloneCheckCompleted]);
+  }, [configLoaded, isCloudSyncEnabledByUser, rcloneCheckCompleted]);
 
   // Validate S3 configuration when it changes
   React.useEffect(() => {
     const isValid = validateS3Config(s3Config);
     setIsS3Configured(isValid);
+
+    if (!isCloudSyncEnabledByUser) {
+      setIsRcloneReady(false);
+      setTotalBucketSize(0);
+      setSelectedServerSize(0);
+      void loadLocalServers();
+      return;
+    }
 
     if (!isValid) {
       setIsRcloneReady(false);
@@ -641,35 +659,13 @@ function AppContent(): React.JSX.Element {
           },
         ]);
 
-        const connectionSuccess = await window.rclone.testConnection(s3Config);
-
-        if (connectionSuccess) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Cloud storage connection successful",
-              type: "info",
-            },
-          ]);
-          await loadServersFromS3();
-        } else {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Failed to connect to cloud storage. Please check your configuration.",
-              type: "error",
-            },
-          ]);
-          setIsRcloneReady(false);
-        }
+        await ensureCloudSyncReady(s3Config);
       };
 
       testConnection();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s3Config, isRcloneReady]);
+  }, [isCloudSyncEnabledByUser, s3Config, isRcloneReady]);
 
   React.useEffect(() => {
     const unsubscribe = window.serverAPI.onStdout((data: string) => {
@@ -856,6 +852,14 @@ function AppContent(): React.JSX.Element {
     const isValid = validateS3Config(config);
     setIsS3Configured(isValid);
 
+    if (!isCloudSyncEnabledByUser) {
+      setIsRcloneReady(false);
+      setTotalBucketSize(0);
+      setSelectedServerSize(0);
+      await loadLocalServers();
+      return;
+    }
+
     if (!isValid) {
       setIsRcloneReady(false);
       setTotalBucketSize(0);
@@ -872,43 +876,65 @@ function AppContent(): React.JSX.Element {
       return;
     }
 
-    // Test connection
+    await ensureCloudSyncReady(config);
+  };
+
+  const handleToggleCloudSync = async (enabled: boolean): Promise<void> => {
+    const saveSuccess = await window.configAPI.saveCloudSyncEnabled(enabled);
+
+    if (!saveSuccess) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Failed to save cloud sync setting",
+          type: "error",
+        },
+      ]);
+      return;
+    }
+
+    setIsCloudSyncEnabledByUser(enabled);
+
+    if (!enabled) {
+      setIsRcloneReady(false);
+      setTotalBucketSize(0);
+      setSelectedServerSize(0);
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Cloud sync disabled. Local mode is active.",
+          type: "info",
+        },
+      ]);
+      await loadLocalServers();
+      return;
+    }
+
     setLogs((prev) => [
       ...prev,
       {
         timestamp: new Date(),
-        message: "Testing cloud storage connection...",
+        message: "Cloud sync enabled.",
         type: "info",
       },
     ]);
 
-    const connectionSuccess = await window.rclone.testConnection(config);
-
-    if (connectionSuccess) {
+    if (!validateS3Config(s3Config)) {
       setLogs((prev) => [
         ...prev,
         {
           timestamp: new Date(),
-          message: "Cloud storage connection successful",
-          type: "info",
+          message: "Cloud sync is enabled, but the cloud storage configuration is incomplete.",
+          type: "warning",
         },
       ]);
-      setIsRcloneReady(true);
-
-      // Load servers from cloud storage
-      await refreshServerList(true);
-    } else {
-      setLogs((prev) => [
-        ...prev,
-        {
-          timestamp: new Date(),
-          message: "Failed to connect to cloud storage. Please check your configuration.",
-          type: "error",
-        },
-      ]);
-      setIsRcloneReady(false);
       await loadLocalServers();
+      return;
     }
+
+    await ensureCloudSyncReady(s3Config);
   };
 
   const handleSelectServer = async (serverId: string): Promise<void> => {
@@ -2190,7 +2216,7 @@ function AppContent(): React.JSX.Element {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               Pass the host!
             </Typography>
-            {isS3Configured && totalBucketSize > 0 && (
+            {isCloudSyncEnabled && totalBucketSize > 0 && (
               <Typography variant="body2" sx={{ mr: 2, display: "flex", alignItems: "center" }}>
                 {t("storage.total")}: {formatBytes(totalBucketSize)}
                 {selectedServer && selectedServerSize > 0 && (
@@ -2266,6 +2292,8 @@ function AppContent(): React.JSX.Element {
             <S3Configuration
               config={s3Config}
               onSave={handleSaveS3Config}
+              cloudSyncEnabled={isCloudSyncEnabledByUser}
+              onToggleCloudSync={handleToggleCloudSync}
               disabled={serverStatus !== ServerStatus.STOPPED}
             />
 

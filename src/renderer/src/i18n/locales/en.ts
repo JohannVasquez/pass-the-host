@@ -26,6 +26,7 @@ export const en = {
       saveError: "Error saving configuration",
       lock: "Lock configuration",
       unlock: "Unlock configuration",
+      enableSync: "Enable cloud sync",
     },
     serverControl: {
       title: "Server Control",

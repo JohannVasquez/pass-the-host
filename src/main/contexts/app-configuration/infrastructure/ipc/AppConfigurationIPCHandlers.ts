@@ -5,6 +5,7 @@ import { TYPES } from "@main/contexts/app-configuration/application/use-cases/ty
 import {
   LoadConfigUseCase,
   SaveS3ConfigUseCase,
+  SaveCloudSyncEnabledUseCase,
   SaveUsernameUseCase,
   SaveRamConfigUseCase,
   SaveLanguageUseCase,
@@ -27,6 +28,16 @@ export class AppConfigurationIPCHandlers {
       this.handleIPC("saveS3Config", async (_, s3Config) => {
         const useCase = this.container.get<SaveS3ConfigUseCase>(TYPES.SaveS3ConfigUseCase);
         return useCase.execute(s3Config);
+      }),
+    );
+
+    ipcMain.handle(
+      "config:save-cloud-sync-enabled",
+      this.handleIPC("saveCloudSyncEnabled", async (_, enabled) => {
+        const useCase = this.container.get<SaveCloudSyncEnabledUseCase>(
+          TYPES.SaveCloudSyncEnabledUseCase,
+        );
+        return useCase.execute(enabled);
       }),
     );
 

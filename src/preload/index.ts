@@ -71,19 +71,32 @@ interface AppConfigData {
   app: {
     owner_name: string | null;
     language: string;
+    cloud_sync_enabled: boolean;
   };
 }
 
 const configAPI = {
   loadConfig: (): Promise<AppConfigData | null> => ipcRenderer.invoke("config:load"),
-  saveS3Config: (s3Config: S3ConfigType): Promise<boolean> =>
-    ipcRenderer.invoke("config:save-s3", s3Config),
-  saveUsername: (username: string): Promise<boolean> =>
-    ipcRenderer.invoke("config:save-username", username),
-  saveRamConfig: (minRam: number, maxRam: number): Promise<boolean> =>
-    ipcRenderer.invoke("config:save-ram", minRam, maxRam),
-  saveLanguage: (language: string): Promise<boolean> =>
-    ipcRenderer.invoke("config:save-language", language),
+  saveS3Config: async (s3Config: S3ConfigType): Promise<boolean> => {
+    const result = await ipcRenderer.invoke("config:save-s3", s3Config);
+    return result.success === true;
+  },
+  saveCloudSyncEnabled: async (enabled: boolean): Promise<boolean> => {
+    const result = await ipcRenderer.invoke("config:save-cloud-sync-enabled", enabled);
+    return result.success === true;
+  },
+  saveUsername: async (username: string): Promise<boolean> => {
+    const result = await ipcRenderer.invoke("config:save-username", username);
+    return result.success === true;
+  },
+  saveRamConfig: async (minRam: number, maxRam: number): Promise<boolean> => {
+    const result = await ipcRenderer.invoke("config:save-ram", minRam, maxRam);
+    return result.success === true;
+  },
+  saveLanguage: async (language: string): Promise<boolean> => {
+    const result = await ipcRenderer.invoke("config:save-language", language);
+    return result.success === true;
+  },
 };
 
 interface ServerStatistics {

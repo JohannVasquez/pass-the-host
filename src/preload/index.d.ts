@@ -50,12 +50,14 @@ interface AppConfigData {
   app: {
     owner_name: string | null;
     language: string;
+    cloud_sync_enabled: boolean;
   };
 }
 
 interface ConfigAPI {
   loadConfig: () => Promise<AppConfigData | null>;
   saveS3Config: (s3Config: S3ConfigType) => Promise<boolean>;
+  saveCloudSyncEnabled: (enabled: boolean) => Promise<boolean>;
   saveUsername: (username: string) => Promise<boolean>;
   saveRamConfig: (minRam: number, maxRam: number) => Promise<boolean>;
   saveLanguage: (language: string) => Promise<boolean>;

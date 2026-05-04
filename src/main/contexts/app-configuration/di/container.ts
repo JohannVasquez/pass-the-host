@@ -5,6 +5,7 @@ import { AppConfigurationRepository } from "@main/contexts/app-configuration/inf
 import {
   LoadConfigUseCase,
   SaveS3ConfigUseCase,
+  SaveCloudSyncEnabledUseCase,
   SaveUsernameUseCase,
   SaveRamConfigUseCase,
   SaveLanguageUseCase,
@@ -35,6 +36,16 @@ export function configureAppConfigurationContext(container: Container): void {
         TYPES.IAppConfigurationRepository,
       );
       return new SaveS3ConfigUseCase(repository);
+    })
+    .inTransientScope();
+
+  container
+    .bind<SaveCloudSyncEnabledUseCase>(TYPES.SaveCloudSyncEnabledUseCase)
+    .toDynamicValue(() => {
+      const repository = container.get<IAppConfigurationRepository>(
+        TYPES.IAppConfigurationRepository,
+      );
+      return new SaveCloudSyncEnabledUseCase(repository);
     })
     .inTransientScope();
 
