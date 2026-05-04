@@ -3,13 +3,13 @@ import { app } from "electron";
 import * as path from "path";
 import * as fs from "fs";
 import * as https from "https";
-import { execSync, exec } from "child_process";
+import { execFile, execSync } from "child_process";
 import { promisify } from "util";
 import { IRcloneRepository } from "@main/contexts/cloud-storage/domain/repositories";
 import { S3Config, S3Provider } from "@main/contexts/cloud-storage/domain/entities";
 import { FileSystemError, ExternalServiceError } from "@shared/domain/errors";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 @injectable()
 export class RcloneRepository implements IRcloneRepository {
@@ -107,6 +107,7 @@ export class RcloneRepository implements IRcloneRepository {
 
         if (process.platform !== "win32") {
           fs.chmodSync(this.RCLONE_PATH, 0o755);
+          this.removeQuarantineAttribute();
         }
 
         fs.unlinkSync(zipPath);
@@ -131,8 +132,7 @@ export class RcloneRepository implements IRcloneRepository {
   async testConnection(config: S3Config): Promise<boolean> {
     try {
       await this.ensureConfigured(config);
-      const testCommand = `"${this.RCLONE_PATH}" lsd ${this.RCLONE_CONFIG_NAME}:${config.bucket_name}`;
-      await execAsync(testCommand);
+      await this.runRclone(["lsd", `${this.RCLONE_CONFIG_NAME}:${config.bucket_name}`]);
       return true;
     } catch (error) {
       throw new ExternalServiceError(
@@ -145,8 +145,11 @@ export class RcloneRepository implements IRcloneRepository {
   async getBucketSize(config: S3Config): Promise<number> {
     try {
       await this.ensureConfigured(config);
-      const sizeCommand = `"${this.RCLONE_PATH}" size ${this.RCLONE_CONFIG_NAME}:${config.bucket_name}/pass_the_host --json`;
-      const { stdout } = await execAsync(sizeCommand);
+      const { stdout } = await this.runRclone([
+        "size",
+        `${this.RCLONE_CONFIG_NAME}:${config.bucket_name}/pass_the_host`,
+        "--json",
+      ]);
       const result = JSON.parse(stdout);
       // rclone size --json returns { "count": <number>, "bytes": <number> }
       return result.bytes || 0;
@@ -160,25 +163,37 @@ export class RcloneRepository implements IRcloneRepository {
 
   async ensureConfigured(config: S3Config): Promise<void> {
     const providerStr = this.getProviderString(config.provider);
-
-    // Build rclone config command based on provider
-    let configCommand: string;
+    const configArgs = [
+      "config",
+      "create",
+      this.RCLONE_CONFIG_NAME,
+      "s3",
+      `provider=${providerStr}`,
+      `access_key_id=${config.access_key}`,
+      `secret_access_key=${config.secret_key}`,
+    ];
 
     if (config.provider === "AWS") {
-      // AWS S3 uses region-based endpoints
-      configCommand = `"${this.RCLONE_PATH}" config create ${this.RCLONE_CONFIG_NAME} s3 provider=${providerStr} access_key_id=${config.access_key} secret_access_key=${config.secret_key} region=${config.region || "us-east-1"} acl=private --non-interactive`;
+      configArgs.push(`region=${config.region || "us-east-1"}`);
     } else if (config.provider === "MinIO") {
-      // MinIO requires endpoint
-      configCommand = `"${this.RCLONE_PATH}" config create ${this.RCLONE_CONFIG_NAME} s3 provider=${providerStr} access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${config.endpoint} region=${config.region || "us-east-1"} acl=private --non-interactive`;
+      configArgs.push(`endpoint=${config.endpoint}`);
+      configArgs.push(`region=${config.region || "us-east-1"}`);
     } else {
-      // Cloudflare R2, Backblaze, DigitalOcean, Other - use endpoint
-      configCommand = `"${this.RCLONE_PATH}" config create ${this.RCLONE_CONFIG_NAME} s3 provider=${providerStr} access_key_id=${config.access_key} secret_access_key=${config.secret_key} endpoint=${config.endpoint} region=${config.region || "auto"} acl=private --non-interactive`;
+      configArgs.push(`endpoint=${config.endpoint}`);
+      configArgs.push(`region=${config.region || "auto"}`);
     }
 
+    configArgs.push("acl=private", "--non-interactive");
+
     try {
-      await execAsync(configCommand);
-    } catch {
-      // Config might already exist, continue
+      await this.runRclone(configArgs);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("already exists")) {
+        return;
+      }
+
+      throw new ExternalServiceError("Rclone", `Failed to configure S3 remote: ${message}`);
     }
   }
 
@@ -255,6 +270,41 @@ export class RcloneRepository implements IRcloneRepository {
       execSync(command);
     } else {
       execSync(`unzip -o "${zipPath}" -d "${destDir}"`);
+    }
+  }
+
+  private async runRclone(args: string[]): Promise<{ stdout: string; stderr: string }> {
+    try {
+      return await execFileAsync(this.RCLONE_PATH, args, { maxBuffer: 1024 * 1024 });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const stderr = this.extractExecErrorOutput(error, "stderr");
+      const stdout = this.extractExecErrorOutput(error, "stdout");
+      const output = [stderr, stdout].filter(Boolean).join(" | ");
+      const command = `${this.RCLONE_PATH} ${args.join(" ")}`;
+
+      throw new Error(
+        output
+          ? `${errorMessage}. Command: ${command}. Output: ${output}`
+          : `${errorMessage}. Command: ${command}`,
+      );
+    }
+  }
+
+  private extractExecErrorOutput(error: unknown, key: "stdout" | "stderr"): string {
+    if (!error || typeof error !== "object" || !(key in error)) {
+      return "";
+    }
+
+    const value = (error as Record<string, unknown>)[key];
+    return typeof value === "string" ? value.trim() : "";
+  }
+
+  private removeQuarantineAttribute(): void {
+    try {
+      execSync(`xattr -d com.apple.quarantine "${this.RCLONE_PATH}"`, { stdio: "ignore" });
+    } catch {
+      // Best effort only: the downloaded binary may not carry quarantine metadata.
     }
   }
 }
