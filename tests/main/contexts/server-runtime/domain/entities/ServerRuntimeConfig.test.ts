@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type {
   ServerRuntimeConfig,
   ForgeJvmArgs,
-} from "../../../../../../src/main/contexts/server-runtime/domain/entities/ServerRuntimeConfig";
+} from "@main/contexts/server-runtime/domain/entities/ServerRuntimeConfig";
 
 describe("ServerRuntimeConfig", () => {
   describe("interface", () => {

@@ -23,7 +23,7 @@ import {
   ExpandMore as ExpandMoreIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
-import { S3Config, S3Provider } from "../../domain/entities/ServerConfig";
+import { S3Config, S3Provider } from "@renderer/domain/entities/ServerConfig";
 
 interface S3ConfigurationProps {
   config: S3Config;

@@ -4,12 +4,12 @@ import * as path from "path";
 import * as fs from "fs";
 import * as https from "https";
 import { spawn } from "child_process";
-import { IServerLifecycleRepository } from "../../domain/repositories";
+import { IServerLifecycleRepository } from "@main/contexts/server-lifecycle/domain/repositories";
 import {
   MinecraftServerConfig,
   ServerCreationResult,
   ServerDeletionResult,
-} from "../../domain/entities";
+} from "@main/contexts/server-lifecycle/domain/entities";
 import { FileSystemError, NetworkError } from "@shared/domain/errors";
 
 interface MinecraftVersionInfo {

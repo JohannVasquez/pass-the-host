@@ -22,8 +22,8 @@ import {
   WriteServerPortUseCase,
   GetBucketSizeUseCase,
   GetServerSizeUseCase,
-} from "../../application/use-cases";
-import type { S3Config } from "../../domain/entities";
+} from "@main/contexts/cloud-storage/application/use-cases";
+import type { S3Config } from "@main/contexts/cloud-storage/domain/entities";
 
 export class CloudStorageIPCHandlers {
   constructor(

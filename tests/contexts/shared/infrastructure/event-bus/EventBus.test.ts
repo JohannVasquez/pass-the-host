@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { EventBus } from "../../../../../src/contexts/shared/infrastructure/event-bus/EventBus";
-import { BaseDomainEvent } from "../../../../../src/contexts/shared/domain/DomainEvent";
+import { EventBus } from "@shared/infrastructure/event-bus/EventBus";
+import { BaseDomainEvent } from "@shared/domain/DomainEvent";
 
 class TestEvent extends BaseDomainEvent {
   constructor(

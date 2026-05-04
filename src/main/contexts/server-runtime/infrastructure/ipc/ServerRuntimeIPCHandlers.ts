@@ -8,7 +8,7 @@ import {
   ReadForgeJvmArgsUseCase,
   EditForgeJvmArgsUseCase,
   OpenServerFolderUseCase,
-} from "../../application/use-cases";
+} from "@main/contexts/server-runtime/application/use-cases";
 
 export class ServerRuntimeIPCHandlers {
   constructor(

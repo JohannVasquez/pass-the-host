@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ServerRuntimeState,
   canTransitionServerRuntimeState,
-} from "../../../../../src/contexts/shared/domain/server/ServerRuntimeState";
+} from "@shared/domain/server/ServerRuntimeState";
 
 describe("ServerRuntimeState", () => {
   it("allows valid forward transitions", () => {

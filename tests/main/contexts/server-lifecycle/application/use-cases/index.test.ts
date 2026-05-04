@@ -3,13 +3,13 @@ import {
   CreateMinecraftServerUseCase,
   DeleteServerLocallyUseCase,
   GetLocalServerPathUseCase,
-} from "../../../../../../src/main/contexts/server-lifecycle/application/use-cases";
-import type { IServerLifecycleRepository } from "../../../../../../src/main/contexts/server-lifecycle/domain/repositories";
+} from "@main/contexts/server-lifecycle/application/use-cases";
+import type { IServerLifecycleRepository } from "@main/contexts/server-lifecycle/domain/repositories";
 import type {
   MinecraftServerConfig,
   ServerCreationResult,
   ServerDeletionResult,
-} from "../../../../../../src/main/contexts/server-lifecycle/domain/entities";
+} from "@main/contexts/server-lifecycle/domain/entities";
 
 function createMockRepository(): IServerLifecycleRepository {
   return {

@@ -1,4 +1,4 @@
-import { MinecraftServerConfig, ServerCreationResult, ServerDeletionResult } from "../entities";
+import { MinecraftServerConfig, ServerCreationResult, ServerDeletionResult } from "@main/contexts/server-lifecycle/domain/entities";
 
 export interface IServerLifecycleRepository {
   /**
