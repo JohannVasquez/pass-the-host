@@ -175,6 +175,46 @@ function AppContent(): React.JSX.Element {
     [],
   );
 
+  const resetTransferProgress = React.useCallback(
+    (type: "download" | "upload", transferred = "0", total = "0"): void => {
+      setTransferType(type);
+      setTransferPercent(0);
+      setTransferTransferred(transferred);
+      setTransferTotal(total);
+    },
+    [],
+  );
+
+  const waitForServerExit = React.useCallback((serverId: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      let settled = false;
+      let timeoutId: number | undefined;
+
+      const unsubscribe = window.serverAPI.onProcessExit((payload) => {
+        if (payload.serverId !== serverId || settled) {
+          return;
+        }
+
+        settled = true;
+        unsubscribe();
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+        }
+        resolve(true);
+      });
+
+      timeoutId = window.setTimeout(() => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        unsubscribe();
+        resolve(false);
+      }, 15000);
+    });
+  }, []);
+
   React.useEffect(() => {
     serverStatusRef.current = serverStatus;
   }, [serverStatus]);
@@ -194,19 +234,26 @@ function AppContent(): React.JSX.Element {
         return;
       }
 
-      updateServerStatus(ServerStatus.STOPPED, "server process exited", { force: true });
       setServerStartTime(null);
       serverProcessRef.current = false;
+
+      const isIntentionalStop = serverStatusRef.current === ServerStatus.STOPPING;
+
+      if (!isIntentionalStop) {
+        updateServerStatus(ServerStatus.STOPPED, "server process exited", { force: true });
+      }
 
       setLogs((prev) => [
         ...prev,
         {
           timestamp: new Date(),
           message:
-            code === 0
-              ? "Server process exited"
-              : `Server process stopped unexpectedly${code !== null ? ` (exit code ${code})` : ""}`,
-          type: code === 0 ? "info" : "warning",
+            isIntentionalStop
+              ? "Server process exited, finalizing shutdown..."
+              : code === 0
+                ? "Server process exited"
+                : `Server process stopped unexpectedly${code !== null ? ` (exit code ${code})` : ""}`,
+          type: isIntentionalStop || code === 0 ? "info" : "warning",
         },
       ]);
     });
@@ -1039,87 +1086,98 @@ function AppContent(): React.JSX.Element {
         ]);
         return;
       }
-      updateServerStatus(ServerStatus.STARTING, "start flow initiated");
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: `Starting server: ${selectedServer}`, type: "info" },
-      ]);
+      try {
+        updateServerStatus(ServerStatus.STARTING, "start flow initiated");
+        setLogs((prev) => [
+          ...prev,
+          { timestamp: new Date(), message: `Starting server: ${selectedServer}`, type: "info" },
+        ]);
 
-      // Check if server is locked
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: "Checking server lock status...", type: "info" },
-      ]);
-      if (isCloudSyncEnabled) {
-        const lockInfo = await window.serverAPI.readLock(s3Config, selectedServer);
+        // Check if server is locked
+        setLogs((prev) => [
+          ...prev,
+          { timestamp: new Date(), message: "Checking server lock status...", type: "info" },
+        ]);
+        if (isCloudSyncEnabled) {
+          const lockInfo = await window.serverAPI.readLock(s3Config, selectedServer);
 
-        if (lockInfo.exists) {
+          if (lockInfo.exists) {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: `Server is locked by ${lockInfo.username}`,
+                type: "error",
+              },
+            ]);
+            setLockedServerInfo({
+              username: lockInfo.username || "Unknown",
+              startedAt: lockInfo.startedAt || new Date().toISOString(),
+            });
+            setIsServerLockedModalOpen(true);
+            updateServerStatus(ServerStatus.STOPPED, "remote lock detected");
+            return;
+          }
+        }
+
+        // Check if we need to download server files
+        setLogs((prev) => [
+          ...prev,
+          { timestamp: new Date(), message: "Checking server files...", type: "info" },
+        ]);
+
+        const shouldDownload = isCloudSyncEnabled
+          ? await window.serverAPI.shouldDownload(s3Config, selectedServer)
+          : false;
+
+        if (shouldDownload) {
           setLogs((prev) => [
             ...prev,
             {
               timestamp: new Date(),
-              message: `Server is locked by ${lockInfo.username}`,
-              type: "error",
+              message: "Downloading server files from cloud storage...",
+              type: "info",
             },
           ]);
-          setLockedServerInfo({
-            username: lockInfo.username || "Unknown",
-            startedAt: lockInfo.startedAt || new Date().toISOString(),
-          });
-          setIsServerLockedModalOpen(true);
-          updateServerStatus(ServerStatus.STOPPED, "remote lock detected");
-          return;
-        }
-      }
-
-      // Check if we need to download server files
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: "Checking server files...", type: "info" },
-      ]);
-
-      const shouldDownload = isCloudSyncEnabled
-        ? await window.serverAPI.shouldDownload(s3Config, selectedServer)
-        : false;
-
-      if (shouldDownload) {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: "Downloading server files from cloud storage...",
-            type: "info",
-          },
-        ]);
-        setIsTransferring(true);
-        setTransferType("download");
-        setTransferPercent(0);
-        setTransferTransferred("0");
-        setTransferTotal("0");
-        const s3Service = new S3Service(s3Config);
-        const downloadSuccess = await s3Service.downloadServer(selectedServer);
-        setIsTransferring(false);
-        if (!downloadSuccess) {
+          setIsTransferring(true);
+          resetTransferProgress("download");
+          const s3Service = new S3Service(s3Config);
+          const downloadSuccess = await s3Service.downloadServer(selectedServer);
+          setIsTransferring(false);
+          if (!downloadSuccess) {
+            setLogs((prev) => [
+              ...prev,
+              { timestamp: new Date(), message: "Failed to download server files", type: "error" },
+            ]);
+            updateServerStatus(ServerStatus.STOPPED, "download failed");
+            return;
+          }
           setLogs((prev) => [
             ...prev,
-            { timestamp: new Date(), message: "Failed to download server files", type: "error" },
+            { timestamp: new Date(), message: "Server files downloaded successfully", type: "info" },
           ]);
-          updateServerStatus(ServerStatus.STOPPED, "download failed");
-          return;
+        } else {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Local server files are up to date, skipping download",
+              type: "info",
+            },
+          ]);
         }
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Server files downloaded successfully", type: "info" },
-        ]);
-      } else {
+      } catch (error) {
+        setIsTransferring(false);
         setLogs((prev) => [
           ...prev,
           {
             timestamp: new Date(),
-            message: "Local server files are up to date, skipping download",
-            type: "info",
+            message: `Error preparing server start: ${error instanceof Error ? error.message : String(error)}`,
+            type: "error",
           },
         ]);
+        updateServerStatus(ServerStatus.STOPPED, "start preparation failed");
+        return;
       }
       try {
         const portUpdateSuccess = await window.serverAPI.writePort(selectedServer, serverPort);
@@ -1412,159 +1470,190 @@ function AppContent(): React.JSX.Element {
         ...prev,
         { timestamp: new Date(), message: "Stopping server...", type: "info" },
       ]);
-      // Kill the process
-      if (selectedServer) {
-        try {
-          await window.serverAPI.killServerProcess(selectedServer);
-          serverProcessRef.current = false;
-        } catch (e) {
+      if (!selectedServer) {
+        updateServerStatus(ServerStatus.STOPPED, "stop flow completed", { force: true });
+        return;
+      }
+
+      const serverExitPromise = waitForServerExit(selectedServer);
+
+      try {
+        await window.serverAPI.killServerProcess(selectedServer);
+        serverProcessRef.current = false;
+      } catch (e) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Error stopping server: ${e instanceof Error ? e.message : String(e)}`,
+            type: "error",
+          },
+        ]);
+        updateServerStatus(ServerStatus.STOPPED, "stop flow failed");
+        return;
+      }
+
+      const processExited = await serverExitPromise;
+
+      if (!processExited) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Server exit confirmation timed out, continuing shutdown tasks...",
+            type: "warning",
+          },
+        ]);
+      }
+
+      try {
+        if (isCloudSyncEnabled) {
+          setIsTransferring(true);
+          resetTransferProgress("upload", "Finalizing server shutdown...", "Preparing cloud sync...");
+        }
+
+        if (isCloudSyncEnabled) {
+          setTransferTransferred("Removing remote lock...");
+          setTransferTotal("Preparing cloud sync...");
           setLogs((prev) => [
             ...prev,
-            {
-              timestamp: new Date(),
-              message: `Error stopping server: ${e instanceof Error ? e.message : String(e)}`,
-              type: "error",
-            },
+            { timestamp: new Date(), message: "Deleting lock from cloud storage...", type: "info" },
           ]);
-        }
-      }
-      // Upload server files to cloud before stopping
-      setTimeout(async () => {
-        if (selectedServer) {
-          if (isCloudSyncEnabled) {
+          const deleteLockSuccess = await window.serverAPI.deleteLock(s3Config, selectedServer);
+          if (deleteLockSuccess) {
             setLogs((prev) => [
               ...prev,
-              { timestamp: new Date(), message: "Deleting lock from cloud storage...", type: "info" },
-            ]);
-            const deleteLockSuccess = await window.serverAPI.deleteLock(s3Config, selectedServer);
-            if (deleteLockSuccess) {
-              setLogs((prev) => [
-                ...prev,
-                { timestamp: new Date(), message: "Lock deleted from cloud storage", type: "info" },
-              ]);
-            } else {
-              setLogs((prev) => [
-                ...prev,
-                {
-                  timestamp: new Date(),
-                  message: "Warning: Failed to delete lock from cloud storage",
-                  type: "warning",
-                },
-              ]);
-            }
-          }
-          const deleteLocalLockSuccess = await window.serverAPI.deleteLocalLock(selectedServer);
-          if (deleteLocalLockSuccess) {
-            setLogs((prev) => [
-              ...prev,
-              { timestamp: new Date(), message: "Local lock deleted", type: "info" },
+              { timestamp: new Date(), message: "Lock deleted from cloud storage", type: "info" },
             ]);
           } else {
             setLogs((prev) => [
               ...prev,
               {
                 timestamp: new Date(),
-                message: "Warning: Failed to delete local lock",
+                message: "Warning: Failed to delete lock from cloud storage",
                 type: "warning",
               },
             ]);
           }
+        }
 
+        if (isCloudSyncEnabled) {
+          setTransferTransferred("Removing local lock...");
+          setTransferTotal("Preparing cloud sync...");
+        }
+        const deleteLocalLockSuccess = await window.serverAPI.deleteLocalLock(selectedServer);
+        if (deleteLocalLockSuccess) {
+          setLogs((prev) => [
+            ...prev,
+            { timestamp: new Date(), message: "Local lock deleted", type: "info" },
+          ]);
+        } else {
           setLogs((prev) => [
             ...prev,
             {
               timestamp: new Date(),
-              message: "Updating session metadata...",
+              message: "Warning: Failed to delete local lock",
+              type: "warning",
+            },
+          ]);
+        }
+
+        if (isCloudSyncEnabled) {
+          setTransferTransferred("Updating session metadata...");
+          setTransferTotal("Preparing cloud sync...");
+        }
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Updating session metadata...",
+            type: "info",
+          },
+        ]);
+
+        const sessionUpdateSuccess = await window.serverAPI.updateSession(
+          selectedServer,
+          username || "Unknown",
+        );
+
+        if (!sessionUpdateSuccess) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Warning: Failed to update session metadata",
+              type: "warning",
+            },
+          ]);
+        }
+
+        if (isCloudSyncEnabled) {
+          setLogs((prev) => [
+            ...prev,
+            {
+              timestamp: new Date(),
+              message: "Uploading server files to cloud storage...",
               type: "info",
             },
           ]);
-
-          const sessionUpdateSuccess = await window.serverAPI.updateSession(
-            selectedServer,
-            username || "Unknown",
-          );
-
-          if (!sessionUpdateSuccess) {
+          resetTransferProgress("upload");
+          const s3Service = new S3Service(s3Config);
+          const uploadSuccess = await s3Service.uploadServer(selectedServer);
+          setIsTransferring(false);
+          if (uploadSuccess) {
             setLogs((prev) => [
               ...prev,
               {
                 timestamp: new Date(),
-                message: "Warning: Failed to update session metadata",
+                message: "Server files uploaded successfully",
+                type: "info",
+              },
+            ]);
+            if (sessionUpdateSuccess) {
+              const sessionUploadSuccess = await window.serverAPI.uploadSession(
+                s3Config,
+                selectedServer,
+              );
+              if (sessionUploadSuccess) {
+                setLogs((prev) => [
+                  ...prev,
+                  {
+                    timestamp: new Date(),
+                    message: "Session metadata updated successfully",
+                    type: "info",
+                  },
+                ]);
+              } else {
+                setLogs((prev) => [
+                  ...prev,
+                  {
+                    timestamp: new Date(),
+                    message: "Warning: Failed to upload session metadata",
+                    type: "warning",
+                  },
+                ]);
+              }
+            }
+          } else {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Warning: Failed to upload server files to R2",
                 type: "warning",
               },
             ]);
           }
-
-          if (isCloudSyncEnabled) {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Uploading server files to cloud storage...",
-                type: "info",
-              },
-            ]);
-            setIsTransferring(true);
-            setTransferType("upload");
-            setTransferPercent(0);
-            setTransferTransferred("0");
-            setTransferTotal("0");
-            const s3Service = new S3Service(s3Config);
-            const uploadSuccess = await s3Service.uploadServer(selectedServer);
-            setIsTransferring(false);
-            if (uploadSuccess) {
-              setLogs((prev) => [
-                ...prev,
-                {
-                  timestamp: new Date(),
-                  message: "Server files uploaded successfully",
-                  type: "info",
-                },
-              ]);
-              if (sessionUpdateSuccess) {
-                const sessionUploadSuccess = await window.serverAPI.uploadSession(
-                  s3Config,
-                  selectedServer,
-                );
-                if (sessionUploadSuccess) {
-                  setLogs((prev) => [
-                    ...prev,
-                    {
-                      timestamp: new Date(),
-                      message: "Session metadata updated successfully",
-                      type: "info",
-                    },
-                  ]);
-                } else {
-                  setLogs((prev) => [
-                    ...prev,
-                    {
-                      timestamp: new Date(),
-                      message: "Warning: Failed to upload session metadata",
-                      type: "warning",
-                    },
-                  ]);
-                }
-              }
-            } else {
-              setLogs((prev) => [
-                ...prev,
-                {
-                  timestamp: new Date(),
-                  message: "Warning: Failed to upload server files to R2",
-                  type: "warning",
-                },
-              ]);
-            }
-          }
         }
+      } finally {
+        setIsTransferring(false);
         setServerStartTime(null);
         updateServerStatus(ServerStatus.STOPPED, "stop flow completed", { force: true });
         setLogs((prev) => [
           ...prev,
           { timestamp: new Date(), message: "Server stopped", type: "info" },
         ]);
-      }, 2000);
+      }
     }
   };
 
