@@ -14,6 +14,8 @@ const execFileAsync = promisify(execFile);
 @injectable()
 export class RcloneRepository implements IRcloneRepository {
   private isInstalling = false;
+  private configuredRemoteSignature: string | null = null;
+  private configuringRemotePromise: Promise<void> | null = null;
   private readonly RCLONE_VERSION = "v1.65.0";
   private readonly RCLONE_DIR = path.join(app.getPath("userData"), "rclone");
   private readonly RCLONE_EXECUTABLE = process.platform === "win32" ? "rclone.exe" : "rclone";
@@ -162,6 +164,30 @@ export class RcloneRepository implements IRcloneRepository {
   }
 
   async ensureConfigured(config: S3Config): Promise<void> {
+    const signature = this.buildRemoteSignature(config);
+
+    if (this.configuredRemoteSignature === signature) {
+      return;
+    }
+
+    if (this.configuringRemotePromise) {
+      await this.configuringRemotePromise;
+
+      if (this.configuredRemoteSignature === signature) {
+        return;
+      }
+    }
+
+    this.configuringRemotePromise = this.configureRemote(config, signature);
+
+    try {
+      await this.configuringRemotePromise;
+    } finally {
+      this.configuringRemotePromise = null;
+    }
+  }
+
+  private async configureRemote(config: S3Config, signature: string): Promise<void> {
     const providerStr = this.getProviderString(config.provider);
     const configArgs = [
       "config",
@@ -177,23 +203,28 @@ export class RcloneRepository implements IRcloneRepository {
       configArgs.push(`region=${config.region || "us-east-1"}`);
     } else if (config.provider === "MinIO") {
       configArgs.push(`endpoint=${config.endpoint}`);
-      configArgs.push(`region=${config.region || "us-east-1"}`);
+      configArgs.push(`region=${config.region && config.region !== "auto" ? config.region : "us-east-1"}`);
     } else {
       configArgs.push(`endpoint=${config.endpoint}`);
       configArgs.push(`region=${config.region || "auto"}`);
     }
 
-    configArgs.push("acl=private", "--non-interactive");
+    if (config.provider !== "MinIO") {
+      configArgs.push("acl=private");
+    }
+
+    configArgs.push("--non-interactive");
 
     try {
+      await this.deleteExistingRemote();
       await this.runRclone(configArgs);
+      this.configuredRemoteSignature = signature;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (message.includes("already exists")) {
-        return;
-      }
-
-      throw new ExternalServiceError("Rclone", `Failed to configure S3 remote: ${message}`);
+      this.configuredRemoteSignature = null;
+      throw new ExternalServiceError(
+        "Rclone",
+        `Failed to configure S3 remote: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -289,6 +320,35 @@ export class RcloneRepository implements IRcloneRepository {
           : `${errorMessage}. Command: ${command}`,
       );
     }
+  }
+
+  private async deleteExistingRemote(): Promise<void> {
+    try {
+      await this.runRclone(["config", "delete", this.RCLONE_CONFIG_NAME]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      if (
+        message.includes("didn't find section") ||
+        message.includes("not found") ||
+        message.includes("can't find")
+      ) {
+        return;
+      }
+
+      throw error;
+    }
+  }
+
+  private buildRemoteSignature(config: S3Config): string {
+    return JSON.stringify({
+      provider: config.provider,
+      endpoint: config.endpoint,
+      region: config.region,
+      access_key: config.access_key,
+      secret_key: config.secret_key,
+      bucket_name: config.bucket_name,
+    });
   }
 
   private extractExecErrorOutput(error: unknown, key: "stdout" | "stderr"): string {
