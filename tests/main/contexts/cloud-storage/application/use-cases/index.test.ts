@@ -47,6 +47,8 @@ function createMockS3ServerRepository(): IS3ServerRepository {
     deleteServer: vi.fn(),
     shouldDownloadServer: vi.fn(),
     getServerSize: vi.fn(),
+    getLocalManifest: vi.fn(),
+    hasRemoteChanges: vi.fn(),
   };
 }
 function createMockServerLockRepository(): IServerLockRepository {

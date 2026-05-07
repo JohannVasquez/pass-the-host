@@ -8,6 +8,11 @@ import {
   SessionMetadata,
   ServerStatistics,
 } from "@main/contexts/cloud-storage/domain/entities/SessionMetadata";
+import {
+  DifferentialSyncResult,
+  ServerManifest,
+  ServerManifestFileEntry,
+} from "@main/contexts/cloud-storage/domain/entities/ServerManifest";
 
 export interface IRcloneRepository {
   /**
@@ -69,6 +74,70 @@ export interface IS3ServerRepository {
    * Get the size of a specific server in bytes
    */
   getServerSize(config: S3Config, serverId: string): Promise<number>;
+
+  /**
+   * Build a local manifest for a server directory
+   */
+  getLocalManifest(serverId: string): Promise<ServerManifest>;
+
+  /**
+   * Compare local and remote manifests to see if download is needed
+   */
+  hasRemoteChanges(config: S3Config, serverId: string): Promise<boolean>;
+}
+
+export interface IS3SyncRemoteRepository {
+  readManifest(config: S3Config, serverId: string): Promise<ServerManifest | null>;
+
+  uploadManifest(config: S3Config, serverId: string, manifest: ServerManifest): Promise<void>;
+
+  uploadFile(
+    config: S3Config,
+    serverId: string,
+    relativePath: string,
+    localFilePath: string,
+  ): Promise<void>;
+
+  downloadFile(
+    config: S3Config,
+    serverId: string,
+    relativePath: string,
+    localFilePath: string,
+  ): Promise<void>;
+
+  deleteFile(config: S3Config, serverId: string, relativePath: string): Promise<void>;
+
+  fullDownloadServer(
+    config: S3Config,
+    serverId: string,
+    localServerPath: string,
+    onProgress?: (progress: TransferProgress) => void,
+  ): Promise<boolean>;
+}
+
+export interface IS3SyncService {
+  buildLocalManifest(serverId: string): Promise<ServerManifest>;
+
+  uploadServer(
+    config: S3Config,
+    serverId: string,
+    onProgress?: (progress: TransferProgress) => void,
+  ): Promise<DifferentialSyncResult>;
+
+  downloadServer(
+    config: S3Config,
+    serverId: string,
+    onProgress?: (progress: TransferProgress) => void,
+  ): Promise<DifferentialSyncResult>;
+
+  hasRemoteChanges(config: S3Config, serverId: string): Promise<boolean>;
+
+  diffManifests(local: ServerManifest, remote: ServerManifest): {
+    newFiles: ServerManifestFileEntry[];
+    modifiedFiles: ServerManifestFileEntry[];
+    deletedFiles: ServerManifestFileEntry[];
+    unchangedFiles: ServerManifestFileEntry[];
+  };
 }
 
 export interface IServerLockRepository {

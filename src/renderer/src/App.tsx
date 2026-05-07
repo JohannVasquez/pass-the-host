@@ -33,6 +33,10 @@ import { ServerStatus, canTransitionServerStatus } from "./domain/entities/Serve
 import { S3Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
 import { Server } from "./domain/entities/Server";
+import {
+  StartManagedServerUseCase,
+  StopManagedServerUseCase,
+} from "./contexts/server-runtime/application/use-cases";
 import { S3ServerRepository } from "./infrastructure/repositories/S3ServerRepository";
 import { S3Service } from "./infrastructure/services/S3Service";
 import { useTranslation } from "react-i18next";
@@ -175,6 +179,142 @@ function AppContent(): React.JSX.Element {
     [],
   );
 
+  const resetTransferProgress = React.useCallback(
+    (type: "download" | "upload", transferred = "0", total = "0"): void => {
+      setTransferType(type);
+      setTransferPercent(0);
+      setTransferTransferred(transferred);
+      setTransferTotal(total);
+    },
+    [],
+  );
+
+  const waitForServerExit = React.useCallback((serverId: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      let settled = false;
+      let timeoutId: number | undefined;
+
+      const unsubscribe = window.serverAPI.onProcessExit((payload) => {
+        if (payload.serverId !== serverId || settled) {
+          return;
+        }
+
+        settled = true;
+        unsubscribe();
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+        }
+        resolve(true);
+      });
+
+      timeoutId = window.setTimeout(() => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        unsubscribe();
+        resolve(false);
+      }, 15000);
+    });
+  }, []);
+
+  const appendLog = React.useCallback((message: string, type: LogEntry["type"]): void => {
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message,
+        type,
+      },
+    ]);
+  }, []);
+
+  const startManagedServerUseCase = React.useMemo(
+    () =>
+      new StartManagedServerUseCase(
+        {
+          readLock: (config, serverId) => window.serverAPI.readLock(config, serverId),
+          shouldDownload: (config, serverId) => window.serverAPI.shouldDownload(config, serverId),
+          downloadServer: (serverId) => new S3Service(s3Config).downloadServer(serverId),
+          writePort: (serverId, port) => window.serverAPI.writePort(serverId, port),
+          ensureJavaForMinecraft: async (version) => {
+            const result = await window.javaAPI.ensureForMinecraft(version);
+            return {
+              success: result.success,
+              javaPath: result.javaPath || "",
+              version: result.version,
+            };
+          },
+          createLock: (serverId, username) => window.serverAPI.createLock(serverId, username),
+          uploadLock: (config, serverId) => window.serverAPI.uploadLock(config, serverId),
+          createSession: (serverId, username) => window.serverAPI.createSession(serverId, username),
+          getLocalServerPath: (serverId) => window.serverAPI.getLocalServerPath(serverId),
+          editForgeJvmArgs: async (serverId, minRam, maxRam) => {
+            await window.serverAPI.editForgeJvmArgs(serverId, minRam, maxRam);
+            return true;
+          },
+          readForgeJvmArgs: (serverId) => window.serverAPI.readForgeJvmArgs(serverId),
+          spawnServerProcess: (serverId, command, args, workingDir) =>
+            window.serverAPI.spawnServerProcess(serverId, command, args, workingDir),
+        },
+        {
+          log: appendLog,
+          updateStatus: (next, reason, options) => {
+            updateServerStatus(next, reason, options);
+          },
+          setLockedServerInfo: (info) => setLockedServerInfo(info),
+          openServerLockedModal: () => setIsServerLockedModalOpen(true),
+          startTransfer: (type, transferred = "0", total = "0") => {
+            setIsTransferring(true);
+            resetTransferProgress(type, transferred, total);
+          },
+          stopTransfer: () => setIsTransferring(false),
+          setJavaProgress: (active, message) => {
+            setIsJavaDownloading(active);
+            setJavaProgressMessage(message);
+          },
+          setServerStartTime: (startTime) => setServerStartTime(startTime),
+        },
+      ),
+    [appendLog, resetTransferProgress, s3Config, updateServerStatus],
+  );
+
+  const stopManagedServerUseCase = React.useMemo(
+    () =>
+      new StopManagedServerUseCase(
+        {
+          killServerProcess: async (serverId) => {
+            await window.serverAPI.killServerProcess(serverId);
+            return true;
+          },
+          waitForServerExit,
+          deleteLock: async (config, serverId) => (await window.serverAPI.deleteLock(config, serverId)).success,
+          deleteLocalLock: async (serverId) => (await window.serverAPI.deleteLocalLock(serverId)).success,
+          updateSession: (serverId, username) => window.serverAPI.updateSession(serverId, username),
+          uploadServer: (serverId) => new S3Service(s3Config).uploadServer(serverId),
+          uploadSession: (config, serverId) => window.serverAPI.uploadSession(config, serverId),
+        },
+        {
+          log: appendLog,
+          updateStatus: (next, reason, options) => {
+            updateServerStatus(next, reason, options);
+          },
+          startTransfer: (type, transferred = "0", total = "0") => {
+            setIsTransferring(true);
+            resetTransferProgress(type, transferred, total);
+          },
+          updateTransfer: (transferred, total) => {
+            setTransferTransferred(transferred);
+            setTransferTotal(total);
+          },
+          stopTransfer: () => setIsTransferring(false),
+          setServerStartTime: (startTime) => setServerStartTime(startTime),
+        },
+      ),
+    [appendLog, resetTransferProgress, s3Config, updateServerStatus, waitForServerExit],
+  );
+
   React.useEffect(() => {
     serverStatusRef.current = serverStatus;
   }, [serverStatus]);
@@ -194,19 +334,26 @@ function AppContent(): React.JSX.Element {
         return;
       }
 
-      updateServerStatus(ServerStatus.STOPPED, "server process exited", { force: true });
       setServerStartTime(null);
       serverProcessRef.current = false;
+
+      const isIntentionalStop = serverStatusRef.current === ServerStatus.STOPPING;
+
+      if (!isIntentionalStop) {
+        updateServerStatus(ServerStatus.STOPPED, "server process exited", { force: true });
+      }
 
       setLogs((prev) => [
         ...prev,
         {
           timestamp: new Date(),
           message:
-            code === 0
-              ? "Server process exited"
-              : `Server process stopped unexpectedly${code !== null ? ` (exit code ${code})` : ""}`,
-          type: code === 0 ? "info" : "warning",
+            isIntentionalStop
+              ? "Server process exited, finalizing shutdown..."
+              : code === 0
+                ? "Server process exited"
+                : `Server process stopped unexpectedly${code !== null ? ` (exit code ${code})` : ""}`,
+          type: isIntentionalStop || code === 0 ? "info" : "warning",
         },
       ]);
     });
@@ -1022,549 +1169,66 @@ function AppContent(): React.JSX.Element {
   const handleStartStop = async (): Promise<void> => {
     if (serverStatus === ServerStatus.STOPPED) {
       if (!selectedServer) {
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Please select a server first", type: "error" },
-        ]);
+        appendLog("Please select a server first", "error");
         return;
       }
       if (!selectedIp) {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: "Please select a network IP address first",
-            type: "error",
-          },
-        ]);
+        appendLog("Please select a network IP address first", "error");
         return;
       }
-      updateServerStatus(ServerStatus.STARTING, "start flow initiated");
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: `Starting server: ${selectedServer}`, type: "info" },
-      ]);
 
-      // Check if server is locked
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: "Checking server lock status...", type: "info" },
-      ]);
-      if (isCloudSyncEnabled) {
-        const lockInfo = await window.serverAPI.readLock(s3Config, selectedServer);
-
-        if (lockInfo.exists) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: `Server is locked by ${lockInfo.username}`,
-              type: "error",
-            },
-          ]);
-          setLockedServerInfo({
-            username: lockInfo.username || "Unknown",
-            startedAt: lockInfo.startedAt || new Date().toISOString(),
-          });
-          setIsServerLockedModalOpen(true);
-          updateServerStatus(ServerStatus.STOPPED, "remote lock detected");
-          return;
-        }
-      }
-
-      // Check if we need to download server files
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: "Checking server files...", type: "info" },
-      ]);
-
-      const shouldDownload = isCloudSyncEnabled
-        ? await window.serverAPI.shouldDownload(s3Config, selectedServer)
-        : false;
-
-      if (shouldDownload) {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: "Downloading server files from cloud storage...",
-            type: "info",
-          },
-        ]);
-        setIsTransferring(true);
-        setTransferType("download");
-        setTransferPercent(0);
-        setTransferTransferred("0");
-        setTransferTotal("0");
-        const s3Service = new S3Service(s3Config);
-        const downloadSuccess = await s3Service.downloadServer(selectedServer);
-        setIsTransferring(false);
-        if (!downloadSuccess) {
-          setLogs((prev) => [
-            ...prev,
-            { timestamp: new Date(), message: "Failed to download server files", type: "error" },
-          ]);
-          updateServerStatus(ServerStatus.STOPPED, "download failed");
-          return;
-        }
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Server files downloaded successfully", type: "info" },
-        ]);
-      } else {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: "Local server files are up to date, skipping download",
-            type: "info",
-          },
-        ]);
-      }
-      try {
-        const portUpdateSuccess = await window.serverAPI.writePort(selectedServer, serverPort);
-        if (portUpdateSuccess) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: `Server port configured to ${serverPort}`,
-              type: "info",
-            },
-          ]);
-        }
-      } catch (error) {
-        console.error("Error updating server port:", error);
-      }
-      const server = servers.find((s) => s.id === selectedServer);
+      const server = servers.find((item) => item.id === selectedServer);
       if (!server) {
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Server info not found", type: "error" },
-        ]);
+        appendLog("Server info not found", "error");
         updateServerStatus(ServerStatus.STOPPED, "server metadata not found");
         return;
       }
-      // Java check
-      setLogs((prev) => [
-        ...prev,
-        {
-          timestamp: new Date(),
-          message: `Checking Java requirements for Minecraft ${server.version}...`,
-          type: "info",
-        },
-      ]);
+
       try {
-        setIsJavaDownloading(true);
-        setJavaProgressMessage("Checking Java requirements...");
-        const javaResult = await window.javaAPI.ensureForMinecraft(server.version);
-        setIsJavaDownloading(false);
-        setJavaProgressMessage("");
-        if (!javaResult.success) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: `Failed to setup Java. Server may not start correctly.`,
-              type: "error",
-            },
-          ]);
-          updateServerStatus(ServerStatus.STOPPED, "java setup failed");
-          return;
-        }
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: `Java ${javaResult.version || "runtime"} is ready`,
-            type: "info",
-          },
-        ]);
+        await startManagedServerUseCase.execute({
+          serverId: selectedServer,
+          username: username || "Unknown",
+          server,
+          serverPort,
+          s3Config,
+          ramConfig,
+          isCloudSyncEnabled,
+          isWindowsClient: navigator.userAgent.includes("Windows"),
+        });
+        serverProcessRef.current = true;
       } catch (error) {
+        setIsTransferring(false);
         setIsJavaDownloading(false);
         setJavaProgressMessage("");
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: `Error setting up Java: ${error instanceof Error ? error.message : String(error)}`,
-            type: "error",
-          },
-        ]);
-        updateServerStatus(ServerStatus.STOPPED, "java setup error");
-        return;
-      }
-      // Create server lock
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: "Creating server lock...", type: "info" },
-      ]);
-      const lockSuccess = await window.serverAPI.createLock(selectedServer, username || "Unknown");
-      if (lockSuccess) {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: `Server locked by: ${username || "Unknown"}`,
-            type: "info",
-          },
-        ]);
-        if (isCloudSyncEnabled) {
-          setLogs((prev) => [
-            ...prev,
-            { timestamp: new Date(), message: "Uploading lock to cloud storage...", type: "info" },
-          ]);
-          const uploadLockSuccess = await window.serverAPI.uploadLock(s3Config, selectedServer);
-          if (uploadLockSuccess) {
-            setLogs((prev) => [
-              ...prev,
-              { timestamp: new Date(), message: "Lock uploaded to cloud storage", type: "info" },
-            ]);
-          } else {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Warning: Failed to upload lock to cloud storage",
-                type: "warning",
-              },
-            ]);
-          }
-        }
-      } else {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: "Warning: Failed to create server lock",
-            type: "warning",
-          },
-        ]);
-      }
-
-      // Create session metadata
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: "Creating session metadata...", type: "info" },
-      ]);
-      const sessionCreateSuccess = await window.serverAPI.createSession(
-        selectedServer,
-        username || "Unknown",
-      );
-      if (sessionCreateSuccess) {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: `Session created for user: ${username || "Unknown"}`,
-            type: "info",
-          },
-        ]);
-      }
-
-      // --- REAL SERVER START LOGIC ---
-      // Get local server path from main process
-      let localServerPath = "";
-      try {
-        localServerPath = await window.serverAPI.getLocalServerPath(selectedServer);
-      } catch {
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Could not get local server path", type: "error" },
-        ]);
-        updateServerStatus(ServerStatus.STOPPED, "failed to get local server path");
-        return;
-      }
-      // Prepare command and args
-      let startCmd = "";
-      let startArgs: string[] = [];
-      const workingDir = localServerPath;
-      let javaPath = "";
-      try {
-        const javaResult = await window.javaAPI.ensureForMinecraft(server.version);
-        if (!javaResult.javaPath) {
-          throw new Error("Java path not available");
-        }
-        javaPath = javaResult.javaPath;
-      } catch {
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Could not get Java path", type: "error" },
-        ]);
-        updateServerStatus(ServerStatus.STOPPED, "failed to resolve java path");
-        return;
-      }
-      if (server.type === "vanilla") {
-        startCmd = javaPath;
-        startArgs = [
-          `-Xmx${ramConfig.max}G`,
-          `-Xms${ramConfig.min}G`,
-          "-jar",
-          "server.jar",
-          "nogui",
-        ];
-      } else if (server.type === "forge") {
-        const versionNum = parseFloat(server.version);
-        if (versionNum < 1.17) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "No se pudo iniciar el server Forge <= 1.16.5. No soportado.",
-              type: "error",
-            },
-          ]);
-          updateServerStatus(ServerStatus.STOPPED, "unsupported forge version");
-          return;
-        }
-        try {
-          await window.serverAPI.editForgeJvmArgs(selectedServer, ramConfig.min, ramConfig.max);
-        } catch {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "No se pudo editar user_jvm_args.txt",
-              type: "error",
-            },
-          ]);
-        }
-        // Read JVM args from run.bat/run.sh and construct Java command directly
-        try {
-          const jvmArgsResult = await window.serverAPI.readForgeJvmArgs(selectedServer);
-          if (jvmArgsResult && jvmArgsResult.allArgs && jvmArgsResult.allArgs.length > 0) {
-            startCmd = javaPath;
-            // The args from run.bat already include everything (JVM args, classpath, main class, and program args)
-            // Add nogui at the end to prevent the GUI window from opening
-            startArgs = [...jvmArgsResult.allArgs, "nogui"];
-          } else {
-            // Fallback to default args if file doesn't exist
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message:
-                  "Warning: Could not read run.bat arguments, falling back to run.bat execution",
-                type: "warning",
-              },
-            ]);
-            // Fallback to original method using run.bat
-            if (navigator.userAgent.includes("Windows")) {
-              startCmd = "cmd";
-              startArgs = ["/c", "run.bat"];
-            } else {
-              startCmd = "/bin/bash";
-              startArgs = ["run.sh"];
-            }
-          }
-        } catch (e) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: `Error reading JVM args: ${e instanceof Error ? e.message : String(e)}`,
-              type: "error",
-            },
-          ]);
-          updateServerStatus(ServerStatus.STOPPED, "failed reading forge jvm args");
-          return;
-        }
-      } else {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: `Tipo de server no soportado: ${server.type}`,
-            type: "error",
-          },
-        ]);
-        updateServerStatus(ServerStatus.STOPPED, "unsupported server type");
-        return;
-      }
-      try {
-        const success = await window.serverAPI.spawnServerProcess(
-          selectedServer,
-          startCmd,
-          startArgs,
-          workingDir,
+        appendLog(
+          `Error preparing server start: ${error instanceof Error ? error.message : String(error)}`,
+          "error",
         );
-        serverProcessRef.current = success;
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Server started successfully", type: "info" },
-        ]);
-        setServerStartTime(new Date());
-        updateServerStatus(ServerStatus.RUNNING, "process spawn succeeded");
-      } catch (e) {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: `Error starting server: ${e instanceof Error ? e.message : String(e)}`,
-            type: "error",
-          },
-        ]);
-        updateServerStatus(ServerStatus.STOPPED, "process spawn failed");
+
+        if (serverStatusRef.current !== ServerStatus.STOPPED) {
+          updateServerStatus(ServerStatus.STOPPED, "start preparation failed");
+        }
+        return;
       }
     } else if (serverStatus === ServerStatus.RUNNING) {
-      updateServerStatus(ServerStatus.STOPPING, "stop flow initiated");
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: "Stopping server...", type: "info" },
-      ]);
-      // Kill the process
-      if (selectedServer) {
-        try {
-          await window.serverAPI.killServerProcess(selectedServer);
-          serverProcessRef.current = false;
-        } catch (e) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: `Error stopping server: ${e instanceof Error ? e.message : String(e)}`,
-              type: "error",
-            },
-          ]);
-        }
-      }
-      // Upload server files to cloud before stopping
-      setTimeout(async () => {
-        if (selectedServer) {
-          if (isCloudSyncEnabled) {
-            setLogs((prev) => [
-              ...prev,
-              { timestamp: new Date(), message: "Deleting lock from cloud storage...", type: "info" },
-            ]);
-            const deleteLockSuccess = await window.serverAPI.deleteLock(s3Config, selectedServer);
-            if (deleteLockSuccess) {
-              setLogs((prev) => [
-                ...prev,
-                { timestamp: new Date(), message: "Lock deleted from cloud storage", type: "info" },
-              ]);
-            } else {
-              setLogs((prev) => [
-                ...prev,
-                {
-                  timestamp: new Date(),
-                  message: "Warning: Failed to delete lock from cloud storage",
-                  type: "warning",
-                },
-              ]);
-            }
-          }
-          const deleteLocalLockSuccess = await window.serverAPI.deleteLocalLock(selectedServer);
-          if (deleteLocalLockSuccess) {
-            setLogs((prev) => [
-              ...prev,
-              { timestamp: new Date(), message: "Local lock deleted", type: "info" },
-            ]);
-          } else {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Warning: Failed to delete local lock",
-                type: "warning",
-              },
-            ]);
-          }
-
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Updating session metadata...",
-              type: "info",
-            },
-          ]);
-
-          const sessionUpdateSuccess = await window.serverAPI.updateSession(
-            selectedServer,
-            username || "Unknown",
-          );
-
-          if (!sessionUpdateSuccess) {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Warning: Failed to update session metadata",
-                type: "warning",
-              },
-            ]);
-          }
-
-          if (isCloudSyncEnabled) {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Uploading server files to cloud storage...",
-                type: "info",
-              },
-            ]);
-            setIsTransferring(true);
-            setTransferType("upload");
-            setTransferPercent(0);
-            setTransferTransferred("0");
-            setTransferTotal("0");
-            const s3Service = new S3Service(s3Config);
-            const uploadSuccess = await s3Service.uploadServer(selectedServer);
-            setIsTransferring(false);
-            if (uploadSuccess) {
-              setLogs((prev) => [
-                ...prev,
-                {
-                  timestamp: new Date(),
-                  message: "Server files uploaded successfully",
-                  type: "info",
-                },
-              ]);
-              if (sessionUpdateSuccess) {
-                const sessionUploadSuccess = await window.serverAPI.uploadSession(
-                  s3Config,
-                  selectedServer,
-                );
-                if (sessionUploadSuccess) {
-                  setLogs((prev) => [
-                    ...prev,
-                    {
-                      timestamp: new Date(),
-                      message: "Session metadata updated successfully",
-                      type: "info",
-                    },
-                  ]);
-                } else {
-                  setLogs((prev) => [
-                    ...prev,
-                    {
-                      timestamp: new Date(),
-                      message: "Warning: Failed to upload session metadata",
-                      type: "warning",
-                    },
-                  ]);
-                }
-              }
-            } else {
-              setLogs((prev) => [
-                ...prev,
-                {
-                  timestamp: new Date(),
-                  message: "Warning: Failed to upload server files to R2",
-                  type: "warning",
-                },
-              ]);
-            }
-          }
-        }
-        setServerStartTime(null);
+      if (!selectedServer) {
         updateServerStatus(ServerStatus.STOPPED, "stop flow completed", { force: true });
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Server stopped", type: "info" },
-        ]);
-      }, 2000);
+        return;
+      }
+
+      try {
+        await stopManagedServerUseCase.execute({
+          serverId: selectedServer,
+          username: username || "Unknown",
+          s3Config,
+          isCloudSyncEnabled,
+        });
+        serverProcessRef.current = false;
+      } catch (e) {
+        setIsTransferring(false);
+        appendLog(`Error stopping server: ${e instanceof Error ? e.message : String(e)}`, "error");
+        updateServerStatus(ServerStatus.STOPPED, "stop flow failed");
+      }
     }
   };
 

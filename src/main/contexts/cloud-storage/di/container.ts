@@ -2,15 +2,19 @@ import { Container } from "inversify";
 import {
   IRcloneRepository,
   IS3ServerRepository,
+  IS3SyncRemoteRepository,
+  IS3SyncService,
   IServerLockRepository,
   ISessionRepository,
   IServerPropertiesRepository,
 } from "@main/contexts/cloud-storage/domain/repositories";
 import { RcloneRepository } from "@main/contexts/cloud-storage/infrastructure/repositories/RcloneRepository";
+import { RcloneSyncRemoteRepository } from "@main/contexts/cloud-storage/infrastructure/repositories/RcloneSyncRemoteRepository";
 import { S3ServerRepository } from "@main/contexts/cloud-storage/infrastructure/repositories/S3ServerRepository";
 import { ServerLockRepository } from "@main/contexts/cloud-storage/infrastructure/repositories/ServerLockRepository";
 import { SessionRepository } from "@main/contexts/cloud-storage/infrastructure/repositories/SessionRepository";
 import { ServerPropertiesRepository } from "@main/contexts/cloud-storage/infrastructure/repositories/ServerPropertiesRepository";
+import { S3SyncService } from "@main/contexts/cloud-storage/infrastructure/services/S3SyncService";
 import {
   CheckRcloneInstallationUseCase,
   InstallRcloneUseCase,
@@ -41,12 +45,32 @@ export function configureCloudStorageContext(container: Container): void {
   container.bind<IRcloneRepository>(TYPES.RcloneRepository).to(RcloneRepository).inSingletonScope();
 
   container
+    .bind<IS3SyncRemoteRepository>(TYPES.S3SyncRemoteRepository)
+    .toDynamicValue(() => {
+      const rcloneRepo = container.get<IRcloneRepository>(TYPES.RcloneRepository) as RcloneRepository;
+      return new RcloneSyncRemoteRepository(rcloneRepo);
+    })
+    .inSingletonScope();
+
+  container
+    .bind<IS3SyncService>(TYPES.S3SyncService)
+    .toDynamicValue(() => {
+      return new S3SyncService(
+        container.get<IS3SyncRemoteRepository>(TYPES.S3SyncRemoteRepository),
+      );
+    })
+    .inSingletonScope();
+
+  container
     .bind<IS3ServerRepository>(TYPES.S3ServerRepository)
     .toDynamicValue(() => {
       const rcloneRepo = container.get<IRcloneRepository>(
         TYPES.RcloneRepository,
       ) as RcloneRepository;
-      return new S3ServerRepository(rcloneRepo);
+      return new S3ServerRepository(
+        rcloneRepo,
+        container.get<IS3SyncService>(TYPES.S3SyncService),
+      );
     })
     .inSingletonScope();
 
