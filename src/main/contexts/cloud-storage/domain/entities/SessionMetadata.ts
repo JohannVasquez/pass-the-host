@@ -14,6 +14,11 @@ export interface SessionMetadata {
   sessions: SessionEntry[]; // Array of all sessions
 }
 
+export interface CloudSyncState {
+  localChangesPendingUpload: boolean;
+  lastLocalChangeTimestamp: number;
+}
+
 export interface ServerStatistics {
   totalPlaytime: number; // Total playtime in milliseconds
   sessionCount: number;

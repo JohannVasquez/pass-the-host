@@ -1,4 +1,4 @@
-import { S3Config } from "../../domain/entities/ServerConfig";
+import { S3Config } from "@renderer/domain/entities/ServerConfig";
 
 /**
  * S3 Service - Handles all S3-compatible storage operations

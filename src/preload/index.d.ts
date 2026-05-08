@@ -50,12 +50,14 @@ interface AppConfigData {
   app: {
     owner_name: string | null;
     language: string;
+    cloud_sync_enabled: boolean;
   };
 }
 
 interface ConfigAPI {
   loadConfig: () => Promise<AppConfigData | null>;
   saveS3Config: (s3Config: S3ConfigType) => Promise<boolean>;
+  saveCloudSyncEnabled: (enabled: boolean) => Promise<boolean>;
   saveUsername: (username: string) => Promise<boolean>;
   saveRamConfig: (minRam: number, maxRam: number) => Promise<boolean>;
   saveLanguage: (language: string) => Promise<boolean>;
@@ -91,6 +93,9 @@ interface ServerAPI {
   editForgeJvmArgs: (serverId: string, minRam: number, maxRam: number) => Promise<void>;
   readForgeJvmArgs: (serverId: string) => Promise<{ allArgs: string[] } | null>;
   onStdout: (callback: (data: string) => void) => () => void;
+  onProcessExit: (
+    callback: (payload: { serverId: string; code: number | null }) => void,
+  ) => () => void;
   sendCommand: (serverId: string, command: string) => Promise<boolean>;
   openServerFolder: (serverId: string) => Promise<boolean>;
   createSession: (serverId: string, username: string) => Promise<boolean>;
@@ -125,6 +130,9 @@ interface ServerAPI {
     serverId: string,
   ) => Promise<{ success: boolean; error?: string }>;
   deleteLocally: (serverId: string) => Promise<{ success: boolean; error?: string }>;
+  listLocalServers: () => Promise<
+    Array<{ id: string; name: string; version: string; type: "vanilla" | "forge" | "unknown" }>
+  >;
 }
 
 interface JavaAPI {
@@ -136,6 +144,10 @@ interface JavaAPI {
   onProgress: (callback: (message: string) => void) => () => void;
 }
 
+interface NotificationAPI {
+  show: (title: string, body: string) => Promise<void>;
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI;
@@ -145,6 +157,7 @@ declare global {
     systemAPI: SystemAPI;
     serverAPI: ServerAPI;
     javaAPI: JavaAPI;
+    notificationAPI: NotificationAPI;
   }
 }
 

@@ -3,7 +3,7 @@ import type {
   SessionEntry,
   SessionMetadata,
   ServerStatistics,
-} from "../../../../../../src/main/contexts/cloud-storage/domain/entities/SessionMetadata";
+} from "@main/contexts/cloud-storage/domain/entities/SessionMetadata";
 
 describe("SessionEntry", () => {
   describe("interface", () => {

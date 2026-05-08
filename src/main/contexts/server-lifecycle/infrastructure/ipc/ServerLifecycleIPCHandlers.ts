@@ -1,11 +1,12 @@
 import { ipcMain, IpcMainInvokeEvent } from "electron";
 import { Container } from "inversify";
 import { ErrorHandler } from "@shared/infrastructure/error-handler";
-import { TYPES } from "../../application/use-cases/types";
+import { TYPES } from "@main/contexts/server-lifecycle/application/use-cases/types";
 import {
   CreateMinecraftServerUseCase,
   DeleteServerLocallyUseCase,
-} from "../../application/use-cases";
+  ListLocalServersUseCase,
+} from "@main/contexts/server-lifecycle/application/use-cases";
 
 export class ServerLifecycleIPCHandlers {
   constructor(private readonly container: Container) {}
@@ -40,6 +41,14 @@ export class ServerLifecycleIPCHandlers {
           TYPES.DeleteServerLocallyUseCase,
         );
         return useCase.execute(serverId);
+      }),
+    );
+
+    ipcMain.handle(
+      "server:list-local",
+      this.handleIPC("listLocalServers", async () => {
+        const useCase = this.container.get<ListLocalServersUseCase>(TYPES.ListLocalServersUseCase);
+        return useCase.execute();
       }),
     );
   }

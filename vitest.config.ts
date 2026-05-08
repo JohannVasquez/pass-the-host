@@ -43,6 +43,8 @@ export default defineConfig({
     alias: {
       "@shared": resolve(__dirname, "src/contexts/shared"),
       "@main": resolve(__dirname, "src/main"),
+      "@renderer": resolve(__dirname, "src/renderer/src"),
+      "@preload": resolve(__dirname, "src/preload"),
     },
   },
 });

@@ -19,20 +19,17 @@ import {
   GetServerStatisticsUseCase,
   ReadServerPortUseCase,
   WriteServerPortUseCase,
-} from "../../../../../../src/main/contexts/cloud-storage/application/use-cases";
+} from "@main/contexts/cloud-storage/application/use-cases";
 import type {
   IRcloneRepository,
   IS3ServerRepository,
   IServerLockRepository,
   ISessionRepository,
   IServerPropertiesRepository,
-} from "../../../../../../src/main/contexts/cloud-storage/domain/repositories";
-import type {
-  S3Config,
-  ServerInfo,
-} from "../../../../../../src/main/contexts/cloud-storage/domain/entities/S3Config";
-import type { ServerLock } from "../../../../../../src/main/contexts/cloud-storage/domain/entities/ServerLock";
-import type { ServerStatistics } from "../../../../../../src/main/contexts/cloud-storage/domain/entities/SessionMetadata";
+} from "@main/contexts/cloud-storage/domain/repositories";
+import type { S3Config, ServerInfo } from "@main/contexts/cloud-storage/domain/entities/S3Config";
+import type { ServerLock } from "@main/contexts/cloud-storage/domain/entities/ServerLock";
+import type { ServerStatistics } from "@main/contexts/cloud-storage/domain/entities/SessionMetadata";
 
 function createMockRcloneRepository(): IRcloneRepository {
   return {
@@ -50,6 +47,8 @@ function createMockS3ServerRepository(): IS3ServerRepository {
     deleteServer: vi.fn(),
     shouldDownloadServer: vi.fn(),
     getServerSize: vi.fn(),
+    getLocalManifest: vi.fn(),
+    hasRemoteChanges: vi.fn(),
   };
 }
 function createMockServerLockRepository(): IServerLockRepository {

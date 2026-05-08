@@ -8,7 +8,7 @@ import {
   ReadForgeJvmArgsUseCase,
   EditForgeJvmArgsUseCase,
   OpenServerFolderUseCase,
-} from "../../application/use-cases";
+} from "@main/contexts/server-runtime/application/use-cases";
 
 export class ServerRuntimeIPCHandlers {
   constructor(
@@ -73,8 +73,10 @@ export class ServerRuntimeIPCHandlers {
                 event.sender.send("server:stdout", data);
               }
             },
-            () => {
-              // Process closed
+            (code: number | null) => {
+              if (!event.sender.isDestroyed()) {
+                event.sender.send("server:process-exit", { serverId, code });
+              }
             },
           );
           return true;

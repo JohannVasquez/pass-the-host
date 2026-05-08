@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ServerProcess } from "../../../../../../src/main/contexts/server-runtime/domain/entities/ServerProcess";
+import { ServerProcess } from "@main/contexts/server-runtime/domain/entities/ServerProcess";
 import type { ChildProcessWithoutNullStreams } from "child_process";
 import { EventEmitter } from "events";
 

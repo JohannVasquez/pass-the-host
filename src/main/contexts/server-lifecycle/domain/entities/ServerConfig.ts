@@ -15,3 +15,10 @@ export interface ServerDeletionResult {
   success: boolean;
   error?: string;
 }
+
+export interface LocalServerInfo {
+  id: string;
+  name: string;
+  version: string;
+  type: "vanilla" | "forge" | "unknown";
+}

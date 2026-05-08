@@ -1,14 +1,14 @@
 import { ipcMain } from "electron";
 import { Container } from "inversify";
 import { ErrorHandler } from "@shared/infrastructure/error-handler";
-import { TYPES } from "../../application/use-cases/types";
+import { TYPES } from "@main/contexts/system-resources/application/use-cases/types";
 import {
   EnsureJavaForMinecraftUseCase,
   GetInstalledJavaVersionsUseCase,
   GetRequiredJavaVersionUseCase,
   GetTotalMemoryUseCase,
   GetNetworkInterfacesUseCase,
-} from "../../application/use-cases";
+} from "@main/contexts/system-resources/application/use-cases";
 
 export class SystemResourcesIPCHandlers {
   constructor(private readonly container: Container) {}

@@ -22,6 +22,7 @@ export interface ServerConfig {
 export interface AppSettings {
   owner_name?: string | null;
   language?: string;
+  cloud_sync_enabled?: boolean;
 }
 
 export interface AppConfig {

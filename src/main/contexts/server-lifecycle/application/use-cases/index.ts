@@ -1,10 +1,11 @@
 import { injectable } from "inversify";
-import { IServerLifecycleRepository } from "../../domain/repositories";
+import { IServerLifecycleRepository } from "@main/contexts/server-lifecycle/domain/repositories";
 import {
+  LocalServerInfo,
   MinecraftServerConfig,
   ServerCreationResult,
   ServerDeletionResult,
-} from "../../domain/entities";
+} from "@main/contexts/server-lifecycle/domain/entities";
 
 @injectable()
 export class CreateMinecraftServerUseCase {
@@ -24,6 +25,15 @@ export class DeleteServerLocallyUseCase {
 
   execute(serverId: string): ServerDeletionResult {
     return this.serverLifecycleRepository.deleteServerLocally(serverId);
+  }
+}
+
+@injectable()
+export class ListLocalServersUseCase {
+  constructor(private serverLifecycleRepository: IServerLifecycleRepository) {}
+
+  execute(): LocalServerInfo[] {
+    return this.serverLifecycleRepository.listLocalServers();
   }
 }
 

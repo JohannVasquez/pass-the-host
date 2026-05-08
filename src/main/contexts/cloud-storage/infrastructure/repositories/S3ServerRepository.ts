@@ -2,11 +2,20 @@ import { injectable } from "inversify";
 import { app } from "electron";
 import * as path from "path";
 import * as fs from "fs";
-import { spawn } from "child_process";
 import { promisify } from "util";
 import { exec } from "child_process";
-import { IS3ServerRepository } from "../../domain/repositories";
-import { S3Config, ServerInfo, TransferProgress, SessionMetadata } from "../../domain/entities";
+import {
+  IS3ServerRepository,
+  IS3SyncService,
+} from "@main/contexts/cloud-storage/domain/repositories";
+import {
+  CloudSyncState,
+  S3Config,
+  ServerManifest,
+  ServerInfo,
+  TransferProgress,
+  SessionMetadata,
+} from "@main/contexts/cloud-storage/domain/entities";
 import { RcloneRepository } from "./RcloneRepository";
 import { ExternalServiceError } from "@shared/domain/errors";
 
@@ -14,7 +23,10 @@ const execAsync = promisify(exec);
 
 @injectable()
 export class S3ServerRepository implements IS3ServerRepository {
-  constructor(private rcloneRepository: RcloneRepository) {}
+  constructor(
+    private rcloneRepository: RcloneRepository,
+    private readonly s3SyncService: IS3SyncService,
+  ) {}
 
   async listServers(config: S3Config): Promise<ServerInfo[]> {
     try {
@@ -66,55 +78,27 @@ export class S3ServerRepository implements IS3ServerRepository {
     try {
       await this.rcloneRepository.ensureConfigured(config);
 
-      const rclonePath = this.rcloneRepository.getRclonePath();
-      const configName = this.rcloneRepository.getRcloneConfigName();
       const localServersDir = path.join(app.getPath("userData"), "servers");
       const localServerPath = path.join(localServersDir, serverId);
-      const s3ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
 
       if (!fs.existsSync(localServersDir)) fs.mkdirSync(localServersDir, { recursive: true });
-
-      // Try to delete existing folder with retries
-      if (fs.existsSync(localServerPath)) {
-        let deleted = false;
-        let attempts = 0;
-        const maxAttempts = 3;
-
-        while (!deleted && attempts < maxAttempts) {
-          try {
-            console.log(
-              `[RCLONE] Attempting to delete existing folder (attempt ${attempts + 1}/${maxAttempts})...`,
-            );
-            fs.rmSync(localServerPath, { recursive: true, force: true });
-            deleted = true;
-            console.log(`[RCLONE] Successfully deleted existing folder`);
-          } catch (error: unknown) {
-            attempts++;
-            const nodeError = error as NodeJS.ErrnoException;
-            if (nodeError.code === "EBUSY" || nodeError.code === "EPERM") {
-              if (attempts < maxAttempts) {
-                console.log(`[RCLONE] Folder is locked, waiting 2 seconds before retry...`);
-                await new Promise((resolve) => setTimeout(resolve, 2000));
-              } else {
-                console.log(
-                  `[RCLONE] Could not delete folder after ${maxAttempts} attempts, will use rclone sync (may take longer)`,
-                );
-              }
-            } else {
-              throw error;
-            }
-          }
-        }
-      }
 
       if (!fs.existsSync(localServerPath)) {
         fs.mkdirSync(localServerPath, { recursive: true });
       }
 
-      console.log(`[RCLONE] Starting download from ${s3ServerPath} to ${localServerPath}`);
+      console.log(`[SYNC] Starting differential download for ${serverId} into ${localServerPath}`);
       onProgress?.({ percent: 0, transferred: "0 B", total: "0 B" });
 
-      return await this.syncWithProgress(rclonePath, s3ServerPath, localServerPath, onProgress);
+      const result = !!(await this.s3SyncService.downloadServer(config, serverId, onProgress));
+      if (result) {
+        this.writeCloudSyncState(serverId, {
+          localChangesPendingUpload: false,
+          lastLocalChangeTimestamp: Date.now(),
+        });
+      }
+
+      return result;
     } catch (error) {
       throw new ExternalServiceError(
         "S3",
@@ -131,18 +115,23 @@ export class S3ServerRepository implements IS3ServerRepository {
     try {
       await this.rcloneRepository.ensureConfigured(config);
 
-      const rclonePath = this.rcloneRepository.getRclonePath();
-      const configName = this.rcloneRepository.getRcloneConfigName();
       const localServersDir = path.join(app.getPath("userData"), "servers");
       const localServerPath = path.join(localServersDir, serverId);
-      const s3ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
 
       if (!fs.existsSync(localServerPath)) return false;
 
-      console.log(`[RCLONE] Starting upload from ${localServerPath} to ${s3ServerPath}`);
+      console.log(`[SYNC] Starting differential upload for ${serverId} from ${localServerPath}`);
       onProgress?.({ percent: 0, transferred: "0 B", total: "0 B" });
 
-      return await this.syncWithProgress(rclonePath, localServerPath, s3ServerPath, onProgress);
+      const result = !!(await this.s3SyncService.uploadServer(config, serverId, onProgress));
+      if (result) {
+        this.writeCloudSyncState(serverId, {
+          localChangesPendingUpload: false,
+          lastLocalChangeTimestamp: Date.now(),
+        });
+      }
+
+      return result;
     } catch (error) {
       throw new ExternalServiceError(
         "S3",
@@ -197,12 +186,30 @@ export class S3ServerRepository implements IS3ServerRepository {
 
   async shouldDownloadServer(config: S3Config, serverId: string): Promise<boolean> {
     try {
+      const cloudSyncState = this.readCloudSyncState(serverId);
+      if (cloudSyncState?.localChangesPendingUpload) {
+        console.log(`[SESSION] Local changes pending upload for ${serverId}, skipping download`);
+        return false;
+      }
+
       // Read local session directly instead of using SessionRepository
       const localSession = this.readLocalSession(serverId);
       console.log(
         `[SESSION] Local session for ${serverId}:`,
         JSON.stringify(localSession, null, 2),
       );
+
+      try {
+        const hasRemoteChanges = await this.s3SyncService.hasRemoteChanges(config, serverId);
+        if (hasRemoteChanges) {
+          console.log(`[SYNC] Remote manifest changes detected for ${serverId}, download needed`);
+          return true;
+        }
+      } catch (error) {
+        console.warn(
+          `[SYNC] Could not compare manifests for ${serverId}, falling back to session metadata: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
 
       await this.rcloneRepository.ensureConfigured(config);
       const rclonePath = this.rcloneRepository.getRclonePath();
@@ -254,6 +261,14 @@ export class S3ServerRepository implements IS3ServerRepository {
     }
   }
 
+  async getLocalManifest(serverId: string): Promise<ServerManifest> {
+    return await this.s3SyncService.buildLocalManifest(serverId);
+  }
+
+  async hasRemoteChanges(config: S3Config, serverId: string): Promise<boolean> {
+    return await this.s3SyncService.hasRemoteChanges(config, serverId);
+  }
+
   private readLocalSession(serverId: string): SessionMetadata | null {
     try {
       const serverPath = path.join(app.getPath("userData"), "servers", serverId);
@@ -269,6 +284,29 @@ export class S3ServerRepository implements IS3ServerRepository {
       // Expected case: file doesn't exist or can't be parsed
       return null;
     }
+  }
+
+  private getCloudSyncStatePath(serverId: string): string {
+    return path.join(app.getPath("userData"), "servers", serverId, ".cloud-sync-state.json");
+  }
+
+  private readCloudSyncState(serverId: string): CloudSyncState | null {
+    try {
+      const statePath = this.getCloudSyncStatePath(serverId);
+
+      if (!fs.existsSync(statePath)) {
+        return null;
+      }
+
+      return JSON.parse(fs.readFileSync(statePath, "utf-8")) as CloudSyncState;
+    } catch {
+      return null;
+    }
+  }
+
+  private writeCloudSyncState(serverId: string, state: CloudSyncState): void {
+    const statePath = this.getCloudSyncStatePath(serverId);
+    fs.writeFileSync(statePath, JSON.stringify(state, null, 2), "utf-8");
   }
 
   private async detectServerVersionAndType(
@@ -366,79 +404,4 @@ export class S3ServerRepository implements IS3ServerRepository {
     }
   }
 
-  private async syncWithProgress(
-    rclonePath: string,
-    source: string,
-    destination: string,
-    onProgress?: (progress: TransferProgress) => void,
-  ): Promise<boolean> {
-    return new Promise<boolean>((resolve, reject) => {
-      const rcloneProcess = spawn(
-        rclonePath,
-        ["sync", source, destination, "--progress", "--stats", "500ms", "--transfers", "8"],
-        { shell: true },
-      );
-
-      let lastProgress = "";
-      let stdoutBuffer = "";
-      let stderrBuffer = "";
-
-      const parseProgress = (line: string): void => {
-        const match = line.match(
-          /Transferred:\s+([0-9.]+\s*[KMGT]?i?B)\s*\/\s*([0-9.]+\s*[KMGT]?i?B),\s*(\d+)%/,
-        );
-
-        if (match) {
-          const transferred = match[1].trim();
-          const total = match[2].trim();
-          const percent = parseInt(match[3]);
-
-          const currentProgress = JSON.stringify({ transferred, percent });
-          if (currentProgress !== lastProgress) {
-            lastProgress = currentProgress;
-            onProgress?.({ percent, transferred, total });
-          }
-        }
-      };
-
-      rcloneProcess.stdout.on("data", (data: Buffer) => {
-        stdoutBuffer += data.toString();
-        const lines = stdoutBuffer.split(/[\r\n]+/);
-        stdoutBuffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (line.trim()) {
-            parseProgress(line);
-          }
-        }
-      });
-
-      rcloneProcess.stderr.on("data", (data: Buffer) => {
-        stderrBuffer += data.toString();
-        const lines = stderrBuffer.split(/[\r\n]+/);
-        stderrBuffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (line.trim()) {
-            parseProgress(line);
-          }
-        }
-      });
-
-      rcloneProcess.on("close", (code) => {
-        console.log(`[RCLONE] Process closed with code ${code}`);
-        if (code === 0) {
-          onProgress?.({ percent: 100, transferred: "Complete", total: "Complete" });
-          resolve(true);
-        } else {
-          reject(new Error(`Sync failed with code ${code}`));
-        }
-      });
-
-      rcloneProcess.on("error", (error) => {
-        console.error(`[RCLONE ERROR]`, error);
-        reject(error);
-      });
-    });
-  }
 }
