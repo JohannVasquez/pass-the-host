@@ -1,5 +1,9 @@
-import { IAppConfigurationRepository } from "../../domain/repositories";
-import { S3Config, AppConfig, ConfigSaveResult } from "../../domain/entities";
+import { IAppConfigurationRepository } from "@main/contexts/app-configuration/domain/repositories";
+import {
+  S3Config,
+  AppConfig,
+  ConfigSaveResult,
+} from "@main/contexts/app-configuration/domain/entities";
 
 export class LoadConfigUseCase {
   constructor(private repository: IAppConfigurationRepository) {}
@@ -14,6 +18,14 @@ export class SaveS3ConfigUseCase {
 
   async execute(s3Config: S3Config): Promise<ConfigSaveResult> {
     return this.repository.saveS3Config(s3Config);
+  }
+}
+
+export class SaveCloudSyncEnabledUseCase {
+  constructor(private repository: IAppConfigurationRepository) {}
+
+  async execute(enabled: boolean): Promise<ConfigSaveResult> {
+    return this.repository.saveCloudSyncEnabled(enabled);
   }
 }
 

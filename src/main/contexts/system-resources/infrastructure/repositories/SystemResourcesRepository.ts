@@ -7,6 +7,11 @@ import * as os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
 import type { ISystemResourcesRepository } from "@main/contexts/system-resources/domain/repositories";
+import {
+  findBundledJavaPath,
+  getBundledJavaCandidates,
+  hasBundledJavaBinary,
+} from "@main/utils/javaRuntime";
 import type {
   JavaVersion,
   JavaRequirement,
@@ -157,12 +162,7 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
 
   private getJavaPath(javaVersion: number): string {
     const javaDir = path.join(JAVA_RUNTIME_DIR, `java${javaVersion}`);
-    const javaBin =
-      process.platform === "win32"
-        ? path.join(javaDir, "bin", "java.exe")
-        : path.join(javaDir, "bin", "java");
-
-    return javaBin;
+    return findBundledJavaPath(javaDir, fs.existsSync);
   }
 
   private isJavaInstalled(javaVersion: number): boolean {
@@ -325,24 +325,13 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
         await this.extractTarGz(downloadPath, tempDir);
       }
 
-      // Find the extracted JRE directory (usually has a version number in the name)
-      const extractedContents = fs.readdirSync(tempDir);
-      let jreDir: string | null = null;
-
-      for (const item of extractedContents) {
-        const itemPath = path.join(tempDir, item);
-        if (fs.statSync(itemPath).isDirectory()) {
-          // Check if this directory contains a bin folder
-          const binPath = path.join(itemPath, "bin");
-          if (fs.existsSync(binPath)) {
-            jreDir = itemPath;
-            break;
-          }
-        }
-      }
+      const jreDir = this.findExtractedJavaDirectory(tempDir);
 
       if (!jreDir) {
-        throw new Error("Could not find JRE directory in extracted archive");
+        const extractedContents = fs.readdirSync(tempDir);
+        throw new Error(
+          `Could not find Java runtime in extracted archive. Found: ${extractedContents.join(", ") || "<empty>"}`,
+        );
       }
 
       // Move the JRE directory to the final location
@@ -350,6 +339,13 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
         fs.rmSync(javaDir, { recursive: true, force: true });
       }
       fs.renameSync(jreDir, javaDir);
+
+      const installedJavaPath = this.getJavaPath(javaVersion);
+      if (!fs.existsSync(installedJavaPath)) {
+        throw new Error(
+          `Java ${javaVersion} extracted but binary was not found. Checked: ${getBundledJavaCandidates(javaDir).join(", ")}`,
+        );
+      }
 
       // Clean up
       fs.unlinkSync(downloadPath);
@@ -362,5 +358,20 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
       console.error(`Error downloading Java ${javaVersion}:`, error);
       return false;
     }
+  }
+
+  private findExtractedJavaDirectory(tempDir: string): string | null {
+    const candidateDirectories = [tempDir];
+
+    for (const item of fs.readdirSync(tempDir)) {
+      const itemPath = path.join(tempDir, item);
+      if (fs.statSync(itemPath).isDirectory()) {
+        candidateDirectories.push(itemPath);
+      }
+    }
+
+    return (
+      candidateDirectories.find((candidate) => hasBundledJavaBinary(candidate, fs.existsSync)) ?? null
+    );
   }
 }

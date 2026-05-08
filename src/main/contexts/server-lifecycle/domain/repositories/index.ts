@@ -1,4 +1,9 @@
-import { MinecraftServerConfig, ServerCreationResult, ServerDeletionResult } from "../entities";
+import {
+  LocalServerInfo,
+  MinecraftServerConfig,
+  ServerCreationResult,
+  ServerDeletionResult,
+} from "@main/contexts/server-lifecycle/domain/entities";
 
 export interface IServerLifecycleRepository {
   /**
@@ -18,6 +23,12 @@ export interface IServerLifecycleRepository {
    * @returns Result with success status
    */
   deleteServerLocally(serverId: string): ServerDeletionResult;
+
+  /**
+   * Lists servers available in local storage
+   * @returns Server metadata discovered under the local servers directory
+   */
+  listLocalServers(): LocalServerInfo[];
 
   /**
    * Gets the local path for a server

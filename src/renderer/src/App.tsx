@@ -12,6 +12,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import { BarChart as BarChartIcon } from "@mui/icons-material";
+import { SnackbarProvider, useSnackbar } from "notistack";
 import { S3Configuration } from "./presentation/components/S3Configuration";
 import { ServerControlPanel } from "./presentation/components/ServerControlPanel";
 import { NetworkConfiguration } from "./presentation/components/NetworkConfiguration";
@@ -28,13 +29,24 @@ import { ServerStatisticsModal } from "./presentation/components/ServerStatistic
 import { CreateServerModal } from "./presentation/components/CreateServerModal";
 import { ServerExistsModal } from "./presentation/components/ServerExistsModal";
 import { DeleteServerModal } from "./presentation/components/DeleteServerModal";
-import { ServerStatus } from "./domain/entities/ServerStatus";
+import { ServerStatus, canTransitionServerStatus } from "./domain/entities/ServerStatus";
 import { S3Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
 import { Server } from "./domain/entities/Server";
+import {
+  StartManagedServerUseCase,
+  StopManagedServerUseCase,
+} from "./contexts/server-runtime/application/use-cases";
 import { S3ServerRepository } from "./infrastructure/repositories/S3ServerRepository";
 import { S3Service } from "./infrastructure/services/S3Service";
 import { useTranslation } from "react-i18next";
+import { EventBus } from "@shared/infrastructure/event-bus";
+import {
+  ServerLockDetectedEvent,
+  ServerLockAvailableEvent,
+  ServerLockCheckFailedEvent,
+} from "@shared/domain/DomainEvents";
+import { useLockMonitor } from "@server-locking/presentation/hooks/useLockMonitor";
 import "./i18n/config";
 
 const darkTheme = createTheme({
@@ -58,12 +70,28 @@ interface ServerStatistics {
 }
 
 function App(): React.JSX.Element {
+  return (
+    <ThemeProvider theme={darkTheme}>
+      <SnackbarProvider
+        maxSnack={3}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        autoHideDuration={5000}
+      >
+        <AppContent />
+      </SnackbarProvider>
+    </ThemeProvider>
+  );
+}
+
+function AppContent(): React.JSX.Element {
   const { t, i18n } = useTranslation();
+  const { enqueueSnackbar } = useSnackbar();
 
   // Estados simulados para la interfaz
   const [serverStatus, setServerStatus] = React.useState<ServerStatus>(ServerStatus.STOPPED);
   const [servers, setServers] = React.useState<Server[]>([]);
   const [selectedServer, setSelectedServer] = React.useState<string | null>(null);
+  const [isCloudSyncEnabledByUser, setIsCloudSyncEnabledByUser] = React.useState<boolean>(false);
   const [isS3Configured, setIsS3Configured] = React.useState<boolean>(false);
   const [isRcloneReady, setIsRcloneReady] = React.useState<boolean>(false);
   const [rcloneCheckCompleted, setRcloneCheckCompleted] = React.useState<boolean>(false);
@@ -128,6 +156,304 @@ function App(): React.JSX.Element {
   const [selectedServerSize, setSelectedServerSize] = React.useState<number>(0);
   const [isLoadingBucketSize, setIsLoadingBucketSize] = React.useState<boolean>(false);
   const [isLoadingServerSize, setIsLoadingServerSize] = React.useState<boolean>(false);
+  const serverProcessRef = React.useRef<boolean>(false);
+  const serverStatusRef = React.useRef<ServerStatus>(ServerStatus.STOPPED);
+
+  const updateServerStatus = React.useCallback(
+    (next: ServerStatus, reason: string, options?: { force?: boolean }): boolean => {
+      const current = serverStatusRef.current;
+      const forceTransition = options?.force === true;
+
+      if (!forceTransition && !canTransitionServerStatus(current, next)) {
+        console.warn(`[ServerStatus] Invalid transition ${current} -> ${next}. Reason: ${reason}`);
+        return false;
+      }
+
+      if (current !== next) {
+        serverStatusRef.current = next;
+        setServerStatus(next);
+      }
+
+      return true;
+    },
+    [],
+  );
+
+  const resetTransferProgress = React.useCallback(
+    (type: "download" | "upload", transferred = "0", total = "0"): void => {
+      setTransferType(type);
+      setTransferPercent(0);
+      setTransferTransferred(transferred);
+      setTransferTotal(total);
+    },
+    [],
+  );
+
+  const waitForServerExit = React.useCallback((serverId: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+      let settled = false;
+      let timeoutId: number | undefined;
+
+      const unsubscribe = window.serverAPI.onProcessExit((payload) => {
+        if (payload.serverId !== serverId || settled) {
+          return;
+        }
+
+        settled = true;
+        unsubscribe();
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+        }
+        resolve(true);
+      });
+
+      timeoutId = window.setTimeout(() => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        unsubscribe();
+        resolve(false);
+      }, 15000);
+    });
+  }, []);
+
+  const appendLog = React.useCallback((message: string, type: LogEntry["type"]): void => {
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message,
+        type,
+      },
+    ]);
+  }, []);
+
+  const startManagedServerUseCase = React.useMemo(
+    () =>
+      new StartManagedServerUseCase(
+        {
+          readLock: (config, serverId) => window.serverAPI.readLock(config, serverId),
+          shouldDownload: (config, serverId) => window.serverAPI.shouldDownload(config, serverId),
+          downloadServer: (serverId) => new S3Service(s3Config).downloadServer(serverId),
+          writePort: (serverId, port) => window.serverAPI.writePort(serverId, port),
+          ensureJavaForMinecraft: async (version) => {
+            const result = await window.javaAPI.ensureForMinecraft(version);
+            return {
+              success: result.success,
+              javaPath: result.javaPath || "",
+              version: result.version,
+            };
+          },
+          createLock: (serverId, username) => window.serverAPI.createLock(serverId, username),
+          uploadLock: (config, serverId) => window.serverAPI.uploadLock(config, serverId),
+          createSession: (serverId, username) => window.serverAPI.createSession(serverId, username),
+          getLocalServerPath: (serverId) => window.serverAPI.getLocalServerPath(serverId),
+          editForgeJvmArgs: async (serverId, minRam, maxRam) => {
+            await window.serverAPI.editForgeJvmArgs(serverId, minRam, maxRam);
+            return true;
+          },
+          readForgeJvmArgs: (serverId) => window.serverAPI.readForgeJvmArgs(serverId),
+          spawnServerProcess: (serverId, command, args, workingDir) =>
+            window.serverAPI.spawnServerProcess(serverId, command, args, workingDir),
+        },
+        {
+          log: appendLog,
+          updateStatus: (next, reason, options) => {
+            updateServerStatus(next, reason, options);
+          },
+          setLockedServerInfo: (info) => setLockedServerInfo(info),
+          openServerLockedModal: () => setIsServerLockedModalOpen(true),
+          startTransfer: (type, transferred = "0", total = "0") => {
+            setIsTransferring(true);
+            resetTransferProgress(type, transferred, total);
+          },
+          stopTransfer: () => setIsTransferring(false),
+          setJavaProgress: (active, message) => {
+            setIsJavaDownloading(active);
+            setJavaProgressMessage(message);
+          },
+          setServerStartTime: (startTime) => setServerStartTime(startTime),
+        },
+      ),
+    [appendLog, resetTransferProgress, s3Config, updateServerStatus],
+  );
+
+  const stopManagedServerUseCase = React.useMemo(
+    () =>
+      new StopManagedServerUseCase(
+        {
+          killServerProcess: async (serverId) => {
+            await window.serverAPI.killServerProcess(serverId);
+            return true;
+          },
+          waitForServerExit,
+          deleteLock: async (config, serverId) => (await window.serverAPI.deleteLock(config, serverId)).success,
+          deleteLocalLock: async (serverId) => (await window.serverAPI.deleteLocalLock(serverId)).success,
+          updateSession: (serverId, username) => window.serverAPI.updateSession(serverId, username),
+          uploadServer: (serverId) => new S3Service(s3Config).uploadServer(serverId),
+          uploadSession: (config, serverId) => window.serverAPI.uploadSession(config, serverId),
+        },
+        {
+          log: appendLog,
+          updateStatus: (next, reason, options) => {
+            updateServerStatus(next, reason, options);
+          },
+          startTransfer: (type, transferred = "0", total = "0") => {
+            setIsTransferring(true);
+            resetTransferProgress(type, transferred, total);
+          },
+          updateTransfer: (transferred, total) => {
+            setTransferTransferred(transferred);
+            setTransferTotal(total);
+          },
+          stopTransfer: () => setIsTransferring(false),
+          setServerStartTime: (startTime) => setServerStartTime(startTime),
+        },
+      ),
+    [appendLog, resetTransferProgress, s3Config, updateServerStatus, waitForServerExit],
+  );
+
+  React.useEffect(() => {
+    serverStatusRef.current = serverStatus;
+  }, [serverStatus]);
+
+  const isCloudSyncEnabled = isCloudSyncEnabledByUser && isS3Configured && isRcloneReady;
+
+  // Monitor server lock status when server is stopped and selected
+  useLockMonitor(
+    selectedServer,
+    s3Config,
+    serverStatus === ServerStatus.STOPPED && isCloudSyncEnabled,
+  );
+
+  React.useEffect(() => {
+    const unsubscribe = window.serverAPI.onProcessExit(({ serverId, code }) => {
+      if (!selectedServer || serverId !== selectedServer) {
+        return;
+      }
+
+      setServerStartTime(null);
+      serverProcessRef.current = false;
+
+      const isIntentionalStop = serverStatusRef.current === ServerStatus.STOPPING;
+
+      if (!isIntentionalStop) {
+        updateServerStatus(ServerStatus.STOPPED, "server process exited", { force: true });
+      }
+
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message:
+            isIntentionalStop
+              ? "Server process exited, finalizing shutdown..."
+              : code === 0
+                ? "Server process exited"
+                : `Server process stopped unexpectedly${code !== null ? ` (exit code ${code})` : ""}`,
+          type: isIntentionalStop || code === 0 ? "info" : "warning",
+        },
+      ]);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [selectedServer, updateServerStatus]);
+
+  // Subscribe to lock monitoring events
+  React.useEffect(() => {
+    const eventBus = EventBus.getInstance();
+
+    // Handle lock detected event
+    eventBus.subscribe("server.lock.detected", (event: ServerLockDetectedEvent) => {
+      setLockedServerInfo({
+        username: event.username,
+        startedAt: event.timestamp.toISOString(),
+      });
+
+      // Show toast notification
+      enqueueSnackbar(
+        t("serverLock.detectedToast", {
+          username: event.username,
+          defaultValue: `Server is now being used by ${event.username}`,
+        }),
+        {
+          variant: "warning",
+        },
+      );
+
+      // Log to console
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: `Server locked by ${event.username}`,
+          type: "warning",
+        },
+      ]);
+    });
+
+    // Handle lock available event (server became available)
+    eventBus.subscribe("server.lock.available", (event: ServerLockAvailableEvent) => {
+      setLockedServerInfo({ username: "", startedAt: "" });
+
+      // Show OS notification
+      window.notificationAPI.show(
+        t("serverLock.availableTitle", {
+          defaultValue: "Server Available",
+        }),
+        t("serverLock.availableMessage", {
+          serverId: event.serverId,
+          defaultValue: `Server ${event.serverId} is now available for use`,
+        }),
+      );
+
+      // Show toast notification
+      enqueueSnackbar(
+        t("serverLock.availableToast", {
+          defaultValue: "Server is now available!",
+        }),
+        {
+          variant: "success",
+        },
+      );
+
+      // Log to console
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Server is now available",
+          type: "success",
+        },
+      ]);
+    });
+
+    // Handle lock check failed event
+    eventBus.subscribe("server.lock.checkFailed", (event: ServerLockCheckFailedEvent) => {
+      const retrySeconds = Math.round(event.retryDelay / 1000);
+
+      // Show toast notification
+      enqueueSnackbar(
+        t("serverLock.checkFailedToast", {
+          retrySeconds,
+          defaultValue: `Could not verify server status. Retrying in ${retrySeconds}s...`,
+        }),
+        {
+          variant: "error",
+        },
+      );
+
+      // Log to console (only for debugging, not spamming)
+      console.warn(`Lock check failed: ${event.error}. Retry in ${retrySeconds}s`);
+    });
+
+    // No cleanup needed for EventBus subscriptions in this implementation
+    // EventBus keeps subscriptions active until manually unsubscribed
+  }, [t, enqueueSnackbar]);
 
   // Load configuration from config.json on mount
   React.useEffect(() => {
@@ -162,6 +488,7 @@ function App(): React.JSX.Element {
 
         // Load username
         setUsername(config.app?.owner_name || "");
+        setIsCloudSyncEnabledByUser(config.app?.cloud_sync_enabled === true);
 
         // Load and set language
         const savedLanguage = config.app?.language || "en";
@@ -295,6 +622,116 @@ function App(): React.JSX.Element {
     );
   };
 
+  const ensureCloudSyncReady = async (config: S3Config): Promise<boolean> => {
+    if (!validateS3Config(config)) {
+      setIsS3Configured(false);
+      setIsRcloneReady(false);
+      await loadLocalServers();
+      return false;
+    }
+
+    setIsS3Configured(true);
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "Checking rclone installation...",
+        type: "info",
+      },
+    ]);
+
+    const rcloneExists = await window.rclone.checkInstallation();
+
+    if (!rcloneExists) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Rclone not found. Installing...",
+          type: "warning",
+        },
+      ]);
+
+      setIsRcloneDownloading(true);
+      setRcloneProgressMessage("Preparing to download rclone...");
+
+      const installSuccess = await window.rclone.installRclone();
+
+      setIsRcloneDownloading(false);
+      setRcloneProgressMessage("");
+
+      if (!installSuccess) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Failed to install rclone. Please install manually.",
+            type: "error",
+          },
+        ]);
+        setIsRcloneReady(false);
+        await loadLocalServers();
+        return false;
+      }
+
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Rclone installed successfully",
+          type: "info",
+        },
+      ]);
+    } else {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Rclone is already installed",
+          type: "info",
+        },
+      ]);
+    }
+
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "Testing cloud storage connection...",
+        type: "info",
+      },
+    ]);
+
+    const connectionSuccess = await window.rclone.testConnection(config);
+
+    if (!connectionSuccess) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Failed to connect to cloud storage. Please check your configuration.",
+          type: "error",
+        },
+      ]);
+      setIsRcloneReady(false);
+      await loadLocalServers();
+      return false;
+    }
+
+    setLogs((prev) => [
+      ...prev,
+      {
+        timestamp: new Date(),
+        message: "Cloud storage connection successful",
+        type: "info",
+      },
+    ]);
+    setIsRcloneReady(true);
+    await loadServersFromS3();
+
+    return true;
+  };
+
   // Check if rclone is installed and verify S3 connection
   React.useEffect(() => {
     // Wait for config to load first
@@ -309,111 +746,13 @@ function App(): React.JSX.Element {
 
     const checkRcloneAndS3 = async (): Promise<void> => {
       try {
-        // Check if rclone exists
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: "Checking rclone installation...",
-            type: "info",
-          },
-        ]);
-
-        const rcloneExists = await window.rclone.checkInstallation();
-
-        if (!rcloneExists) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Rclone not found. Installing...",
-              type: "warning",
-            },
-          ]);
-
-          // Show rclone download modal
-          setIsRcloneDownloading(true);
-          setRcloneProgressMessage("Preparing to download rclone...");
-
-          const installSuccess = await window.rclone.installRclone();
-
-          // Hide rclone download modal
-          setIsRcloneDownloading(false);
-          setRcloneProgressMessage("");
-
-          if (!installSuccess) {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Failed to install rclone. Please install manually.",
-                type: "error",
-              },
-            ]);
-            setIsRcloneReady(false);
-            return;
-          }
-
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Rclone installed successfully",
-              type: "info",
-            },
-          ]);
-        } else {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Rclone is already installed",
-              type: "info",
-            },
-          ]);
+        if (!isCloudSyncEnabledByUser) {
+          setIsRcloneReady(false);
+          await loadLocalServers();
+          return;
         }
 
-        // If S3 is configured, test the connection
-
-        if (validateS3Config(s3Config)) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Testing cloud storage connection...",
-              type: "info",
-            },
-          ]);
-
-          const connectionSuccess = await window.rclone.testConnection(s3Config);
-
-          if (connectionSuccess) {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Cloud storage connection successful",
-                type: "info",
-              },
-            ]);
-            setIsRcloneReady(true);
-
-            // Load servers from cloud storage
-            loadServersFromS3();
-          } else {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Failed to connect to cloud storage. Please check your configuration.",
-                type: "error",
-              },
-            ]);
-            setIsRcloneReady(false);
-          }
-        } else {
-          setIsRcloneReady(true); // Rclone is ready but R2 not configured yet
-        }
+        await ensureCloudSyncReady(s3Config);
       } catch (error) {
         console.error("Error checking rclone:", error);
         setLogs((prev) => [
@@ -432,12 +771,28 @@ function App(): React.JSX.Element {
 
     checkRcloneAndS3();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configLoaded, rcloneCheckCompleted]);
+  }, [configLoaded, isCloudSyncEnabledByUser, rcloneCheckCompleted]);
 
   // Validate S3 configuration when it changes
   React.useEffect(() => {
     const isValid = validateS3Config(s3Config);
     setIsS3Configured(isValid);
+
+    if (!isCloudSyncEnabledByUser) {
+      setIsRcloneReady(false);
+      setTotalBucketSize(0);
+      setSelectedServerSize(0);
+      void loadLocalServers();
+      return;
+    }
+
+    if (!isValid) {
+      setIsRcloneReady(false);
+      setTotalBucketSize(0);
+      setSelectedServerSize(0);
+      void loadLocalServers();
+      return;
+    }
 
     if (isValid && isRcloneReady) {
       // Re-test S3 connection when config changes
@@ -451,35 +806,13 @@ function App(): React.JSX.Element {
           },
         ]);
 
-        const connectionSuccess = await window.rclone.testConnection(s3Config);
-
-        if (connectionSuccess) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Cloud storage connection successful",
-              type: "info",
-            },
-          ]);
-          await loadServersFromS3();
-        } else {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Failed to connect to cloud storage. Please check your configuration.",
-              type: "error",
-            },
-          ]);
-          setIsRcloneReady(false);
-        }
+        await ensureCloudSyncReady(s3Config);
       };
 
       testConnection();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [s3Config, isRcloneReady]);
+  }, [isCloudSyncEnabledByUser, s3Config, isRcloneReady]);
 
   React.useEffect(() => {
     const unsubscribe = window.serverAPI.onStdout((data: string) => {
@@ -545,6 +878,52 @@ function App(): React.JSX.Element {
         },
       ]);
     }
+  };
+
+  const loadLocalServers = async (): Promise<void> => {
+    try {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Loading local servers...",
+          type: "info",
+        },
+      ]);
+
+      const localServers = await window.serverAPI.listLocalServers();
+      setServers(localServers.map((server) => ({ ...server, type: server.type as Server["type"] })));
+      setTotalBucketSize(0);
+      setSelectedServerSize(0);
+
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: `Found ${localServers.length} local server(s)`,
+          type: "info",
+        },
+      ]);
+    } catch (error) {
+      console.error("Error loading local servers:", error);
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Error loading local servers",
+          type: "error",
+        },
+      ]);
+    }
+  };
+
+  const refreshServerList = async (cloudSyncEnabled: boolean = isCloudSyncEnabled): Promise<void> => {
+    if (cloudSyncEnabled) {
+      await loadServersFromS3();
+      return;
+    }
+
+    await loadLocalServers();
   };
 
   const loadBucketSize = async (): Promise<void> => {
@@ -620,7 +999,18 @@ function App(): React.JSX.Element {
     const isValid = validateS3Config(config);
     setIsS3Configured(isValid);
 
+    if (!isCloudSyncEnabledByUser) {
+      setIsRcloneReady(false);
+      setTotalBucketSize(0);
+      setSelectedServerSize(0);
+      await loadLocalServers();
+      return;
+    }
+
     if (!isValid) {
+      setIsRcloneReady(false);
+      setTotalBucketSize(0);
+      setSelectedServerSize(0);
       setLogs((prev) => [
         ...prev,
         {
@@ -629,45 +1019,69 @@ function App(): React.JSX.Element {
           type: "warning",
         },
       ]);
+      await loadLocalServers();
       return;
     }
 
-    // Test connection
+    await ensureCloudSyncReady(config);
+  };
+
+  const handleToggleCloudSync = async (enabled: boolean): Promise<void> => {
+    const saveSuccess = await window.configAPI.saveCloudSyncEnabled(enabled);
+
+    if (!saveSuccess) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Failed to save cloud sync setting",
+          type: "error",
+        },
+      ]);
+      return;
+    }
+
+    setIsCloudSyncEnabledByUser(enabled);
+
+    if (!enabled) {
+      setIsRcloneReady(false);
+      setTotalBucketSize(0);
+      setSelectedServerSize(0);
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Cloud sync disabled. Local mode is active.",
+          type: "info",
+        },
+      ]);
+      await loadLocalServers();
+      return;
+    }
+
     setLogs((prev) => [
       ...prev,
       {
         timestamp: new Date(),
-        message: "Testing cloud storage connection...",
+        message: "Cloud sync enabled.",
         type: "info",
       },
     ]);
 
-    const connectionSuccess = await window.rclone.testConnection(config);
-
-    if (connectionSuccess) {
+    if (!validateS3Config(s3Config)) {
       setLogs((prev) => [
         ...prev,
         {
           timestamp: new Date(),
-          message: "Cloud storage connection successful",
-          type: "info",
+          message: "Cloud sync is enabled, but the cloud storage configuration is incomplete.",
+          type: "warning",
         },
       ]);
-      setIsRcloneReady(true);
-
-      // Load servers from cloud storage
-      await loadServersFromS3();
-    } else {
-      setLogs((prev) => [
-        ...prev,
-        {
-          timestamp: new Date(),
-          message: "Failed to connect to cloud storage. Please check your configuration.",
-          type: "error",
-        },
-      ]);
-      setIsRcloneReady(false);
+      await loadLocalServers();
+      return;
     }
+
+    await ensureCloudSyncReady(s3Config);
   };
 
   const handleSelectServer = async (serverId: string): Promise<void> => {
@@ -692,8 +1106,12 @@ function App(): React.JSX.Element {
       setServerPort(25565);
     }
 
-    // Load server size
-    loadServerSize(serverId);
+    if (isCloudSyncEnabled) {
+      loadServerSize(serverId);
+      return;
+    }
+
+    setSelectedServerSize(0);
   };
 
   const handlePortChange = (port: number): void => {
@@ -748,534 +1166,69 @@ function App(): React.JSX.Element {
     }
   };
 
-  // Store the server process reference (used for tracking if process is started)
-  const serverProcessRef = React.useRef<boolean>(false);
-
   const handleStartStop = async (): Promise<void> => {
     if (serverStatus === ServerStatus.STOPPED) {
       if (!selectedServer) {
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Please select a server first", type: "error" },
-        ]);
+        appendLog("Please select a server first", "error");
         return;
       }
       if (!selectedIp) {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: "Please select a network IP address first",
-            type: "error",
-          },
-        ]);
-        return;
-      }
-      setServerStatus(ServerStatus.STARTING);
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: `Starting server: ${selectedServer}`, type: "info" },
-      ]);
-
-      // Check if server is locked
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: "Checking server lock status...", type: "info" },
-      ]);
-      const lockInfo = await window.serverAPI.readLock(s3Config, selectedServer);
-
-      if (lockInfo.exists) {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: `Server is locked by ${lockInfo.username}`,
-            type: "error",
-          },
-        ]);
-        setLockedServerInfo({
-          username: lockInfo.username || "Unknown",
-          startedAt: lockInfo.startedAt || new Date().toISOString(),
-        });
-        setIsServerLockedModalOpen(true);
-        setServerStatus(ServerStatus.STOPPED);
+        appendLog("Please select a network IP address first", "error");
         return;
       }
 
-      // Check if we need to download server files
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: "Checking server files...", type: "info" },
-      ]);
-
-      const shouldDownload = await window.serverAPI.shouldDownload(s3Config, selectedServer);
-
-      if (shouldDownload) {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: "Downloading server files from cloud storage...",
-            type: "info",
-          },
-        ]);
-        setIsTransferring(true);
-        setTransferType("download");
-        setTransferPercent(0);
-        setTransferTransferred("0");
-        setTransferTotal("0");
-        const s3Service = new S3Service(s3Config);
-        const downloadSuccess = await s3Service.downloadServer(selectedServer);
-        setIsTransferring(false);
-        if (!downloadSuccess) {
-          setLogs((prev) => [
-            ...prev,
-            { timestamp: new Date(), message: "Failed to download server files", type: "error" },
-          ]);
-          setServerStatus(ServerStatus.STOPPED);
-          return;
-        }
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Server files downloaded successfully", type: "info" },
-        ]);
-      } else {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: "Local server files are up to date, skipping download",
-            type: "info",
-          },
-        ]);
-      }
-      try {
-        const portUpdateSuccess = await window.serverAPI.writePort(selectedServer, serverPort);
-        if (portUpdateSuccess) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: `Server port configured to ${serverPort}`,
-              type: "info",
-            },
-          ]);
-        }
-      } catch (error) {
-        console.error("Error updating server port:", error);
-      }
-      const server = servers.find((s) => s.id === selectedServer);
+      const server = servers.find((item) => item.id === selectedServer);
       if (!server) {
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Server info not found", type: "error" },
-        ]);
-        setServerStatus(ServerStatus.STOPPED);
+        appendLog("Server info not found", "error");
+        updateServerStatus(ServerStatus.STOPPED, "server metadata not found");
         return;
       }
-      // Java check
-      setLogs((prev) => [
-        ...prev,
-        {
-          timestamp: new Date(),
-          message: `Checking Java requirements for Minecraft ${server.version}...`,
-          type: "info",
-        },
-      ]);
+
       try {
-        setIsJavaDownloading(true);
-        setJavaProgressMessage("Checking Java requirements...");
-        const javaResult = await window.javaAPI.ensureForMinecraft(server.version);
-        setIsJavaDownloading(false);
-        setJavaProgressMessage("");
-        if (!javaResult.success) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: `Failed to setup Java. Server may not start correctly.`,
-              type: "error",
-            },
-          ]);
-          setServerStatus(ServerStatus.STOPPED);
-          return;
-        }
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: `Java ${javaResult.version || "runtime"} is ready`,
-            type: "info",
-          },
-        ]);
+        await startManagedServerUseCase.execute({
+          serverId: selectedServer,
+          username: username || "Unknown",
+          server,
+          serverPort,
+          s3Config,
+          ramConfig,
+          isCloudSyncEnabled,
+          isWindowsClient: navigator.userAgent.includes("Windows"),
+        });
+        serverProcessRef.current = true;
       } catch (error) {
+        setIsTransferring(false);
         setIsJavaDownloading(false);
         setJavaProgressMessage("");
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: `Error setting up Java: ${error instanceof Error ? error.message : String(error)}`,
-            type: "error",
-          },
-        ]);
-        setServerStatus(ServerStatus.STOPPED);
-        return;
-      }
-      // Create server lock
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: "Creating server lock...", type: "info" },
-      ]);
-      const lockSuccess = await window.serverAPI.createLock(selectedServer, username || "Unknown");
-      if (lockSuccess) {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: `Server locked by: ${username || "Unknown"}`,
-            type: "info",
-          },
-        ]);
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Uploading lock to cloud storage...", type: "info" },
-        ]);
-        const uploadLockSuccess = await window.serverAPI.uploadLock(s3Config, selectedServer);
-        if (uploadLockSuccess) {
-          setLogs((prev) => [
-            ...prev,
-            { timestamp: new Date(), message: "Lock uploaded to cloud storage", type: "info" },
-          ]);
-        } else {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Warning: Failed to upload lock to cloud storage",
-              type: "warning",
-            },
-          ]);
-        }
-      } else {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: "Warning: Failed to create server lock",
-            type: "warning",
-          },
-        ]);
-      }
-
-      // Create session metadata
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: "Creating session metadata...", type: "info" },
-      ]);
-      const sessionCreateSuccess = await window.serverAPI.createSession(
-        selectedServer,
-        username || "Unknown",
-      );
-      if (sessionCreateSuccess) {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: `Session created for user: ${username || "Unknown"}`,
-            type: "info",
-          },
-        ]);
-      }
-
-      // --- REAL SERVER START LOGIC ---
-      // Get local server path from main process
-      let localServerPath = "";
-      try {
-        localServerPath = await window.serverAPI.getLocalServerPath(selectedServer);
-      } catch {
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Could not get local server path", type: "error" },
-        ]);
-        setServerStatus(ServerStatus.STOPPED);
-        return;
-      }
-      // Prepare command and args
-      let startCmd = "";
-      let startArgs: string[] = [];
-      const workingDir = localServerPath;
-      let javaPath = "";
-      try {
-        const javaResult = await window.javaAPI.ensureForMinecraft(server.version);
-        if (!javaResult.javaPath) {
-          throw new Error("Java path not available");
-        }
-        javaPath = javaResult.javaPath;
-      } catch {
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Could not get Java path", type: "error" },
-        ]);
-        setServerStatus(ServerStatus.STOPPED);
-        return;
-      }
-      if (server.type === "vanilla") {
-        startCmd = javaPath;
-        startArgs = [
-          `-Xmx${ramConfig.max}G`,
-          `-Xms${ramConfig.min}G`,
-          "-jar",
-          "server.jar",
-          "nogui",
-        ];
-      } else if (server.type === "forge") {
-        const versionNum = parseFloat(server.version);
-        if (versionNum < 1.17) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "No se pudo iniciar el server Forge <= 1.16.5. No soportado.",
-              type: "error",
-            },
-          ]);
-          setServerStatus(ServerStatus.STOPPED);
-          return;
-        }
-        try {
-          await window.serverAPI.editForgeJvmArgs(selectedServer, ramConfig.min, ramConfig.max);
-        } catch {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "No se pudo editar user_jvm_args.txt",
-              type: "error",
-            },
-          ]);
-        }
-        // Read JVM args from run.bat/run.sh and construct Java command directly
-        try {
-          const jvmArgsResult = await window.serverAPI.readForgeJvmArgs(selectedServer);
-          if (jvmArgsResult && jvmArgsResult.allArgs && jvmArgsResult.allArgs.length > 0) {
-            startCmd = javaPath;
-            // The args from run.bat already include everything (JVM args, classpath, main class, and program args)
-            // Add nogui at the end to prevent the GUI window from opening
-            startArgs = [...jvmArgsResult.allArgs, "nogui"];
-          } else {
-            // Fallback to default args if file doesn't exist
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message:
-                  "Warning: Could not read run.bat arguments, falling back to run.bat execution",
-                type: "warning",
-              },
-            ]);
-            // Fallback to original method using run.bat
-            if (navigator.userAgent.includes("Windows")) {
-              startCmd = "cmd";
-              startArgs = ["/c", "run.bat"];
-            } else {
-              startCmd = "/bin/bash";
-              startArgs = ["run.sh"];
-            }
-          }
-        } catch (e) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: `Error reading JVM args: ${e instanceof Error ? e.message : String(e)}`,
-              type: "error",
-            },
-          ]);
-          setServerStatus(ServerStatus.STOPPED);
-          return;
-        }
-      } else {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: `Tipo de server no soportado: ${server.type}`,
-            type: "error",
-          },
-        ]);
-        setServerStatus(ServerStatus.STOPPED);
-        return;
-      }
-      try {
-        const success = await window.serverAPI.spawnServerProcess(
-          selectedServer,
-          startCmd,
-          startArgs,
-          workingDir,
+        appendLog(
+          `Error preparing server start: ${error instanceof Error ? error.message : String(error)}`,
+          "error",
         );
-        serverProcessRef.current = success;
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Server started successfully", type: "info" },
-        ]);
-        setServerStartTime(new Date());
-        setServerStatus(ServerStatus.RUNNING);
-      } catch (e) {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: `Error starting server: ${e instanceof Error ? e.message : String(e)}`,
-            type: "error",
-          },
-        ]);
-        setServerStatus(ServerStatus.STOPPED);
+
+        if (serverStatusRef.current !== ServerStatus.STOPPED) {
+          updateServerStatus(ServerStatus.STOPPED, "start preparation failed");
+        }
+        return;
       }
     } else if (serverStatus === ServerStatus.RUNNING) {
-      setServerStatus(ServerStatus.STOPPING);
-      setLogs((prev) => [
-        ...prev,
-        { timestamp: new Date(), message: "Stopping server...", type: "info" },
-      ]);
-      // Kill the process
-      if (selectedServer) {
-        try {
-          await window.serverAPI.killServerProcess(selectedServer);
-          serverProcessRef.current = false;
-        } catch (e) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: `Error stopping server: ${e instanceof Error ? e.message : String(e)}`,
-              type: "error",
-            },
-          ]);
-        }
+      if (!selectedServer) {
+        updateServerStatus(ServerStatus.STOPPED, "stop flow completed", { force: true });
+        return;
       }
-      // Upload server files to cloud before stopping
-      setTimeout(async () => {
-        if (selectedServer) {
-          setLogs((prev) => [
-            ...prev,
-            { timestamp: new Date(), message: "Deleting lock from cloud storage...", type: "info" },
-          ]);
-          const deleteLockSuccess = await window.serverAPI.deleteLock(s3Config, selectedServer);
-          if (deleteLockSuccess) {
-            setLogs((prev) => [
-              ...prev,
-              { timestamp: new Date(), message: "Lock deleted from cloud storage", type: "info" },
-            ]);
-          } else {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Warning: Failed to delete lock from cloud storage",
-                type: "warning",
-              },
-            ]);
-          }
-          const deleteLocalLockSuccess = await window.serverAPI.deleteLocalLock(selectedServer);
-          if (deleteLocalLockSuccess) {
-            setLogs((prev) => [
-              ...prev,
-              { timestamp: new Date(), message: "Local lock deleted", type: "info" },
-            ]);
-          } else {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Warning: Failed to delete local lock",
-                type: "warning",
-              },
-            ]);
-          }
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Uploading server files to cloud storage...",
-              type: "info",
-            },
-          ]);
-          setIsTransferring(true);
-          setTransferType("upload");
-          setTransferPercent(0);
-          setTransferTransferred("0");
-          setTransferTotal("0");
-          const s3Service = new S3Service(s3Config);
-          const uploadSuccess = await s3Service.uploadServer(selectedServer);
-          setIsTransferring(false);
-          if (uploadSuccess) {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Server files uploaded successfully",
-                type: "info",
-              },
-            ]);
 
-            // Update and upload session metadata
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Updating session metadata...",
-                type: "info",
-              },
-            ]);
-
-            const sessionUpdateSuccess = await window.serverAPI.updateSession(
-              selectedServer,
-              username || "Unknown",
-            );
-            if (sessionUpdateSuccess) {
-              const sessionUploadSuccess = await window.serverAPI.uploadSession(
-                s3Config,
-                selectedServer,
-              );
-              if (sessionUploadSuccess) {
-                setLogs((prev) => [
-                  ...prev,
-                  {
-                    timestamp: new Date(),
-                    message: "Session metadata updated successfully",
-                    type: "info",
-                  },
-                ]);
-              } else {
-                setLogs((prev) => [
-                  ...prev,
-                  {
-                    timestamp: new Date(),
-                    message: "Warning: Failed to upload session metadata",
-                    type: "warning",
-                  },
-                ]);
-              }
-            }
-          } else {
-            setLogs((prev) => [
-              ...prev,
-              {
-                timestamp: new Date(),
-                message: "Warning: Failed to upload server files to R2",
-                type: "warning",
-              },
-            ]);
-          }
-        }
-        setServerStartTime(null);
-        setServerStatus(ServerStatus.STOPPED);
-        setLogs((prev) => [
-          ...prev,
-          { timestamp: new Date(), message: "Server stopped", type: "info" },
-        ]);
-      }, 2000);
+      try {
+        await stopManagedServerUseCase.execute({
+          serverId: selectedServer,
+          username: username || "Unknown",
+          s3Config,
+          isCloudSyncEnabled,
+        });
+        serverProcessRef.current = false;
+      } catch (e) {
+        setIsTransferring(false);
+        appendLog(`Error stopping server: ${e instanceof Error ? e.message : String(e)}`, "error");
+        updateServerStatus(ServerStatus.STOPPED, "stop flow failed");
+      }
     }
   };
 
@@ -1397,50 +1350,50 @@ function App(): React.JSX.Element {
           },
         ]);
 
-        // Upload the newly created server to R2
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: "Uploading server to cloud storage...",
-            type: "info",
-          },
-        ]);
-
-        setIsTransferring(true);
-        setTransferType("upload");
-        setTransferPercent(0);
-        setTransferTransferred("0");
-        setTransferTotal("0");
-
-        const s3Service = new S3Service(s3Config);
-        const uploadSuccess = await s3Service.uploadServer(serverName);
-
-        setIsTransferring(false);
-
-        if (!uploadSuccess) {
+        if (isCloudSyncEnabled) {
           setLogs((prev) => [
             ...prev,
             {
               timestamp: new Date(),
-              message:
-                "Warning: Failed to upload server to cloud storage. You can sync it manually later.",
-              type: "warning",
-            },
-          ]);
-        } else {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Server uploaded to cloud storage successfully",
+              message: "Uploading server to cloud storage...",
               type: "info",
             },
           ]);
+
+          setIsTransferring(true);
+          setTransferType("upload");
+          setTransferPercent(0);
+          setTransferTransferred("0");
+          setTransferTotal("0");
+
+          const s3Service = new S3Service(s3Config);
+          const uploadSuccess = await s3Service.uploadServer(serverName);
+
+          setIsTransferring(false);
+
+          if (!uploadSuccess) {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message:
+                  "Warning: Failed to upload server to cloud storage. You can sync it manually later.",
+                type: "warning",
+              },
+            ]);
+          } else {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Server uploaded to cloud storage successfully",
+                type: "info",
+              },
+            ]);
+          }
         }
 
-        // Reload servers from cloud storage
-        await loadServersFromS3();
+        await refreshServerList();
 
         // Select the newly created server
         setSelectedServer(serverName);
@@ -1488,48 +1441,50 @@ function App(): React.JSX.Element {
     try {
       let anyLockDeleted = false;
 
-      // Delete lock from cloud storage
-      setLogs((prev) => [
-        ...prev,
-        {
-          timestamp: new Date(),
-          message: "Checking lock in cloud storage...",
-          type: "info",
-        },
-      ]);
+      if (isCloudSyncEnabled) {
+        // Delete lock from cloud storage
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: "Checking lock in cloud storage...",
+            type: "info",
+          },
+        ]);
 
-      const deleteLockResult = await window.serverAPI.deleteLock(s3Config, selectedServer);
+        const deleteLockResult = await window.serverAPI.deleteLock(s3Config, selectedServer);
 
-      if (deleteLockResult.success) {
-        if (deleteLockResult.existed) {
-          setLogs((prev) => [
-            ...prev,
-            {
-              timestamp: new Date(),
-              message: "Lock deleted from cloud storage successfully",
-              type: "info",
-            },
-          ]);
-          anyLockDeleted = true;
+        if (deleteLockResult.success) {
+          if (deleteLockResult.existed) {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "Lock deleted from cloud storage successfully",
+                type: "info",
+              },
+            ]);
+            anyLockDeleted = true;
+          } else {
+            setLogs((prev) => [
+              ...prev,
+              {
+                timestamp: new Date(),
+                message: "No lock file found in cloud storage",
+                type: "info",
+              },
+            ]);
+          }
         } else {
           setLogs((prev) => [
             ...prev,
             {
               timestamp: new Date(),
-              message: "No lock file found in cloud storage",
-              type: "info",
+              message: "Warning: Failed to delete lock from R2",
+              type: "warning",
             },
           ]);
         }
-      } else {
-        setLogs((prev) => [
-          ...prev,
-          {
-            timestamp: new Date(),
-            message: "Warning: Failed to delete lock from R2",
-            type: "warning",
-          },
-        ]);
       }
 
       // Delete local lock file
@@ -1610,6 +1565,10 @@ function App(): React.JSX.Element {
   };
 
   const handleSyncToR2 = async (): Promise<void> => {
+    if (!isCloudSyncEnabled) {
+      return;
+    }
+
     if (!selectedServer) {
       setLogs((prev) => [
         ...prev,
@@ -1813,40 +1772,41 @@ function App(): React.JSX.Element {
       },
     ]);
 
-    // Delete from cloud storage
-    setLogs((prev) => [
-      ...prev,
-      {
-        timestamp: new Date(),
-        message: "Deleting from cloud storage...",
-        type: "info",
-      },
-    ]);
-
-    const s3Result = await window.serverAPI.deleteFromS3(s3Config, selectedServer);
-    if (!s3Result.success) {
+    if (isCloudSyncEnabled) {
       setLogs((prev) => [
         ...prev,
         {
           timestamp: new Date(),
-          message: `Failed to delete from cloud storage: ${s3Result.error || "Unknown error"}`,
-          type: "error",
+          message: "Deleting from cloud storage...",
+          type: "info",
         },
       ]);
-      return;
+
+      const s3Result = await window.serverAPI.deleteFromS3(s3Config, selectedServer);
+      if (!s3Result.success) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date(),
+            message: `Failed to delete from cloud storage: ${s3Result.error || "Unknown error"}`,
+            type: "error",
+          },
+        ]);
+        return;
+      }
+
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date(),
+          message: "Deleted from cloud storage successfully",
+          type: "info",
+        },
+      ]);
     }
 
-    setLogs((prev) => [
-      ...prev,
-      {
-        timestamp: new Date(),
-        message: "Deleted from cloud storage successfully",
-        type: "info",
-      },
-    ]);
-
     // Delete locally if checkbox was checked
-    if (deleteLocally) {
+    if (deleteLocally || !isCloudSyncEnabled) {
       setLogs((prev) => [
         ...prev,
         {
@@ -1891,8 +1851,7 @@ function App(): React.JSX.Element {
     // Clear selection
     setSelectedServer(null);
 
-    // Reload servers from cloud storage
-    await loadServersFromS3();
+    await refreshServerList();
 
     setIsDeleteServerModalOpen(false);
   };
@@ -1932,7 +1891,7 @@ function App(): React.JSX.Element {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               Pass the host!
             </Typography>
-            {isS3Configured && totalBucketSize > 0 && (
+            {isCloudSyncEnabled && totalBucketSize > 0 && (
               <Typography variant="body2" sx={{ mr: 2, display: "flex", alignItems: "center" }}>
                 {t("storage.total")}: {formatBytes(totalBucketSize)}
                 {selectedServer && selectedServerSize > 0 && (
@@ -1993,9 +1952,10 @@ function App(): React.JSX.Element {
               onEditProperties={handleEditProperties}
               onOpenServerFolder={handleOpenServerFolder}
               onDeleteServer={handleDeleteServer}
-              disabled={!isS3Configured || !isRcloneReady}
+              cloudSyncEnabled={isCloudSyncEnabled}
               serverStartTime={serverStartTime}
               username={username}
+              lockedServerInfo={lockedServerInfo}
             />
 
             <UsernameInput
@@ -2007,6 +1967,8 @@ function App(): React.JSX.Element {
             <S3Configuration
               config={s3Config}
               onSave={handleSaveS3Config}
+              cloudSyncEnabled={isCloudSyncEnabledByUser}
+              onToggleCloudSync={handleToggleCloudSync}
               disabled={serverStatus !== ServerStatus.STOPPED}
             />
 
@@ -2163,6 +2125,7 @@ function App(): React.JSX.Element {
         <DeleteServerModal
           open={isDeleteServerModalOpen}
           serverName={selectedServer}
+          cloudSyncEnabled={isCloudSyncEnabled}
           onClose={() => setIsDeleteServerModalOpen(false)}
           onConfirm={handleConfirmDeleteServer}
         />

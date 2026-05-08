@@ -26,6 +26,7 @@ export const en = {
       saveError: "Error saving configuration",
       lock: "Lock configuration",
       unlock: "Unlock configuration",
+      enableSync: "Enable cloud sync",
     },
     serverControl: {
       title: "Server Control",
@@ -40,6 +41,7 @@ export const en = {
       editProperties: "Edit server.properties",
       deleteServer: "Delete Server",
       cloudNotConfigured: "Please configure cloud storage settings before using server controls",
+      cloudSyncDisabled: "Cloud sync is currently disabled. Servers will be managed locally.",
       r2NotConfigured: "Please configure R2 settings before using server controls",
       usernameNotConfigured: "Please configure your username before starting the server",
       viewStatistics: "View Statistics",
@@ -198,6 +200,7 @@ export const en = {
       warning: "Are you sure you want to delete this server?",
       cloudOnly: "This will delete the server from the cloud storage.",
       alsoLocal: "Local files will also be deleted.",
+      localOnly: "This will delete the server from local storage.",
       deleteLocalFiles: "Also delete local files",
       confirmationText: "To confirm, type the server name:",
       placeholder: "Server name",

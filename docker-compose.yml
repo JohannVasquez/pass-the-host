@@ -1,0 +1,29 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: pass-the-host-minio
+    restart: unless-stopped
+    ports:
+      - '${MINIO_API_PORT:-9000}:9000'
+      - '${MINIO_CONSOLE_PORT:-9001}:9001'
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: server /data --console-address ':9001'
+    volumes:
+      - minio_data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: pass-the-host-minio-init
+    depends_on:
+      - minio
+    restart: 'no'
+    entrypoint: >-
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minioadmin} ${MINIO_ROOT_PASSWORD:-minioadmin}; do sleep 2; done &&
+      mc mb --ignore-existing local/${MINIO_BUCKET_NAME:-cloud-sync-test}
+      "
+
+volumes:
+  minio_data:

@@ -4,12 +4,19 @@ import * as path from "path";
 import * as fs from "fs";
 import * as https from "https";
 import { spawn } from "child_process";
-import { IServerLifecycleRepository } from "../../domain/repositories";
+import { IServerLifecycleRepository } from "@main/contexts/server-lifecycle/domain/repositories";
+import { findBundledJavaPath } from "@main/utils/javaRuntime";
 import {
+  LocalServerInfo,
   MinecraftServerConfig,
   ServerCreationResult,
   ServerDeletionResult,
-} from "../../domain/entities";
+} from "@main/contexts/server-lifecycle/domain/entities";
+
+interface StoredServerInfo {
+  version?: string;
+  type?: "vanilla" | "forge" | "unknown";
+}
 import { FileSystemError, NetworkError } from "@shared/domain/errors";
 
 interface MinecraftVersionInfo {
@@ -110,6 +117,40 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
     } catch (error: unknown) {
       throw new FileSystemError(
         `Failed to delete server ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  listLocalServers(): LocalServerInfo[] {
+    const localServersDir = path.join(app.getPath("userData"), "servers");
+
+    if (!fs.existsSync(localServersDir)) {
+      return [];
+    }
+
+    try {
+      return fs
+        .readdirSync(localServersDir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => {
+          const serverId = entry.name;
+          const serverInfoPath = path.join(localServersDir, serverId, "server_info.json");
+          let storedInfo: StoredServerInfo = {};
+
+          if (fs.existsSync(serverInfoPath)) {
+            storedInfo = JSON.parse(fs.readFileSync(serverInfoPath, "utf-8")) as StoredServerInfo;
+          }
+
+          return {
+            id: serverId,
+            name: serverId,
+            version: storedInfo.version || "unknown",
+            type: storedInfo.type || "unknown",
+          };
+        });
+    } catch (error: unknown) {
+      throw new FileSystemError(
+        `Failed to list local servers: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -224,11 +265,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
       }
 
       const javaDir = path.join(JAVA_RUNTIME_DIR, `java${javaVersion}`);
-      const isWindows = process.platform === "win32";
-      const javaBinary = isWindows ? "java.exe" : "java";
-      const javaPath = path.join(javaDir, "bin", javaBinary);
-
-      return javaPath;
+      return findBundledJavaPath(javaDir, fs.existsSync);
     } catch {
       return null;
     }

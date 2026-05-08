@@ -3,7 +3,7 @@ import type {
   MinecraftServerConfig,
   ServerCreationResult,
   ServerDeletionResult,
-} from "../../../../../../src/main/contexts/server-lifecycle/domain/entities";
+} from "@main/contexts/server-lifecycle/domain/entities";
 
 describe("ServerConfig", () => {
   describe("MinecraftServerConfig", () => {

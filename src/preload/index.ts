@@ -71,19 +71,32 @@ interface AppConfigData {
   app: {
     owner_name: string | null;
     language: string;
+    cloud_sync_enabled: boolean;
   };
 }
 
 const configAPI = {
   loadConfig: (): Promise<AppConfigData | null> => ipcRenderer.invoke("config:load"),
-  saveS3Config: (s3Config: S3ConfigType): Promise<boolean> =>
-    ipcRenderer.invoke("config:save-s3", s3Config),
-  saveUsername: (username: string): Promise<boolean> =>
-    ipcRenderer.invoke("config:save-username", username),
-  saveRamConfig: (minRam: number, maxRam: number): Promise<boolean> =>
-    ipcRenderer.invoke("config:save-ram", minRam, maxRam),
-  saveLanguage: (language: string): Promise<boolean> =>
-    ipcRenderer.invoke("config:save-language", language),
+  saveS3Config: async (s3Config: S3ConfigType): Promise<boolean> => {
+    const result = await ipcRenderer.invoke("config:save-s3", s3Config);
+    return result.success === true;
+  },
+  saveCloudSyncEnabled: async (enabled: boolean): Promise<boolean> => {
+    const result = await ipcRenderer.invoke("config:save-cloud-sync-enabled", enabled);
+    return result.success === true;
+  },
+  saveUsername: async (username: string): Promise<boolean> => {
+    const result = await ipcRenderer.invoke("config:save-username", username);
+    return result.success === true;
+  },
+  saveRamConfig: async (minRam: number, maxRam: number): Promise<boolean> => {
+    const result = await ipcRenderer.invoke("config:save-ram", minRam, maxRam);
+    return result.success === true;
+  },
+  saveLanguage: async (language: string): Promise<boolean> => {
+    const result = await ipcRenderer.invoke("config:save-language", language);
+    return result.success === true;
+  },
 };
 
 interface ServerStatistics {
@@ -143,6 +156,16 @@ const serverAPI = {
     ipcRenderer.on("server:stdout", listener);
     return () => ipcRenderer.removeListener("server:stdout", listener);
   },
+  onProcessExit: (
+    callback: (payload: { serverId: string; code: number | null }) => void,
+  ): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      payload: { serverId: string; code: number | null },
+    ): void => callback(payload);
+    ipcRenderer.on("server:process-exit", listener);
+    return () => ipcRenderer.removeListener("server:process-exit", listener);
+  },
   sendCommand: (serverId: string, command: string): Promise<boolean> =>
     ipcRenderer.invoke("server:send-command", serverId, command),
   openServerFolder: (serverId: string): Promise<boolean> =>
@@ -187,6 +210,9 @@ const serverAPI = {
     ipcRenderer.invoke("server:delete-from-s3", config, serverId),
   deleteLocally: (serverId: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("server:delete-locally", serverId),
+  listLocalServers: (): Promise<
+    Array<{ id: string; name: string; version: string; type: "vanilla" | "forge" | "unknown" }>
+  > => ipcRenderer.invoke("server:list-local"),
 };
 
 const javaAPI = {
@@ -206,6 +232,11 @@ const javaAPI = {
   },
 };
 
+const notificationAPI = {
+  show: (title: string, body: string): Promise<void> =>
+    ipcRenderer.invoke("notification:show", title, body),
+};
+
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
@@ -218,6 +249,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("systemAPI", systemAPI);
     contextBridge.exposeInMainWorld("serverAPI", serverAPI);
     contextBridge.exposeInMainWorld("javaAPI", javaAPI);
+    contextBridge.exposeInMainWorld("notificationAPI", notificationAPI);
   } catch (error) {
     console.error(error);
   }
@@ -230,4 +262,5 @@ if (process.contextIsolated) {
   win.systemAPI = systemAPI;
   win.serverAPI = serverAPI;
   win.javaAPI = javaAPI;
+  win.notificationAPI = notificationAPI;
 }

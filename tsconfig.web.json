@@ -1,5 +1,5 @@
 {
-  "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
+  "extends": ["@electron-toolkit/tsconfig/tsconfig.web.json", "./tsconfig.base.json"],
   "include": [
     "./src/renderer/src/env.d.ts",
     "./src/renderer/src/**/*",
@@ -16,20 +16,6 @@
     "strictFunctionTypes": true,
     "noImplicitReturns": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "paths": {
-      "@renderer/*": ["./src/renderer/src/*"],
-      "@shared/*": ["./src/contexts/shared/*"],
-      "@contexts/*": ["./src/renderer/src/contexts/*"],
-      "@server-lifecycle/*": ["./src/renderer/src/contexts/server-lifecycle/*"],
-      "@server-runtime/*": ["./src/renderer/src/contexts/server-runtime/*"],
-      "@cloud-storage/*": ["./src/renderer/src/contexts/cloud-storage/*"],
-      "@server-locking/*": ["./src/renderer/src/contexts/server-locking/*"],
-      "@session-tracking/*": ["./src/renderer/src/contexts/session-tracking/*"],
-      "@system-resources/*": ["./src/renderer/src/contexts/system-resources/*"],
-      "@app-configuration/*": ["./src/renderer/src/contexts/app-configuration/*"]
-    }
+    "noUnusedParameters": true
   }
 }

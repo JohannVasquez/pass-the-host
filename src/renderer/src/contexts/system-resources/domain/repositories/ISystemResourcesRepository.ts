@@ -1,4 +1,4 @@
-import type { SystemMemory, NetworkInterface } from "../entities";
+import type { SystemMemory, NetworkInterface } from "@system-resources/domain/entities";
 
 /**
  * System Resources Repository interface

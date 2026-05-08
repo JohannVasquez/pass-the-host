@@ -1,8 +1,9 @@
 {
-  "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
+  "extends": ["@electron-toolkit/tsconfig/tsconfig.node.json", "./tsconfig.base.json"],
   "include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*", "src/contexts/shared/**/*"],
   "compilerOptions": {
     "composite": true,
+    "emitDecoratorMetadata": false,
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -10,10 +11,6 @@
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "types": ["electron-vite/node"],
-    "paths": {
-      "@main/*": ["./src/main/*"],
-      "@shared/*": ["./src/contexts/shared/*"]
-    }
+    "types": ["electron-vite/node"]
   }
 }

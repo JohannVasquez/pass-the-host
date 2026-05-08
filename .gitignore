@@ -5,6 +5,7 @@ coverage
 .DS_Store
 .eslintcache
 *.log*
+.env
 
 # Configuration files with sensitive data
 src/renderer/config.json

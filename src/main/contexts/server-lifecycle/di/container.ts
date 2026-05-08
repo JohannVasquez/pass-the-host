@@ -1,12 +1,13 @@
 import { Container } from "inversify";
-import { TYPES } from "../application/use-cases/types";
-import { IServerLifecycleRepository } from "../domain/repositories";
-import { ServerLifecycleRepository } from "../infrastructure/repositories";
+import { TYPES } from "@main/contexts/server-lifecycle/application/use-cases/types";
+import { IServerLifecycleRepository } from "@main/contexts/server-lifecycle/domain/repositories";
+import { ServerLifecycleRepository } from "@main/contexts/server-lifecycle/infrastructure/repositories";
 import {
   CreateMinecraftServerUseCase,
   DeleteServerLocallyUseCase,
   GetLocalServerPathUseCase,
-} from "../application/use-cases";
+  ListLocalServersUseCase,
+} from "@main/contexts/server-lifecycle/application/use-cases";
 
 export function configureServerLifecycleContainer(container: Container): void {
   // Repository
@@ -33,6 +34,16 @@ export function configureServerLifecycleContainer(container: Container): void {
         TYPES.IServerLifecycleRepository,
       );
       return new DeleteServerLocallyUseCase(repository);
+    })
+    .inTransientScope();
+
+  container
+    .bind<ListLocalServersUseCase>(TYPES.ListLocalServersUseCase)
+    .toDynamicValue(() => {
+      const repository = container.get<IServerLifecycleRepository>(
+        TYPES.IServerLifecycleRepository,
+      );
+      return new ListLocalServersUseCase(repository);
     })
     .inTransientScope();
 

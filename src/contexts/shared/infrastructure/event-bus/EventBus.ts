@@ -1,5 +1,5 @@
 import EventEmitter from "eventemitter3";
-import { DomainEvent } from "../../domain/DomainEvent";
+import { DomainEvent } from "@shared/domain/DomainEvent";
 
 /**
  * Event handler type

@@ -26,6 +26,7 @@ export const es = {
       saveError: "Error al guardar la configuración",
       lock: "Bloquear configuración",
       unlock: "Desbloquear configuración",
+      enableSync: "Habilitar sincronizacion en la nube",
     },
     serverControl: {
       title: "Control del Servidor",
@@ -41,6 +42,8 @@ export const es = {
       deleteServer: "Eliminar Servidor",
       cloudNotConfigured:
         "Por favor configure los ajustes de almacenamiento en la nube antes de usar los controles del servidor",
+      cloudSyncDisabled:
+        "La sincronizacion en la nube esta desactivada. Los servidores se gestionaran solo en local.",
       r2NotConfigured:
         "Por favor configure los ajustes de R2 antes de usar los controles del servidor",
       usernameNotConfigured:
@@ -202,6 +205,7 @@ export const es = {
       warning: "¿Estás seguro de que deseas eliminar este servidor?",
       cloudOnly: "Esto eliminará el servidor del almacenamiento en la nube.",
       alsoLocal: "También se eliminarán los archivos locales.",
+      localOnly: "Esto eliminará el servidor del almacenamiento local.",
       deleteLocalFiles: "Eliminar también archivos locales",
       confirmationText: "Para confirmar, escribe el nombre del servidor:",
       placeholder: "Nombre del servidor",

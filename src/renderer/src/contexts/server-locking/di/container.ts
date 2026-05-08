@@ -7,6 +7,7 @@ import {
   CheckServerLockUseCase,
   UploadServerLockUseCase,
   ReleaseServerLockUseCase,
+  MonitorServerLockUseCase,
 } from "@server-locking/application/use-cases";
 
 /**
@@ -38,5 +39,10 @@ export function configureServerLocking(container: Container): void {
   container
     .bind<ReleaseServerLockUseCase>(SERVER_LOCKING_TYPES.ReleaseServerLockUseCase)
     .to(ReleaseServerLockUseCase)
+    .inSingletonScope();
+
+  container
+    .bind<MonitorServerLockUseCase>(SERVER_LOCKING_TYPES.MonitorServerLockUseCase)
+    .to(MonitorServerLockUseCase)
     .inSingletonScope();
 }

@@ -23,10 +23,11 @@ import {
   Add as AddIcon,
   FolderOpen as FolderOpenIcon,
   DeleteForever as DeleteForeverIcon,
+  Lock as LockIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
-import { ServerStatus } from "../../domain/entities/ServerStatus";
-import { Server } from "../../domain/entities/Server";
+import { ServerStatus } from "@renderer/domain/entities/ServerStatus";
+import { Server } from "@renderer/domain/entities/Server";
 
 interface ServerControlPanelProps {
   status: ServerStatus;
@@ -40,9 +41,13 @@ interface ServerControlPanelProps {
   onEditProperties: () => void;
   onOpenServerFolder: () => void;
   onDeleteServer: () => void;
-  disabled?: boolean;
+  cloudSyncEnabled?: boolean;
   serverStartTime: Date | null;
   username: string;
+  lockedServerInfo?: {
+    username: string;
+    startedAt: string;
+  };
 }
 
 export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
@@ -57,14 +62,16 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   onEditProperties,
   onOpenServerFolder,
   onDeleteServer,
-  disabled = false,
+  cloudSyncEnabled = false,
   serverStartTime,
   username,
+  lockedServerInfo,
 }): React.JSX.Element => {
   const { t } = useTranslation();
   const isRunning = status === ServerStatus.RUNNING;
   const isTransitioning = status === ServerStatus.STARTING || status === ServerStatus.STOPPING;
   const [uptime, setUptime] = React.useState<string>("00:00:00");
+  const isLocked = lockedServerInfo?.username && lockedServerInfo?.username !== "";
 
   // Update uptime every second when server is running
   React.useEffect(() => {
@@ -110,15 +117,31 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
         {t("serverControl.title")}
       </Typography>
 
-      {disabled && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          {t("serverControl.r2NotConfigured")}
+      {!cloudSyncEnabled && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          {t("serverControl.cloudSyncDisabled")}
         </Alert>
       )}
 
       {!username && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {t("serverControl.usernameNotConfigured")}
+        </Alert>
+      )}
+
+      {isLocked && selectedServer && (
+        <Alert severity="warning" icon={<LockIcon />} sx={{ mb: 2 }}>
+          <Typography variant="body2" fontWeight="bold">
+            {t("serverControl.serverLocked", {
+              defaultValue: "Server in use",
+            })}
+          </Typography>
+          <Typography variant="caption">
+            {t("serverControl.lockedBy", {
+              username: lockedServerInfo?.username,
+              defaultValue: `Being used by ${lockedServerInfo?.username}`,
+            })}
+          </Typography>
         </Alert>
       )}
 
@@ -129,7 +152,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
             value={selectedServer || ""}
             label={t("serverControl.selectServer")}
             onChange={(e) => onSelectServer(e.target.value)}
-            disabled={disabled || isRunning || isTransitioning}
+            disabled={isRunning || isTransitioning}
           >
             {servers.map((server) => (
               <MenuItem key={server.id} value={server.id}>
@@ -142,7 +165,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           <IconButton
             color="primary"
             onClick={onCreateServer}
-            disabled={disabled || isRunning || isTransitioning}
+            disabled={isRunning || isTransitioning}
             sx={{ flexShrink: 0 }}
           >
             <AddIcon />
@@ -174,7 +197,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           color={isRunning ? "error" : "success"}
           startIcon={isRunning ? <StopIcon /> : <PlayIcon />}
           onClick={onStartStop}
-          disabled={disabled || isTransitioning || (!isRunning && !username)}
+          disabled={isTransitioning || (!isRunning && !username)}
           fullWidth
         >
           {isRunning ? t("serverControl.stop") : t("serverControl.start")}
@@ -184,7 +207,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           variant="outlined"
           startIcon={<LockOpenIcon />}
           onClick={onReleaseLock}
-          disabled={disabled}
+          disabled={!cloudSyncEnabled}
           fullWidth
         >
           {t("serverControl.releaseLock")}
@@ -194,7 +217,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           variant="outlined"
           startIcon={<CloudSyncIcon />}
           onClick={onSyncToR2}
-          disabled={disabled}
+          disabled={!cloudSyncEnabled}
           fullWidth
         >
           {t("serverControl.syncToCloud")}
@@ -204,7 +227,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           color="warning" // Esto le da el color naranja
           startIcon={<FolderOpenIcon />}
           onClick={onOpenServerFolder}
-          disabled={disabled || !selectedServer} // Desactivar si no hay server seleccionado
+          disabled={!selectedServer} // Desactivar si no hay server seleccionado
           fullWidth
         >
           {t("serverControl.openServerFolder")}
@@ -214,7 +237,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           variant="outlined"
           startIcon={<EditIcon />}
           onClick={onEditProperties}
-          disabled={disabled}
+          disabled={!selectedServer}
           fullWidth
         >
           {t("serverControl.editProperties")}
@@ -225,7 +248,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           color="error"
           startIcon={<DeleteForeverIcon />}
           onClick={onDeleteServer}
-          disabled={disabled || !selectedServer || isRunning || isTransitioning}
+          disabled={!selectedServer || isRunning || isTransitioning}
           fullWidth
         >
           {t("serverControl.deleteServer")}

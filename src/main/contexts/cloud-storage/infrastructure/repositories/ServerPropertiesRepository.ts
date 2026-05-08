@@ -2,7 +2,7 @@ import { injectable } from "inversify";
 import { app } from "electron";
 import * as path from "path";
 import * as fs from "fs";
-import { IServerPropertiesRepository } from "../../domain/repositories";
+import { IServerPropertiesRepository } from "@main/contexts/cloud-storage/domain/repositories";
 import { FileSystemError, ValidationError } from "@shared/domain/errors";
 
 @injectable()
