@@ -9,7 +9,6 @@ interface UsernameInputProps {
   disabled?: boolean;
 }
 
-
 export const UsernameInput: React.FC<UsernameInputProps> = ({
   username,
   onSave,
@@ -18,7 +17,6 @@ export const UsernameInput: React.FC<UsernameInputProps> = ({
   const { t } = useTranslation();
   const [isEditing, setIsEditing] = React.useState<boolean>(false);
   const [tempUsername, setTempUsername] = React.useState<string>(username);
-
   
   React.useEffect(() => {
     setTempUsername(username);
