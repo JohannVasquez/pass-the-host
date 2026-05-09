@@ -19,6 +19,7 @@ export const UsernameInput: React.FC<UsernameInputProps> = ({
   const [isEditing, setIsEditing] = React.useState<boolean>(false);
   const [tempUsername, setTempUsername] = React.useState<string>(username);
 
+  
   React.useEffect(() => {
     setTempUsername(username);
   }, [username]);
