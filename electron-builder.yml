@@ -3,12 +3,9 @@ productName: "Pass the host"
 directories:
   buildResources: resources
 files:
-  - "!**/.vscode/*"
-  - "!src/*"
-  - "!electron.vite.config.{js,ts,mjs,cjs}"
-  - "!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}"
-  - "!{.env,.env.*,.npmrc,pnpm-lock.yaml}"
-  - "!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}"
+  - "out/**"
+  - "node_modules/**"
+  - "package.json"
 asarUnpack:
   - resources/**
 win:
@@ -42,3 +39,8 @@ linux:
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
+publish:
+  - provider: github
+    owner: JohannVasquez
+    repo: pass-the-host
+    releaseType: release
