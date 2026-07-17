@@ -25,7 +25,7 @@ import { useTranslation } from "react-i18next";
 interface CreateServerModalProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: (serverName: string, version: string, serverType: "vanilla" | "forge") => void;
+  onConfirm: (serverName: string, version: string, serverType: "vanilla" | "forge" | "neoforge") => void;
   isCreating?: boolean;
   progressMessage?: string;
 }
@@ -112,7 +112,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
   const { t } = useTranslation();
   const [serverName, setServerName] = React.useState<string>("");
   const [version, setVersion] = React.useState<string>(minecraftVersions[0]);
-  const [serverType, setServerType] = React.useState<"vanilla" | "forge">("vanilla");
+  const [serverType, setServerType] = React.useState<"vanilla" | "forge" | "neoforge">("vanilla");
   const [nameError, setNameError] = React.useState<string>("");
 
   // If creating, show progress view
@@ -231,7 +231,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
             <RadioGroup
               row
               value={serverType}
-              onChange={(e) => setServerType(e.target.value as "vanilla" | "forge")}
+              onChange={(e) => setServerType(e.target.value as "vanilla" | "forge" | "neoforge")}
             >
               <FormControlLabel
                 value="vanilla"
@@ -239,6 +239,11 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
                 label={t("createServer.vanilla")}
               />
               <FormControlLabel value="forge" control={<Radio />} label={t("createServer.forge")} />
+              <FormControlLabel
+                value="neoforge"
+                control={<Radio />}
+                label={t("createServer.neoforge")}
+              />
             </RadioGroup>
           </FormControl>
 

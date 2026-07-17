@@ -209,7 +209,9 @@ export class RcloneRepository implements IRcloneRepository {
       configArgs.push(`region=${config.region || "auto"}`);
     }
 
-    if (config.provider !== "MinIO") {
+    // Cloudflare R2 doesn't support S3 object ACLs — sending acl=private causes
+    // "AccessDenied: failed to prepare upload" on every PutObject.
+    if (config.provider !== "MinIO" && config.provider !== "Cloudflare") {
       configArgs.push("acl=private");
     }
 

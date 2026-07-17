@@ -50,6 +50,8 @@ export class R2ServerRepository implements IServerRepository {
         return ServerType.VANILLA;
       case "forge":
         return ServerType.FORGE;
+      case "neoforge":
+        return ServerType.NEOFORGE;
       case "paper":
         return ServerType.PAPER;
       case "fabric":

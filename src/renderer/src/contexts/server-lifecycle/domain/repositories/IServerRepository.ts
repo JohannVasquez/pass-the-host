@@ -22,10 +22,10 @@ export interface IServerRepository {
    * Creates a new server
    * @param name Server name
    * @param version Minecraft version
-   * @param type Server type (vanilla or forge)
+   * @param type Server type (vanilla, forge or neoforge)
    * @returns Promise with created server
    */
-  createServer(name: string, version: string, type: "vanilla" | "forge"): Promise<Server>;
+  createServer(name: string, version: string, type: "vanilla" | "forge" | "neoforge"): Promise<Server>;
 
   /**
    * Deletes a server
