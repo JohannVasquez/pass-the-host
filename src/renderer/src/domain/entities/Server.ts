@@ -4,6 +4,7 @@
 export enum ServerType {
   VANILLA = "vanilla",
   FORGE = "forge",
+  NEOFORGE = "neoforge",
   PAPER = "paper",
   FABRIC = "fabric",
   UNKNOWN = "unknown",

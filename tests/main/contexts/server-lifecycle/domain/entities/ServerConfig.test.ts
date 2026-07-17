@@ -31,6 +31,18 @@ describe("ServerConfig", () => {
       expect(config.serverType).toBe("forge");
     });
 
+    it("should create a neoforge server config", () => {
+      const config: MinecraftServerConfig = {
+        serverName: "My NeoForge Server",
+        version: "1.21.1",
+        serverType: "neoforge",
+      };
+
+      expect(config.serverName).toBe("My NeoForge Server");
+      expect(config.version).toBe("1.21.1");
+      expect(config.serverType).toBe("neoforge");
+    });
+
     it("should support various version formats", () => {
       const config1: MinecraftServerConfig = {
         serverName: "Server",

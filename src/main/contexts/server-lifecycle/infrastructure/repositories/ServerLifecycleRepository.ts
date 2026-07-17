@@ -15,7 +15,7 @@ import {
 
 interface StoredServerInfo {
   version?: string;
-  type?: "vanilla" | "forge" | "unknown";
+  type?: "vanilla" | "forge" | "neoforge" | "unknown";
 }
 import { FileSystemError, NetworkError } from "@shared/domain/errors";
 
@@ -58,6 +58,8 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
         await this.createVanillaServer(serverPath, config.version, onProgress);
       } else if (config.serverType === "forge") {
         await this.createForgeServer(serverPath, config.version, onProgress);
+      } else if (config.serverType === "neoforge") {
+        await this.createNeoForgeServer(serverPath, config.version, onProgress);
       }
 
       // Accept EULA
@@ -219,7 +221,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
 
     // Run the Forge installer in server mode
     onProgress?.("Installing Forge server (this may take a few minutes)...");
-    await this.runForgeInstaller(javaPath, forgeInstallerPath, serverPath, onProgress);
+    await this.runInstallerJar(javaPath, forgeInstallerPath, serverPath, onProgress);
     onProgress?.("Forge server installed successfully");
 
     // Clean up installer
@@ -237,6 +239,61 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
     // Save forge version info for later reference
     const forgeInfoPath = path.join(serverPath, "forge_version.txt");
     fs.writeFileSync(forgeInfoPath, `${version}-${forgeVersion}`, "utf-8");
+  }
+
+  private async createNeoForgeServer(
+    serverPath: string,
+    version: string,
+    onProgress?: (message: string) => void,
+  ): Promise<void> {
+    onProgress?.(`Setting up NeoForge ${version} server...`);
+
+    // Get the latest NeoForge version for this Minecraft version
+    onProgress?.("Fetching NeoForge version information...");
+    const neoForgeVersion = await this.getNeoForgeVersion(version);
+
+    if (!neoForgeVersion) {
+      throw new NetworkError(`No NeoForge version found for Minecraft ${version}`);
+    }
+
+    onProgress?.(`Found NeoForge version: ${neoForgeVersion}`);
+
+    // NeoForge installer URL format: https://maven.neoforged.net/releases/net/neoforged/neoforge/{neoForgeVersion}/neoforge-{neoForgeVersion}-installer.jar
+    const neoForgeUrl = `https://maven.neoforged.net/releases/net/neoforged/neoforge/${neoForgeVersion}/neoforge-${neoForgeVersion}-installer.jar`;
+    const neoForgeInstallerPath = path.join(serverPath, "neoforge-installer.jar");
+
+    onProgress?.("Downloading NeoForge installer...");
+    await this.downloadFile(neoForgeUrl, neoForgeInstallerPath);
+    onProgress?.("NeoForge installer downloaded successfully");
+
+    // Get Java path for this Minecraft version
+    const javaPath = this.getJavaPathForVersion(version);
+    if (!javaPath || !fs.existsSync(javaPath)) {
+      throw new FileSystemError(
+        `Java not found for Minecraft ${version}. Please ensure Java is installed first.`,
+      );
+    }
+
+    // Run the NeoForge installer in server mode
+    onProgress?.("Installing NeoForge server (this may take a few minutes)...");
+    await this.runInstallerJar(javaPath, neoForgeInstallerPath, serverPath, onProgress);
+    onProgress?.("NeoForge server installed successfully");
+
+    // Clean up installer
+    try {
+      fs.unlinkSync(neoForgeInstallerPath);
+      // Also clean up installer log if it exists
+      const installerLogPath = path.join(serverPath, "neoforge-installer.jar.log");
+      if (fs.existsSync(installerLogPath)) {
+        fs.unlinkSync(installerLogPath);
+      }
+    } catch {
+      // Ignore cleanup errors
+    }
+
+    // Save neoforge version info for later reference
+    const neoForgeInfoPath = path.join(serverPath, "neoforge_version.txt");
+    fs.writeFileSync(neoForgeInfoPath, neoForgeVersion, "utf-8");
   }
 
   private getJavaPathForVersion(minecraftVersion: string): string | null {
@@ -271,7 +328,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
     }
   }
 
-  private async runForgeInstaller(
+  private async runInstallerJar(
     javaPath: string,
     installerPath: string,
     serverPath: string,
@@ -303,7 +360,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
       installerProcess.stderr.on("data", (data: Buffer) => {
         const message = data.toString().trim();
         if (message) {
-          console.error("[Forge Installer]", message);
+          console.error("[Installer]", message);
         }
       });
 
@@ -311,13 +368,51 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
         if (code === 0) {
           resolve();
         } else {
-          reject(new Error(`Forge installer exited with code ${code}`));
+          reject(new Error(`Installer exited with code ${code}`));
         }
       });
 
       installerProcess.on("error", (error) => {
-        reject(new Error(`Failed to run Forge installer: ${error.message}`));
+        reject(new Error(`Failed to run installer: ${error.message}`));
       });
+    });
+  }
+
+  private async getNeoForgeVersion(minecraftVersion: string): Promise<string | null> {
+    const metadataUrl =
+      "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml";
+    // NeoForge versions look like "<mcMinor>.<mcPatch>.<build>" (e.g. Minecraft 1.21.1 -> 21.1.x)
+    const versionParts = minecraftVersion.split(".");
+    const versionPrefix = `${versionParts[1] || "0"}.${versionParts[2] || "0"}`;
+
+    return new Promise((resolve, reject) => {
+      https
+        .get(metadataUrl, (response) => {
+          let data = "";
+          response.on("data", (chunk) => {
+            data += chunk;
+          });
+          response.on("end", () => {
+            try {
+              const versions = Array.from(data.matchAll(/<version>([^<]+)<\/version>/g))
+                .map((match) => match[1])
+                .filter((v) => v.startsWith(`${versionPrefix}.`));
+
+              if (versions.length === 0) {
+                resolve(null);
+                return;
+              }
+
+              versions.sort(
+                (a, b) => parseInt(b.split(".").pop() || "0") - parseInt(a.split(".").pop() || "0"),
+              );
+              resolve(versions[0]);
+            } catch (e) {
+              reject(e);
+            }
+          });
+        })
+        .on("error", reject);
     });
   }
 
@@ -460,7 +555,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
   private createServerInfo(
     serverPath: string,
     version: string,
-    serverType: "vanilla" | "forge",
+    serverType: "vanilla" | "forge" | "neoforge",
   ): void {
     const serverInfoPath = path.join(serverPath, "server_info.json");
     const serverInfo = {

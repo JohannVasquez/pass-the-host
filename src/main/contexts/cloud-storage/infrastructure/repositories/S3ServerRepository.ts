@@ -34,7 +34,7 @@ export class S3ServerRepository implements IS3ServerRepository {
 
       const rclonePath = this.rcloneRepository.getRclonePath();
       const configName = this.rcloneRepository.getRcloneConfigName();
-      const listCommand = `"${rclonePath}" lsf ${configName}:${config.bucket_name}/pass_the_host --dirs-only`;
+      const listCommand = `"${rclonePath}" lsf "${configName}:${config.bucket_name}/pass_the_host" --dirs-only`;
       const { stdout } = await execAsync(listCommand);
 
       const serverDirs = stdout
@@ -151,7 +151,7 @@ export class S3ServerRepository implements IS3ServerRepository {
       const configName = this.rcloneRepository.getRcloneConfigName();
       const s3ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
 
-      const deleteCommand = `"${rclonePath}" purge ${s3ServerPath}`;
+      const deleteCommand = `"${rclonePath}" purge "${s3ServerPath}"`;
       await execAsync(deleteCommand, { maxBuffer: 1024 * 1024 });
 
       return { success: true };
@@ -171,7 +171,7 @@ export class S3ServerRepository implements IS3ServerRepository {
       const configName = this.rcloneRepository.getRcloneConfigName();
       const s3ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
 
-      const sizeCommand = `"${rclonePath}" size ${s3ServerPath} --json`;
+      const sizeCommand = `"${rclonePath}" size "${s3ServerPath}" --json`;
       const { stdout } = await execAsync(sizeCommand);
       const result = JSON.parse(stdout);
       // rclone size --json returns { "count": <number>, "bytes": <number> }
@@ -215,7 +215,7 @@ export class S3ServerRepository implements IS3ServerRepository {
       const rclonePath = this.rcloneRepository.getRclonePath();
       const configName = this.rcloneRepository.getRcloneConfigName();
       const s3SessionPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/session.json`;
-      const catCommand = `"${rclonePath}" cat ${s3SessionPath}`;
+      const catCommand = `"${rclonePath}" cat "${s3SessionPath}"`;
 
       let s3Session = null;
       try {
@@ -317,7 +317,7 @@ export class S3ServerRepository implements IS3ServerRepository {
     try {
       // First, try to read server_info.json if it exists
       try {
-        const infoCommand = `"${rclonePath}" cat ${serverPath}/server_info.json`;
+        const infoCommand = `"${rclonePath}" cat "${serverPath}/server_info.json"`;
         const { stdout: infoStdout } = await execAsync(infoCommand);
         const serverInfo = JSON.parse(infoStdout.trim());
         if (serverInfo.version && serverInfo.type) {
@@ -327,7 +327,7 @@ export class S3ServerRepository implements IS3ServerRepository {
         // server_info.json doesn't exist or couldn't be parsed, continue with detection
       }
 
-      const listCommand = `"${rclonePath}" lsf ${serverPath}`;
+      const listCommand = `"${rclonePath}" lsf "${serverPath}"`;
       const { stdout } = await execAsync(listCommand);
 
       const files = stdout
@@ -339,7 +339,7 @@ export class S3ServerRepository implements IS3ServerRepository {
 
       if (hasLibrariesFolder) {
         try {
-          const forgePathCommand = `"${rclonePath}" lsf ${serverPath}/libraries/net/minecraftforge/forge/ --dirs-only`;
+          const forgePathCommand = `"${rclonePath}" lsf "${serverPath}/libraries/net/minecraftforge/forge/" --dirs-only`;
           const { stdout: forgeStdout } = await execAsync(forgePathCommand);
 
           const forgeVersionDirs = forgeStdout
@@ -361,6 +361,25 @@ export class S3ServerRepository implements IS3ServerRepository {
         }
       }
 
+      if (hasLibrariesFolder) {
+        try {
+          const neoForgePathCommand = `"${rclonePath}" lsf "${serverPath}/libraries/net/neoforged/neoforge/" --dirs-only`;
+          const { stdout: neoForgeStdout } = await execAsync(neoForgePathCommand);
+
+          const neoForgeVersionDirs = neoForgeStdout
+            .trim()
+            .split("\n")
+            .filter((line) => line.trim() !== "")
+            .map((line) => line.replace(/\/$/, ""));
+
+          if (neoForgeVersionDirs.length > 0) {
+            return { version: neoForgeVersionDirs[0], type: "neoforge" };
+          }
+        } catch (error) {
+          console.error("Error checking neoforge version:", error);
+        }
+      }
+
       const forgeJar = files.find((file) => file.includes("forge") && file.endsWith(".jar"));
       if (forgeJar) {
         const versionMatch = forgeJar.match(/forge[.-](\d+\.\d+(?:\.\d+)?)/);
@@ -374,7 +393,7 @@ export class S3ServerRepository implements IS3ServerRepository {
 
       if (hasVersionsFolder) {
         try {
-          const versionPathCommand = `"${rclonePath}" lsf ${serverPath}/versions/ --dirs-only`;
+          const versionPathCommand = `"${rclonePath}" lsf "${serverPath}/versions/" --dirs-only`;
           const { stdout: versionStdout } = await execAsync(versionPathCommand);
 
           const versionDirs = versionStdout

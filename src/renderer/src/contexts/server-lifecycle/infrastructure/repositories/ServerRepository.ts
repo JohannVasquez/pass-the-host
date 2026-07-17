@@ -37,7 +37,11 @@ export class ServerRepository implements IServerRepository {
   /**
    * Creates a new server
    */
-  async createServer(name: string, version: string, type: "vanilla" | "forge"): Promise<Server> {
+  async createServer(
+    name: string,
+    version: string,
+    type: "vanilla" | "forge" | "neoforge",
+  ): Promise<Server> {
     try {
       const api = (
         window as Window & {
@@ -54,7 +58,7 @@ export class ServerRepository implements IServerRepository {
         id: name, // Server name is used as ID
         name: name,
         version: version,
-        type: type === "vanilla" ? ServerType.VANILLA : ServerType.FORGE,
+        type: this.parseServerType(type),
       };
     } catch (error) {
       console.error("Error creating server:", error);
@@ -113,6 +117,8 @@ export class ServerRepository implements IServerRepository {
         return ServerType.VANILLA;
       case "forge":
         return ServerType.FORGE;
+      case "neoforge":
+        return ServerType.NEOFORGE;
       case "paper":
         return ServerType.PAPER;
       case "fabric":

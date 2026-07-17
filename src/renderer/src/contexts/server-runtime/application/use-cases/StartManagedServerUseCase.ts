@@ -235,13 +235,13 @@ export class StartManagedServerUseCase {
       };
     }
 
-    if (request.server.type !== ServerType.FORGE) {
+    if (request.server.type !== ServerType.FORGE && request.server.type !== ServerType.NEOFORGE) {
       this.presenter.updateStatus(ServerStatus.STOPPED, "unsupported server type");
       throw new Error(`Tipo de server no soportado: ${request.server.type}`);
     }
 
     const versionNum = parseFloat(request.server.version);
-    if (versionNum < 1.17) {
+    if (request.server.type === ServerType.FORGE && versionNum < 1.17) {
       this.presenter.updateStatus(ServerStatus.STOPPED, "unsupported forge version");
       throw new Error("No se pudo iniciar el server Forge <= 1.16.5. No soportado.");
     }

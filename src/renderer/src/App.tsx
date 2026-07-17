@@ -149,7 +149,7 @@ function AppContent(): React.JSX.Element {
   const [pendingServerCreation, setPendingServerCreation] = React.useState<{
     name: string;
     version: string;
-    type: "vanilla" | "forge";
+    type: "vanilla" | "forge" | "neoforge";
   } | null>(null);
   const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = React.useState<boolean>(false);
   const [totalBucketSize, setTotalBucketSize] = React.useState<number>(0);
@@ -1280,7 +1280,7 @@ function AppContent(): React.JSX.Element {
   const handleConfirmCreateServer = async (
     serverName: string,
     version: string,
-    serverType: "vanilla" | "forge",
+    serverType: "vanilla" | "forge" | "neoforge",
     overwrite: boolean = false,
   ): Promise<void> => {
     setIsCreatingServer(true);
@@ -1296,14 +1296,14 @@ function AppContent(): React.JSX.Element {
     ]);
 
     try {
-      // For Forge servers, ensure Java is installed first
-      if (serverType === "forge") {
+      // For Forge/NeoForge servers, ensure Java is installed first
+      if (serverType === "forge" || serverType === "neoforge") {
         setCreateServerProgress("Checking Java installation...");
         setLogs((prev) => [
           ...prev,
           {
             timestamp: new Date(),
-            message: "Checking Java installation for Forge...",
+            message: `Checking Java installation for ${serverType === "forge" ? "Forge" : "NeoForge"}...`,
             type: "info",
           },
         ]);
