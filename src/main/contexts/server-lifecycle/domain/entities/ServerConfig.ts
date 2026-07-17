@@ -1,7 +1,7 @@
 export interface MinecraftServerConfig {
   serverName: string;
   version: string;
-  serverType: "vanilla" | "forge";
+  serverType: "vanilla" | "forge" | "neoforge";
   overwrite?: boolean;
 }
 
@@ -20,5 +20,5 @@ export interface LocalServerInfo {
   id: string;
   name: string;
   version: string;
-  type: "vanilla" | "forge" | "unknown";
+  type: "vanilla" | "forge" | "neoforge" | "unknown";
 }

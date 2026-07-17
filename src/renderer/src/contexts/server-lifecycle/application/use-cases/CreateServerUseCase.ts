@@ -29,8 +29,8 @@ export class CreateServerUseCase {
       throw new Error("Server version is required");
     }
 
-    if (params.type !== "vanilla" && params.type !== "forge") {
-      throw new Error("Server type must be vanilla or forge");
+    if (params.type !== "vanilla" && params.type !== "forge" && params.type !== "neoforge") {
+      throw new Error("Server type must be vanilla, forge or neoforge");
     }
 
     // Create the server

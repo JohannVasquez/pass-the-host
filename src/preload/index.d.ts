@@ -117,7 +117,7 @@ interface ServerAPI {
   createMinecraftServer: (
     serverName: string,
     version: string,
-    serverType: "vanilla" | "forge",
+    serverType: "vanilla" | "forge" | "neoforge",
     overwrite?: boolean,
   ) => Promise<{
     success: boolean;
@@ -131,7 +131,7 @@ interface ServerAPI {
   ) => Promise<{ success: boolean; error?: string }>;
   deleteLocally: (serverId: string) => Promise<{ success: boolean; error?: string }>;
   listLocalServers: () => Promise<
-    Array<{ id: string; name: string; version: string; type: "vanilla" | "forge" | "unknown" }>
+    Array<{ id: string; name: string; version: string; type: "vanilla" | "forge" | "neoforge" | "unknown" }>
   >;
 }
 

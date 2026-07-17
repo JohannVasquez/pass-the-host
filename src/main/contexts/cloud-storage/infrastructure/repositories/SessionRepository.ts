@@ -153,7 +153,7 @@ export class SessionRepository implements ISessionRepository {
 
       fs.writeFileSync(sessionFilePath, JSON.stringify(mergedSession, null, 2), "utf-8");
 
-      const copyCommand = `"${rclonePath}" copyto "${sessionFilePath}" ${r2SessionPath}`;
+      const copyCommand = `"${rclonePath}" copyto "${sessionFilePath}" "${r2SessionPath}"`;
       await execAsync(copyCommand, { maxBuffer: 1024 * 1024 });
       this.clearPendingUpload(serverId);
 
@@ -265,7 +265,7 @@ export class SessionRepository implements ISessionRepository {
     remoteSessionPath: string,
   ): Promise<SessionMetadata | null> {
     try {
-      const catCommand = `"${rclonePath}" cat ${remoteSessionPath}`;
+      const catCommand = `"${rclonePath}" cat "${remoteSessionPath}"`;
       const { stdout } = await execAsync(catCommand, { maxBuffer: 1024 * 1024 });
       return JSON.parse(stdout.trim()) as SessionMetadata;
     } catch {

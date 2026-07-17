@@ -183,7 +183,7 @@ const serverAPI = {
   createMinecraftServer: (
     serverName: string,
     version: string,
-    serverType: "vanilla" | "forge",
+    serverType: "vanilla" | "forge" | "neoforge",
     overwrite?: boolean,
   ): Promise<{
     success: boolean;
@@ -211,7 +211,7 @@ const serverAPI = {
   deleteLocally: (serverId: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("server:delete-locally", serverId),
   listLocalServers: (): Promise<
-    Array<{ id: string; name: string; version: string; type: "vanilla" | "forge" | "unknown" }>
+    Array<{ id: string; name: string; version: string; type: "vanilla" | "forge" | "neoforge" | "unknown" }>
   > => ipcRenderer.invoke("server:list-local"),
 };
 

@@ -23,7 +23,7 @@ export class RcloneSyncRemoteRepository implements IS3SyncRemoteRepository {
   async readManifest(config: S3Config, serverId: string): Promise<ServerManifest | null> {
     try {
       const { stdout } = await execAsync(
-        `"${this.rcloneRepository.getRclonePath()}" cat ${this.getRemoteManifestPath(config, serverId)}`,
+        `"${this.rcloneRepository.getRclonePath()}" cat "${this.getRemoteManifestPath(config, serverId)}"`,
         { maxBuffer: 1024 * 1024 * 10 },
       );
 
@@ -91,7 +91,7 @@ export class RcloneSyncRemoteRepository implements IS3SyncRemoteRepository {
 
     try {
       await execAsync(
-        `"${this.rcloneRepository.getRclonePath()}" copyto ${this.getRemoteFilePath(config, serverId, relativePath)} "${localFilePath}"`,
+        `"${this.rcloneRepository.getRclonePath()}" copyto "${this.getRemoteFilePath(config, serverId, relativePath)}" "${localFilePath}"`,
         { maxBuffer: 1024 * 1024 * 10 },
       );
     } catch (error) {
@@ -105,7 +105,7 @@ export class RcloneSyncRemoteRepository implements IS3SyncRemoteRepository {
   async deleteFile(config: S3Config, serverId: string, relativePath: string): Promise<void> {
     try {
       await execAsync(
-        `"${this.rcloneRepository.getRclonePath()}" deletefile ${this.getRemoteFilePath(config, serverId, relativePath)}`,
+        `"${this.rcloneRepository.getRclonePath()}" deletefile "${this.getRemoteFilePath(config, serverId, relativePath)}"`,
         { maxBuffer: 1024 * 1024 * 10 },
       );
     } catch (error) {
@@ -221,7 +221,7 @@ export class RcloneSyncRemoteRepository implements IS3SyncRemoteRepository {
   ): Promise<void> {
     try {
       await execAsync(
-        `"${this.rcloneRepository.getRclonePath()}" copyto "${localFilePath}" ${remoteFilePath}`,
+        `"${this.rcloneRepository.getRclonePath()}" copyto "${localFilePath}" "${remoteFilePath}"`,
         { maxBuffer: 1024 * 1024 * 10 },
       );
     } catch (error) {
