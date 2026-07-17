@@ -178,6 +178,7 @@ export const en = {
       serverType: "Server Type",
       vanilla: "Vanilla",
       forge: "Forge",
+      neoforge: "NeoForge",
       version: "Minecraft Version",
       info: "The server will be created with the selected version. EULA will be automatically accepted",
       cancel: "Cancel",

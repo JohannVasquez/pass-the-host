@@ -20,7 +20,7 @@ export class ServerLifecycleIPCHandlers {
           event: IpcMainInvokeEvent,
           serverName: string,
           version: string,
-          serverType: "vanilla" | "forge",
+          serverType: "vanilla" | "forge" | "neoforge",
           overwrite?: boolean,
         ) => {
           const useCase = this.container.get<CreateMinecraftServerUseCase>(

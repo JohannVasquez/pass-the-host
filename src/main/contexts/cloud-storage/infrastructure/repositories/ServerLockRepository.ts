@@ -47,7 +47,7 @@ export class ServerLockRepository implements IServerLockRepository {
     const r2LockPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/server.lock`;
 
     try {
-      const catCommand = `"${rclonePath}" cat ${r2LockPath}`;
+      const catCommand = `"${rclonePath}" cat "${r2LockPath}"`;
       const { stdout } = await execAsync(catCommand, { maxBuffer: 1024 * 1024 });
 
       const content = stdout.trim();
@@ -102,7 +102,7 @@ export class ServerLockRepository implements IServerLockRepository {
     }
 
     try {
-      const copyCommand = `"${rclonePath}" copyto "${lockFilePath}" ${r2LockPath}`;
+      const copyCommand = `"${rclonePath}" copyto "${lockFilePath}" "${r2LockPath}"`;
       await execAsync(copyCommand, { maxBuffer: 1024 * 1024 });
       return true;
     } catch (error) {
@@ -124,7 +124,7 @@ export class ServerLockRepository implements IServerLockRepository {
     const r2LockPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/server.lock`;
 
     // Check if lock exists
-    const checkCommand = `"${rclonePath}" ls ${r2LockPath}`;
+    const checkCommand = `"${rclonePath}" ls "${r2LockPath}"`;
     try {
       await execAsync(checkCommand, { maxBuffer: 1024 * 1024 });
     } catch {
@@ -133,7 +133,7 @@ export class ServerLockRepository implements IServerLockRepository {
     }
 
     try {
-      const deleteCommand = `"${rclonePath}" deletefile ${r2LockPath}`;
+      const deleteCommand = `"${rclonePath}" deletefile "${r2LockPath}"`;
       await execAsync(deleteCommand, { maxBuffer: 1024 * 1024 });
       return { success: true, existed: true };
     } catch (error) {
