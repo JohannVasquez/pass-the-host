@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import {
   LuBlocks,
   LuChartColumn,
@@ -13,100 +14,38 @@ import {
   LuTerminal,
 } from "react-icons/lu";
 import { TbBucket } from "react-icons/tb";
-import { DownloadButton } from "./DownloadButton";
-import icon from "./icon.png";
-import { DOWNLOAD_URL, GITHUB_URL, getDownloads } from "./links";
-
-export const metadata: Metadata = {
-  title: { absolute: "Pass the host — Servidores de Minecraft entre amigos" },
-  description:
-    "App gratuita para compartir un servidor de Minecraft entre amigos sin pagar hosting: cualquiera del grupo lo inicia y el mundo se sincroniza en la nube.",
-  alternates: { canonical: "/" },
-};
+import { getDictionary } from "../dictionaries";
+import { DownloadButton } from "../DownloadButton";
+import { isLocale } from "../i18n";
+import icon from "../icon.png";
+import { DOWNLOAD_URL, GITHUB_URL, getDownloads } from "../links";
 
 const SITE_URL = "https://passthehost.jvdev.cl";
 
-// Shown on the page and reused as FAQPage structured data, so both always match
-const faqs = [
-  {
-    q: "¿Pass the host es gratis?",
-    a: "Sí. La app es gratuita y su código está publicado en GitHub. Solo podrías pagar por el almacenamiento en la nube, pero Google Drive o el plan gratuito de Cloudflare R2 suelen alcanzar para un mundo de Minecraft.",
-  },
-  {
-    q: "¿Necesito pagar un hosting o tener un servidor dedicado?",
-    a: "No. El servidor corre en el computador de quien hostea esa partida. El mundo se guarda en tu propio almacenamiento en la nube, así que nadie del grupo tiene que dejar su PC encendido.",
-  },
-  {
-    q: "¿Cómo se conectan mis amigos al servidor?",
-    a: "Quien hostea comparte su IP pública (abriendo el puerto 25565 en su router) o todos se unen a una misma VPN, como Hamachi, Radmin VPN, Tailscale o ZeroTier, y se conectan a la IP que esa VPN le asigna al host.",
-  },
-  {
-    q: "¿Qué pasa si dos personas intentan abrir el servidor al mismo tiempo?",
-    a: "No se puede. Al iniciar el servidor, la app crea un bloqueo en la nube que muestra quién está hosteando. Nadie más puede abrirlo ni sobrescribir el mundo hasta que esa persona lo cierre y suba los cambios.",
-  },
-  {
-    q: "¿Qué versiones de Minecraft y mods soporta?",
-    a: "Servidores de Minecraft Java Edition Vanilla, Forge y NeoForge. La app descarga automáticamente la versión de Java que necesita cada versión de Minecraft.",
-  },
-  {
-    q: "¿En qué sistemas operativos funciona?",
-    a: "Windows, macOS (Apple Silicon) y Linux (AppImage, deb y snap). La interfaz está en español e inglés.",
-  },
-  {
-    q: "¿Dónde se guardan mis mundos?",
-    a: "En el almacenamiento que tú elijas: Google Drive o cualquier bucket compatible con S3, como Cloudflare R2, AWS S3, Backblaze B2, DigitalOcean Spaces o MinIO. Pass the host no tiene servidores propios ni recibe tus archivos.",
-  },
-];
+export async function generateMetadata({
+  params,
+}: PageProps<"/[lang]">): Promise<Metadata> {
+  const { lang } = await params;
+  if (!isLocale(lang)) return {};
+  return {
+    title: { absolute: getDictionary(lang).meta.title },
+    alternates: {
+      canonical: `/${lang}`,
+      // x-default is the root, which redirects by browser language
+      languages: { es: "/es", en: "/en", "x-default": "/" },
+    },
+  };
+}
 
-const steps = [
-  {
-    icon: LuRefreshCw,
-    title: "Descarga el último mundo",
-    text: "La app trae desde la nube solo los archivos que cambiaron desde la última partida.",
-  },
-  {
-    icon: LuPlay,
-    title: "Inicia el servidor",
-    text: "Un lock avisa al resto que tú eres el host, así nadie lo abre dos veces ni pisa tu mundo.",
-  },
-  {
-    icon: LuCloudUpload,
-    title: "Juega y pasa el host",
-    text: "Al cerrar, los cambios se suben solos. La próxima vez lo puede abrir cualquiera.",
-  },
-];
-
-const features = [
-  {
-    icon: LuTerminal,
-    title: "Consola integrada",
-    text: "Logs en vivo y comandos rápidos sin abrir una terminal.",
-  },
-  {
-    icon: LuLock,
-    title: "Lock distribuido",
-    text: "Evita que dos personas inicien o sobrescriban el mismo servidor.",
-  },
-  {
-    icon: LuRefreshCw,
-    title: "Sync diferencial",
-    text: "Compara manifiestos y transfiere solo lo necesario.",
-  },
-  {
-    icon: LuBlocks,
-    title: "Vanilla, Forge y NeoForge",
-    text: "Crea servidores con o sin mods en un par de clics.",
-  },
-  {
-    icon: LuCoffee,
-    title: "Java automático",
-    text: "Descarga la versión de Java correcta para cada versión de Minecraft.",
-  },
-  {
-    icon: LuChartColumn,
-    title: "Estadísticas de sesión",
-    text: "Quién hosteó, cuándo y cuántas horas lleva cada uno.",
-  },
+// Icons in the same order as the dictionary's steps / features
+const stepIcons = [LuRefreshCw, LuPlay, LuCloudUpload];
+const featureIcons = [
+  LuTerminal,
+  LuLock,
+  LuRefreshCw,
+  LuBlocks,
+  LuCoffee,
+  LuChartColumn,
 ];
 
 const providers = [
@@ -154,7 +93,12 @@ function GoogleDriveLogo({ className }: { className?: string }) {
   );
 }
 
-export default async function PassTheHostPage() {
+export default async function PassTheHostPage({
+  params,
+}: PageProps<"/[lang]">) {
+  const { lang } = await params;
+  if (!isLocale(lang)) notFound();
+  const t = getDictionary(lang);
   const downloads = await getDownloads();
 
   const jsonLd = {
@@ -164,9 +108,8 @@ export default async function PassTheHostPage() {
         "@type": "SoftwareApplication",
         "@id": `${SITE_URL}/#app`,
         name: "Pass the host",
-        url: SITE_URL,
-        description:
-          "App de escritorio gratuita para compartir un servidor de Minecraft entre amigos: cualquiera del grupo puede iniciarlo y el mundo se sincroniza en la nube.",
+        url: `${SITE_URL}/${lang}`,
+        description: t.meta.description,
         applicationCategory: "GameApplication",
         applicationSubCategory: "Minecraft server manager",
         operatingSystem: "Windows, macOS, Linux",
@@ -179,9 +122,11 @@ export default async function PassTheHostPage() {
           `${SITE_URL}/pass-the-host-home.png`,
           `${SITE_URL}/pass-the-host-create-server.png`,
         ],
-        inLanguage: ["es", "en"],
+        inLanguage: lang,
+        license: "https://opensource.org/license/mit",
+        isAccessibleForFree: true,
         offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-        featureList: features.map((f) => f.title),
+        featureList: t.features.items.map((f) => f.title),
         author: {
           "@type": "Person",
           name: "Johann Vásquez",
@@ -191,8 +136,9 @@ export default async function PassTheHostPage() {
       },
       {
         "@type": "FAQPage",
-        "@id": `${SITE_URL}/#faq`,
-        mainEntity: faqs.map((f) => ({
+        "@id": `${SITE_URL}/${lang}#faq`,
+        inLanguage: lang,
+        mainEntity: t.faq.items.map((f) => ({
           "@type": "Question",
           name: f.q,
           acceptedAnswer: { "@type": "Answer", text: f.a },
@@ -214,19 +160,18 @@ export default async function PassTheHostPage() {
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-24">
         <div className="max-w-3xl">
           <p className="inline-flex items-center gap-2 rounded-full border border-[#8BCB6B]/30 bg-[#8BCB6B]/10 px-3 py-1 text-sm text-[#A3D98A]">
-            Gratis y de código abierto
+            {t.hero.badge}
           </p>
           <h1 className="mt-6 text-4xl sm:text-6xl font-bold tracking-tight text-[#EAEAEA] text-balance">
-            El servidor de Minecraft ya no depende de una sola persona.
+            {t.hero.title}
           </h1>
           <p className="mt-6 text-lg sm:text-xl text-[#A1A1AA] max-w-2xl text-pretty">
-            Pass the host guarda el mundo en la nube para que cualquiera del
-            grupo pueda descargarlo, iniciar el servidor y subir los cambios al
-            terminar.
+            {t.hero.subtitle}
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <DownloadButton
               downloads={downloads}
+              labels={t.download}
               className="inline-flex items-center gap-2 rounded-xl bg-[#8BCB6B] px-5 py-3 font-semibold text-[#0F1115] hover:bg-[#A3D98A] transition-colors"
             >
               <LuDownload aria-hidden className="h-5 w-5" />
@@ -237,17 +182,17 @@ export default async function PassTheHostPage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-5 py-3 font-semibold text-[#EAEAEA] hover:border-white/25 transition-colors"
             >
-              Ver en GitHub
+              {t.hero.github}
             </a>
           </div>
           <p className="mt-4 text-sm text-[#A1A1AA]">
-            {downloads.version && `${downloads.version} · `}Windows · macOS
-            (Apple Silicon) · Linux ·{" "}
+            {downloads.version && `${downloads.version} · `}
+            {t.hero.platforms} ·{" "}
             <a
               href={DOWNLOAD_URL}
               className="underline underline-offset-4 hover:text-[#EAEAEA]"
             >
-              Todas las descargas
+              {t.hero.allDownloads}
             </a>
           </p>
         </div>
@@ -265,7 +210,7 @@ export default async function PassTheHostPage() {
             </div>
             <Image
               src="/pass-the-host-home.png"
-              alt="Pantalla principal de Pass the host con el control del servidor y la consola"
+              alt={t.hero.screenshotAlt}
               width={3840}
               height={2036}
               sizes="(min-width: 1152px) 1104px, 100vw"
@@ -276,40 +221,38 @@ export default async function PassTheHostPage() {
         </div>
       </section>
 
-      {/* Cómo funciona */}
+      {/* How it works */}
       <section
-        id="como-funciona"
+        id="how-it-works"
         className="max-w-6xl mx-auto px-4 sm:px-6 py-24 scroll-mt-16"
       >
         <h2 className="text-3xl sm:text-4xl font-bold text-[#EAEAEA]">
-          Cómo funciona
+          {t.how.title}
         </h2>
-        <p className="mt-3 text-[#A1A1AA] max-w-2xl">
-          Como pasarse el control, pero con el mundo entero.
-        </p>
+        <p className="mt-3 text-[#A1A1AA] max-w-2xl">{t.how.subtitle}</p>
         <ol className="mt-12 grid gap-6 md:grid-cols-3">
-          {steps.map((step, i) => (
-            <li
-              key={step.title}
-              className="relative rounded-2xl border border-white/10 bg-[#181B23]/80 p-6"
-            >
-              <div className="flex items-center justify-between">
-                <step.icon aria-hidden className="h-6 w-6 text-[#8BCB6B]" />
-                <span className="font-mono text-sm text-[#A1A1AA]">
-                  0{i + 1}
-                </span>
-              </div>
-              <h3 className="mt-6 text-lg font-semibold text-[#EAEAEA]">
-                {step.title}
-              </h3>
-              <p className="mt-2 text-[#A1A1AA]">{step.text}</p>
-            </li>
-          ))}
+          {t.how.steps.map((step, i) => {
+            const Icon = stepIcons[i];
+            return (
+              <li
+                key={step.title}
+                className="relative rounded-2xl border border-white/10 bg-[#181B23]/80 p-6"
+              >
+                <div className="flex items-center justify-between">
+                  <Icon aria-hidden className="h-6 w-6 text-[#8BCB6B]" />
+                  <span className="font-mono text-sm text-[#A1A1AA]">
+                    0{i + 1}
+                  </span>
+                </div>
+                <h3 className="mt-6 text-lg font-semibold text-[#EAEAEA]">
+                  {step.title}
+                </h3>
+                <p className="mt-2 text-[#A1A1AA]">{step.text}</p>
+              </li>
+            );
+          })}
         </ol>
-        <p className="mt-8 text-sm text-[#A1A1AA]">
-          Para que tus amigos se conecten, solo falta compartir tu IP o usar una
-          VPN como Hamachi, Radmin VPN, Tailscale o ZeroTier.
-        </p>
+        <p className="mt-8 text-sm text-[#A1A1AA]">{t.how.connectNote}</p>
       </section>
 
       {/* Features */}
@@ -317,24 +260,27 @@ export default async function PassTheHostPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-24 grid gap-12 lg:grid-cols-[1fr_1.2fr] items-center">
           <div>
             <h2 className="text-3xl sm:text-4xl font-bold text-[#EAEAEA]">
-              Todo lo que necesitas para hostear
+              {t.features.title}
             </h2>
             <div className="mt-10 grid gap-x-8 gap-y-8 sm:grid-cols-2">
-              {features.map((f) => (
-                <div key={f.title}>
-                  <f.icon aria-hidden className="h-5 w-5 text-[#8BCB6B]" />
-                  <h3 className="mt-3 font-semibold text-[#EAEAEA]">
-                    {f.title}
-                  </h3>
-                  <p className="mt-1 text-sm text-[#A1A1AA]">{f.text}</p>
-                </div>
-              ))}
+              {t.features.items.map((f, i) => {
+                const Icon = featureIcons[i];
+                return (
+                  <div key={f.title}>
+                    <Icon aria-hidden className="h-5 w-5 text-[#8BCB6B]" />
+                    <h3 className="mt-3 font-semibold text-[#EAEAEA]">
+                      {f.title}
+                    </h3>
+                    <p className="mt-1 text-sm text-[#A1A1AA]">{f.text}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
           <figure className="overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/40">
             <Image
               src="/pass-the-host-create-server.png"
-              alt="Diálogo para crear un servidor nuevo en Pass the host"
+              alt={t.features.screenshotAlt}
               width={3840}
               height={2036}
               sizes="(min-width: 1024px) 600px, 100vw"
@@ -344,15 +290,12 @@ export default async function PassTheHostPage() {
         </div>
       </section>
 
-      {/* Almacenamiento */}
+      {/* Storage */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 py-24">
         <h2 className="text-3xl sm:text-4xl font-bold text-[#EAEAEA]">
-          Tu nube, tus datos
+          {t.storage.title}
         </h2>
-        <p className="mt-3 text-[#A1A1AA] max-w-2xl">
-          Pass the host no tiene servidores propios. Los mundos viven en el
-          almacenamiento que tú elijas.
-        </p>
+        <p className="mt-3 text-[#A1A1AA] max-w-2xl">{t.storage.subtitle}</p>
         <div className="mt-12 grid gap-6 md:grid-cols-2">
           <div className="rounded-2xl border border-white/10 bg-[#181B23]/80 p-6">
             <div className="flex items-center gap-3">
@@ -361,16 +304,13 @@ export default async function PassTheHostPage() {
                 className="h-5 w-5 shrink-0 text-[#8BCB6B]"
               />
               <h3 className="text-lg font-semibold text-[#EAEAEA]">
-                Almacenamiento compatible con S3
+                {t.storage.s3Title}
               </h3>
               <span className="shrink-0 whitespace-nowrap rounded-full bg-[#8BCB6B]/15 px-2.5 py-0.5 text-xs text-[#A3D98A]">
-                Más rápido
+                {t.storage.s3Badge}
               </span>
             </div>
-            <p className="mt-2 text-[#A1A1AA]">
-              Conecta cualquier bucket con tus claves de acceso. Es la opción
-              más rápida para subir y bajar tus mundos.
-            </p>
+            <p className="mt-2 text-[#A1A1AA]">{t.storage.s3Text}</p>
             <ul className="mt-5 flex flex-wrap gap-2">
               {providers.map((p) => (
                 <li
@@ -389,37 +329,33 @@ export default async function PassTheHostPage() {
                 Google Drive
               </h3>
               <span className="shrink-0 whitespace-nowrap rounded-full bg-[#8BCB6B]/15 px-2.5 py-0.5 text-xs text-[#A3D98A]">
-                Nuevo
+                {t.storage.driveBadge}
               </span>
             </div>
-            <p className="mt-2 text-[#A1A1AA]">
-              Inicia sesión con Google y comparte la carpeta de un servidor con
-              tus amigos. Cualquiera con acceso podrá hostearlo, sin claves ni
-              buckets.
-            </p>
+            <p className="mt-2 text-[#A1A1AA]">{t.storage.driveText}</p>
             <p className="mt-4 text-sm text-[#A1A1AA]">
-              La app solo usa Drive para guardar los archivos de tus servidores.{" "}
+              {t.storage.driveNote}{" "}
               <Link
-                href="/privacy"
+                href={`/${lang}/privacy`}
                 className="text-[#A3D98A] underline underline-offset-4"
               >
-                Política de privacidad
+                {t.footer.privacy}
               </Link>
             </p>
           </div>
         </div>
       </section>
 
-      {/* Preguntas frecuentes */}
+      {/* FAQ */}
       <section
-        id="preguntas-frecuentes"
+        id="faq"
         className="max-w-3xl mx-auto px-4 sm:px-6 pb-24 scroll-mt-16"
       >
         <h2 className="text-3xl sm:text-4xl font-bold text-[#EAEAEA]">
-          Preguntas frecuentes
+          {t.faq.title}
         </h2>
         <div className="mt-10 divide-y divide-white/10 border-y border-white/10">
-          {faqs.map((f) => (
+          {t.faq.items.map((f) => (
             <details key={f.q} className="group py-5">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold text-[#EAEAEA] [&::-webkit-details-marker]:hidden">
                 <h3>{f.q}</h3>
@@ -447,13 +383,12 @@ export default async function PassTheHostPage() {
             className="mx-auto rounded-full"
           />
           <h2 className="mt-6 text-3xl font-bold text-[#EAEAEA]">
-            Pásale el host a tus amigos
+            {t.cta.title}
           </h2>
-          <p className="mt-3 text-[#A1A1AA]">
-            Descarga la última versión para tu sistema.
-          </p>
+          <p className="mt-3 text-[#A1A1AA]">{t.cta.text}</p>
           <DownloadButton
             downloads={downloads}
+            labels={t.download}
             className="mt-8 inline-flex items-center gap-2 rounded-xl bg-[#8BCB6B] px-5 py-3 font-semibold text-[#0F1115] hover:bg-[#A3D98A] transition-colors"
           >
             <LuDownload aria-hidden className="h-5 w-5" />

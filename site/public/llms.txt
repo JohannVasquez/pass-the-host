@@ -7,13 +7,14 @@
 - Storage: Google Drive, or any S3-compatible bucket (Cloudflare R2, AWS S3, Backblaze B2, DigitalOcean Spaces, MinIO). Pass the host has no servers of its own and never receives your files.
 - Features: built-in server console, differential sync (only changed files are transferred), session statistics (who hosted, when, for how long).
 - Connecting friends: the host shares their public IP (port 25565 forwarded) or everyone joins a VPN such as Hamachi, Radmin VPN, Tailscale or ZeroTier.
-- Price: free. Source code on GitHub.
+- Price: free. Open source under the MIT license.
 - UI languages: Spanish and English.
 
 ## Links
 
-- [Website (Spanish)](https://passthehost.jvdev.cl/)
+- [Website (English)](https://passthehost.jvdev.cl/en)
+- [Website (Spanish)](https://passthehost.jvdev.cl/es)
 - [Download the latest release](https://github.com/JohannVasquez/pass-the-host/releases/latest)
 - [Source code](https://github.com/JohannVasquez/pass-the-host)
-- [Privacy policy](https://passthehost.jvdev.cl/privacy)
+- [Privacy policy](https://passthehost.jvdev.cl/en/privacy)
 - [Author: Johann Vásquez](https://jvdev.cl)
