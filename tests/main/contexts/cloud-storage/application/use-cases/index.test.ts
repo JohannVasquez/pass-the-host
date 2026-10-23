@@ -37,6 +37,9 @@ function createMockRcloneRepository(): IRcloneRepository {
     install: vi.fn(),
     testConnection: vi.fn(),
     getBucketSize: vi.fn(),
+    authorizeDrive: vi.fn(),
+    cancelDriveAuthorization: vi.fn(),
+    shareDriveServer: vi.fn(),
   };
 }
 function createMockS3ServerRepository(): IS3ServerRepository {

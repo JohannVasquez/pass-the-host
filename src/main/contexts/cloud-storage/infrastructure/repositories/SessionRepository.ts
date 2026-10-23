@@ -133,10 +133,13 @@ export class SessionRepository implements ISessionRepository {
     await this.rcloneRepository.ensureConfigured(config);
 
     const rclonePath = this.rcloneRepository.getRclonePath();
-    const configName = this.rcloneRepository.getRcloneConfigName();
     const serverPath = this.getLocalServerPath(serverId);
     const sessionFilePath = path.join(serverPath, "session.json");
-    const r2SessionPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/session.json`;
+    const r2SessionPath = this.rcloneRepository.getServerRemoteFilePath(
+      config,
+      serverId,
+      "session.json",
+    );
 
     if (!fs.existsSync(sessionFilePath)) {
       throw new NotFoundError("Session file", sessionFilePath);

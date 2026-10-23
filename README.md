@@ -75,6 +75,62 @@ docker compose up -d
 
 This automatically creates a test bucket (`MINIO_BUCKET_NAME`) to validate synchronization flows.
 
+## Testing/automating the app with Claude Code (MCP)
+
+The project is configured to be driven from Claude Code using [`electron-test-mcp`](https://github.com/lazy-dinosaur/electron-test-mcp), an MCP server that controls an Electron app over the Chrome DevTools Protocol (CDP) via Playwright.
+
+The server is already registered for this project (local scope, see `claude mcp list`):
+
+```bash
+claude mcp add electron-test-mcp -- npx -y electron-test-mcp
+```
+
+### Option A: attach to a running dev instance (recommended)
+
+1. Start the app in dev mode with remote debugging enabled:
+
+   ```bash
+   pnpm dev:debug
+   ```
+
+   This runs `electron-vite dev --remoteDebuggingPort 9222`, which opens a CDP endpoint on port `9222` for the Electron process.
+
+2. From Claude Code, connect the MCP to that instance:
+
+   ```
+   connect({ port: 9222 })
+   ```
+
+3. Drive the app with the MCP tools (`click`, `fill`, `screenshot`, `snapshot`, `evaluate`, `evaluateMain`, etc.) and close the session with `disconnect()` when done.
+
+### Option B: let the MCP launch the app itself
+
+Instead of running `pnpm dev:debug` manually, you can have the MCP spawn a fresh Electron instance directly:
+
+```
+launch({ path: "." })
+```
+
+(adjust `path` to the built `main` entry, e.g. `./out/main/index.js`, if you want to test a production build instead of the dev server).
+
+### Example test flow
+
+A minimal smoke test to confirm the wiring works, from Claude Code after running `pnpm dev:debug`:
+
+```
+connect({ port: 9222 })
+snapshot()                          # inspect the accessibility tree of the main window
+screenshot()                        # visually confirm the main screen rendered
+click({ selector: "text=Servers" }) # navigate within the renderer UI
+fill({ selector: "#username", value: "test-user" })
+evaluate({ script: "document.title" })              # runs in the renderer (DevTools context)
+evaluateMain({ script: "app.getVersion()" })          # runs in the Electron main process
+screenshot()                        # capture the resulting state
+disconnect()
+```
+
+Adjust selectors to match the actual UI (e.g. the username configuration screen, server list, etc.).
+
 ## Tech stack
 
 - Electron

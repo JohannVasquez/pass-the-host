@@ -21,7 +21,6 @@ import { FileSystemError } from "@shared/domain/errors";
 const MANIFEST_VERSION = 1;
 const MANIFEST_ALGORITHM = "sha1" as const;
 const HASH_CACHE_FILE = ".cloud-sync-manifest-cache.json";
-const REMOTE_MANIFEST_FILE = "manifest.json";
 @injectable()
 export class S3SyncService implements IS3SyncService {
   private readonly ignoredPatterns = [
@@ -134,42 +133,24 @@ export class S3SyncService implements IS3SyncService {
     const remoteManifest = (await this.remoteRepository.readManifest(config, serverId)) ||
       this.createManifest([]);
     const diff = this.diffManifests(localManifest, remoteManifest);
-    const filesToUpload = [...diff.newFiles, ...diff.modifiedFiles];
+    const filesToUpload = [...diff.newFiles, ...diff.modifiedFiles].map((file) => file.path);
+    const deletedRemoteFiles = diff.deletedFiles.map((file) => file.path);
 
-    let completedOperations = 0;
-    const totalOperations = filesToUpload.length + diff.deletedFiles.length + 1;
-
-    const notifyProgress = (processedLabel: string): void => {
-      completedOperations += 1;
-      onProgress?.({
-        percent: this.calculatePercent(completedOperations, totalOperations),
-        transferred: processedLabel,
-        total: `${completedOperations}/${totalOperations} operations`,
-      });
-    };
-
-    for (const file of filesToUpload) {
-      await this.remoteRepository.uploadFile(
-        config,
-        serverId,
-        file.path,
-        path.join(localServerPath, file.path),
-      );
-      notifyProgress(`Uploaded ${file.path}`);
-    }
-
-    for (const file of diff.deletedFiles) {
-      await this.remoteRepository.deleteFile(config, serverId, file.path);
-      notifyProgress(`Deleted ${file.path}`);
-    }
-
+    await this.remoteRepository.uploadFiles(
+      config,
+      serverId,
+      filesToUpload,
+      localServerPath,
+      onProgress,
+    );
+    await this.remoteRepository.deleteFiles(config, serverId, deletedRemoteFiles);
     await this.remoteRepository.uploadManifest(config, serverId, localManifest);
-    notifyProgress(`Uploaded ${REMOTE_MANIFEST_FILE}`);
+    onProgress?.({ percent: 100, transferred: "Complete", total: "Complete" });
 
     return {
-      uploadedFiles: filesToUpload.map((file) => file.path),
+      uploadedFiles: filesToUpload,
       downloadedFiles: [],
-      deletedRemoteFiles: diff.deletedFiles.map((file) => file.path),
+      deletedRemoteFiles,
       deletedLocalFiles: [],
       manifest: localManifest,
     };
@@ -199,38 +180,18 @@ export class S3SyncService implements IS3SyncService {
 
     const localManifest = await this.buildLocalManifest(serverId);
     const diff = this.diffManifests(remoteManifest, localManifest);
-    const filesToDownload = [...diff.newFiles, ...diff.modifiedFiles];
+    const filesToDownload = [...diff.newFiles, ...diff.modifiedFiles].map((file) => file.path);
 
-    let completedOperations = 0;
-    const totalOperations = filesToDownload.length + diff.deletedFiles.length;
-
-    const notifyProgress = (processedLabel: string): void => {
-      if (totalOperations === 0) {
-        onProgress?.({ percent: 100, transferred: processedLabel, total: "0 operations" });
-        return;
-      }
-
-      completedOperations += 1;
-      onProgress?.({
-        percent: this.calculatePercent(completedOperations, totalOperations),
-        transferred: processedLabel,
-        total: `${completedOperations}/${totalOperations} operations`,
-      });
-    };
-
-    for (const file of filesToDownload) {
-      await this.remoteRepository.downloadFile(
-        config,
-        serverId,
-        file.path,
-        path.join(localServerPath, file.path),
-      );
-      notifyProgress(`Downloaded ${file.path}`);
-    }
+    await this.remoteRepository.downloadFiles(
+      config,
+      serverId,
+      filesToDownload,
+      localServerPath,
+      onProgress,
+    );
 
     for (const file of diff.deletedFiles) {
       this.deleteLocalFile(path.join(localServerPath, file.path), localServerPath);
-      notifyProgress(`Deleted ${file.path}`);
     }
 
     this.writeManifestCache(serverId, remoteManifest);
@@ -238,7 +199,7 @@ export class S3SyncService implements IS3SyncService {
 
     return {
       uploadedFiles: [],
-      downloadedFiles: filesToDownload.map((file) => file.path),
+      downloadedFiles: filesToDownload,
       deletedRemoteFiles: [],
       deletedLocalFiles: diff.deletedFiles.map((file) => file.path),
       manifest: remoteManifest,
@@ -340,14 +301,6 @@ export class S3SyncService implements IS3SyncService {
     };
 
     fs.writeFileSync(cachePath, JSON.stringify(cache, null, 2), "utf-8");
-  }
-
-  private calculatePercent(completed: number, total: number): number {
-    if (total <= 0) {
-      return 100;
-    }
-
-    return Math.min(100, Math.round((completed / total) * 100));
   }
 
   private deleteLocalFile(filePath: string, serverRootPath: string): void {
