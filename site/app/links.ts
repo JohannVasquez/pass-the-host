@@ -18,9 +18,18 @@ export async function getDownloads(): Promise<Downloads> {
   try {
     const res = await fetch(
       "https://api.github.com/repos/JohannVasquez/pass-the-host/releases/latest",
-      { next: { revalidate: 3600 } },
+      {
+        // Unauthenticated requests share Vercel's build IPs and hit GitHub's 60/h limit
+        headers: process.env.GITHUB_TOKEN
+          ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }
+          : undefined,
+        next: { revalidate: 3600 },
+      },
     );
-    if (!res.ok) return { version: null };
+    if (!res.ok) {
+      console.error(`GitHub releases request failed: ${res.status}`);
+      return { version: null };
+    }
 
     const release: GitHubRelease = await res.json();
     const find = (ext: string) =>
