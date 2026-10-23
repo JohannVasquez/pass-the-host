@@ -13,6 +13,7 @@ import {
   LuRefreshCw,
   LuTerminal,
 } from "react-icons/lu";
+import { SiGithub } from "react-icons/si";
 import { TbBucket } from "react-icons/tb";
 import { getDictionary } from "../dictionaries";
 import { DownloadButton } from "../DownloadButton";
@@ -182,6 +183,7 @@ export default async function PassTheHostPage({
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-5 py-3 font-semibold text-[#EAEAEA] hover:border-white/25 transition-colors"
             >
+              <SiGithub aria-hidden className="h-5 w-5" />
               {t.hero.github}
             </a>
           </div>
