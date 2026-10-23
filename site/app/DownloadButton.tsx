@@ -18,6 +18,7 @@ function detectOS(): OS | null {
 
 interface DownloadButtonProps {
   downloads: Downloads;
+  labels: { label: string; labelFor: string };
   className: string;
   showOS?: boolean;
   children?: React.ReactNode;
@@ -26,6 +27,7 @@ interface DownloadButtonProps {
 // Falls back to the GitHub releases page until the OS is known (SSR, mobile, unknown).
 export function DownloadButton({
   downloads,
+  labels,
   className,
   showOS = true,
   children,
@@ -38,7 +40,9 @@ export function DownloadButton({
   return (
     <a href={url ?? DOWNLOAD_URL} className={className}>
       {children}
-      {url && os && showOS ? `Descargar para ${OS_LABEL[os]}` : "Descargar"}
+      {url && os && showOS
+        ? labels.labelFor.replace("{os}", OS_LABEL[os])
+        : labels.label}
     </a>
   );
 }
