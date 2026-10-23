@@ -165,6 +165,27 @@ export class GetBucketSizeUseCase {
   }
 }
 @injectable()
+export class AuthorizeGoogleDriveUseCase {
+  constructor(private rcloneRepository: IRcloneRepository) {}
+  async execute(): Promise<string> {
+    return await this.rcloneRepository.authorizeDrive();
+  }
+}
+@injectable()
+export class CancelGoogleDriveAuthorizationUseCase {
+  constructor(private rcloneRepository: IRcloneRepository) {}
+  execute(): void {
+    this.rcloneRepository.cancelDriveAuthorization();
+  }
+}
+@injectable()
+export class ShareGoogleDriveServerUseCase {
+  constructor(private rcloneRepository: IRcloneRepository) {}
+  async execute(config: S3Config, serverId: string, email: string): Promise<void> {
+    return await this.rcloneRepository.shareDriveServer(config, serverId, email);
+  }
+}
+@injectable()
 export class GetServerSizeUseCase {
   constructor(private s3ServerRepository: IS3ServerRepository) {}
   async execute(config: S3Config, serverId: string): Promise<number> {

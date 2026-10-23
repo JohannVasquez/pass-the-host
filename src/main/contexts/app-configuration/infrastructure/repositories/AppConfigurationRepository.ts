@@ -10,6 +10,10 @@ import {
   ConfigSaveResult,
 } from "@main/contexts/app-configuration/domain/entities";
 import { FileSystemError } from "@shared/domain/errors";
+import {
+  saveStorageProfile,
+  withStorageProfiles,
+} from "@main/contexts/app-configuration/domain/utils/storageProfiles";
 
 @injectable()
 export class AppConfigurationRepository implements IAppConfigurationRepository {
@@ -56,7 +60,7 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
 
         // Return the config with s3 property
         return {
-          s3: s3Config,
+          s3: withStorageProfiles(s3Config),
           server: fileContent.server || this.createDefaultServerConfig(),
           app: appSettings,
         };
@@ -110,8 +114,8 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
         };
       }
 
-      // Update S3 config (migrate from r2 to s3 if needed)
-      config.s3 = { ...config.s3, ...s3Config };
+      // Update S3 config (migrate from r2 to s3 if needed), keeping other providers' profiles
+      config.s3 = saveStorageProfile(config.s3 ?? {}, s3Config);
       // Remove legacy r2 property if it exists
       if ("r2" in config) {
         delete config.r2;

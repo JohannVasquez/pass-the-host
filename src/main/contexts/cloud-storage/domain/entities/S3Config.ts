@@ -1,4 +1,11 @@
-export type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other";
+export type S3Provider =
+  | "AWS"
+  | "Cloudflare"
+  | "MinIO"
+  | "Backblaze"
+  | "DigitalOcean"
+  | "Other"
+  | "GoogleDrive";
 
 export interface S3Config {
   provider: S3Provider;
@@ -7,6 +14,8 @@ export interface S3Config {
   access_key: string;
   secret_key: string;
   bucket_name: string;
+  /** OAuth token JSON from `rclone authorize drive` (GoogleDrive provider only). */
+  drive_token?: string;
 }
 
 export interface ServerInfo {

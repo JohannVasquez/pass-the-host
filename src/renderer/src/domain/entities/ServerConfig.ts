@@ -1,4 +1,11 @@
-export type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other";
+export type S3Provider =
+  | "AWS"
+  | "Cloudflare"
+  | "MinIO"
+  | "Backblaze"
+  | "DigitalOcean"
+  | "Other"
+  | "GoogleDrive";
 
 export interface S3Config {
   provider: S3Provider;
@@ -7,7 +14,35 @@ export interface S3Config {
   access_key: string;
   secret_key: string;
   bucket_name: string;
+  /** OAuth token JSON from `rclone authorize drive` (GoogleDrive provider only). */
+  drive_token?: string;
+  /** Saved settings of every provider used, so switching provider doesn't overwrite them. */
+  profiles?: Partial<Record<S3Provider, StorageProfile>>;
 }
+
+export type StorageProfile = Partial<Omit<S3Config, "provider" | "profiles">>;
+
+export function toStorageProfile(config: S3Config): StorageProfile {
+  return {
+    endpoint: config.endpoint,
+    region: config.region,
+    access_key: config.access_key,
+    secret_key: config.secret_key,
+    bucket_name: config.bucket_name,
+    drive_token: config.drive_token,
+  };
+}
+
+/** Display name of each provider, shown in the provider picker and in logs. */
+export const PROVIDER_LABELS: Record<S3Provider, string> = {
+  AWS: "Amazon S3",
+  Cloudflare: "Cloudflare R2",
+  MinIO: "MinIO",
+  Backblaze: "Backblaze B2",
+  DigitalOcean: "DigitalOcean Spaces",
+  Other: "S3",
+  GoogleDrive: "Google Drive",
+};
 
 /** @deprecated Use S3Config instead */
 export type R2Config = S3Config;

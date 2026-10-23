@@ -107,6 +107,23 @@ export class StartManagedServerUseCase {
       return;
     }
 
+    this.rejectLockedServer(lockInfo);
+  }
+
+  // Two clients can both pass ensureServerUnlocked while downloading. Re-reading after the
+  // upload lets the one that lost the race back off. ponytail: narrows the race, doesn't close
+  // it (Drive can keep duplicate server.lock files); a real fix needs a conditional write.
+  private async ensureLockOwned(request: StartManagedServerRequest): Promise<void> {
+    const lockInfo = await this.dependencies.readLock(request.s3Config, request.serverId);
+
+    if (!lockInfo.exists || lockInfo.username === request.username) {
+      return;
+    }
+
+    this.rejectLockedServer(lockInfo);
+  }
+
+  private rejectLockedServer(lockInfo: { username?: string; startedAt?: string }): never {
     this.presenter.log(`Server is locked by ${lockInfo.username}`, "error");
     this.presenter.setLockedServerInfo({
       username: lockInfo.username || "Unknown",
@@ -203,6 +220,7 @@ export class StartManagedServerUseCase {
 
     if (uploadLockSuccess) {
       this.presenter.log("Lock uploaded to cloud storage", "info");
+      await this.ensureLockOwned(request);
       return;
     }
 

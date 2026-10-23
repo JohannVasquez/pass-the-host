@@ -31,6 +31,9 @@ import {
   WriteServerPortUseCase,
   GetBucketSizeUseCase,
   GetServerSizeUseCase,
+  AuthorizeGoogleDriveUseCase,
+  ShareGoogleDriveServerUseCase,
+  CancelGoogleDriveAuthorizationUseCase,
 } from "@main/contexts/cloud-storage/application/use-cases";
 import { registerServerLifecycleIPCHandlers } from "@main/contexts/server-lifecycle/infrastructure/ipc";
 import { registerSystemResourcesIPCHandlers } from "@main/contexts/system-resources/infrastructure/ipc";
@@ -298,6 +301,9 @@ if (!gotTheLock) {
       container.get(WriteServerPortUseCase),
       container.get(GetBucketSizeUseCase),
       container.get(GetServerSizeUseCase),
+      container.get(AuthorizeGoogleDriveUseCase),
+      container.get(ShareGoogleDriveServerUseCase),
+      container.get(CancelGoogleDriveAuthorizationUseCase),
     );
     cloudStorageIPCHandlers.register();
     logger.info("Cloud Storage IPC handlers registered");
