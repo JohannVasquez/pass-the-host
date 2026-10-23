@@ -31,6 +31,7 @@ import { ServerExistsModal } from "./presentation/components/ServerExistsModal";
 import { DeleteServerModal } from "./presentation/components/DeleteServerModal";
 import { ShareServerModal } from "./presentation/components/ShareServerModal";
 import { EditServerModal } from "./presentation/components/EditServerModal";
+import { UsernameRequiredModal } from "./presentation/components/UsernameRequiredModal";
 import { ServerStatus, canTransitionServerStatus } from "./domain/entities/ServerStatus";
 import {
   PROVIDER_LABELS,
@@ -1141,7 +1142,7 @@ function AppContent(): React.JSX.Element {
     setServerPort(port);
   };
 
-  const handleSaveUsername = async (newUsername: string): Promise<void> => {
+  const handleSaveUsername = async (newUsername: string): Promise<boolean> => {
     const success = await window.configAPI.saveUsername(newUsername);
     if (success) {
       setUsername(newUsername);
@@ -1163,6 +1164,7 @@ function AppContent(): React.JSX.Element {
         },
       ]);
     }
+    return success;
   };
 
   const handleRamConfigChange = async (newRamConfig: RamConfig): Promise<void> => {
@@ -2154,6 +2156,8 @@ function AppContent(): React.JSX.Element {
           onClose={() => setIsDeleteServerModalOpen(false)}
           onConfirm={handleConfirmDeleteServer}
         />
+
+        <UsernameRequiredModal open={configLoaded && !username} onSave={handleSaveUsername} />
 
         <EditServerModal
           open={isEditServerModalOpen}

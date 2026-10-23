@@ -131,6 +131,13 @@ export const en = {
       placeholder: "Enter your nickname",
       notSet: "Not set",
     },
+    usernameRequiredModal: {
+      title: "What's your name?",
+      description:
+        "Before you start, pick a username. Your friends will see it while you're hosting a server.",
+      save: "Continue",
+      error: "Couldn't save your username. Please try again.",
+    },
     releaseLockModal: {
       title: "Release Server Lock",
       warningTitle: "Warning: Critical Action",

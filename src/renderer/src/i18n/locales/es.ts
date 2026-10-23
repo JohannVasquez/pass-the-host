@@ -135,6 +135,13 @@ export const es = {
       placeholder: "Ingresa tu apodo",
       notSet: "No configurado",
     },
+    usernameRequiredModal: {
+      title: "¿Cómo te llamas?",
+      description:
+        "Antes de empezar, elige un nombre de usuario. Tus amigos lo verán cuando estés hosteando un servidor.",
+      save: "Continuar",
+      error: "No se pudo guardar el nombre. Inténtalo de nuevo.",
+    },
     releaseLockModal: {
       title: "Liberar Lock del Servidor",
       warningTitle: "Advertencia: Acción Crítica",
