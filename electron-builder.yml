@@ -19,6 +19,16 @@ nsis:
   createDesktopShortcut: always
   installerIcon: resources/icon.ico
   uninstallerIcon: resources/icon.ico
+# Microsoft Store package: identity values come from Partner Center → Product identity
+appx:
+  applicationId: PassTheHost
+  displayName: "Pass the host"
+  identityName: JohannV.Dev.Passthehost
+  publisher: CN=95840A7B-6A6C-4FA6-BCFA-C147C7886902
+  publisherDisplayName: "Johann V. Dev"
+  languages:
+    - en-US
+    - es-ES
 mac:
   icon: resources/icon.icns
   entitlementsInherit: build/entitlements.mac.plist
