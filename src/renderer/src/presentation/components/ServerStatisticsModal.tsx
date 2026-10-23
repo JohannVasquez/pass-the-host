@@ -166,6 +166,10 @@ export const ServerStatisticsModal: React.FC<ServerStatisticsModalProps> = ({
                   pagination: {
                     paginationModel: { pageSize: 5, page: 0 },
                   },
+                  // Newest first; startTime is an ISO string, so it sorts chronologically
+                  sorting: {
+                    sortModel: [{ field: "startTime", sort: "desc" }],
+                  },
                 }}
                 pageSizeOptions={[5, 10, 25]}
                 disableRowSelectionOnClick
