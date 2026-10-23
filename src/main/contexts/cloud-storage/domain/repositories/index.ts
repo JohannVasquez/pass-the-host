@@ -224,4 +224,34 @@ export interface IServerPropertiesRepository {
    * Write server port to server.properties
    */
   writePort(serverId: string, port: number): boolean;
+
+  /**
+   * Read every key/value pair from server.properties
+   */
+  readAll(serverId: string): Record<string, string>;
+
+  /**
+   * Update the given keys in server.properties, keeping comments and order
+   */
+  writeAll(serverId: string, properties: Record<string, string>): boolean;
+
+  /**
+   * Read whitelist.json (empty when missing)
+   */
+  readWhitelist(serverId: string): WhitelistEntry[];
+
+  /**
+   * Replace whitelist.json
+   */
+  writeWhitelist(serverId: string, entries: WhitelistEntry[]): boolean;
+
+  /**
+   * Resolve a player's UUID (Mojang in online mode, offline UUID otherwise); null if not found
+   */
+  lookupPlayer(name: string, onlineMode: boolean): Promise<WhitelistEntry | null>;
+}
+
+export interface WhitelistEntry {
+  uuid: string;
+  name: string;
 }
