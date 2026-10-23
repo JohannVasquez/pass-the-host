@@ -246,9 +246,6 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
                   {t("s3Configuration.driveError")}
                 </Typography>
               )}
-              <Typography variant="caption" color="text.secondary">
-                {t("s3Configuration.driveHelp")}
-              </Typography>
               {/* Uses the saved config: sharing needs the stored Google session, not unsaved edits. */}
               <Button
                 variant="outlined"
