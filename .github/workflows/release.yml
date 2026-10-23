@@ -96,3 +96,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MAIN_VITE_GDRIVE_CLIENT_ID: ${{ secrets.MAIN_VITE_GDRIVE_CLIENT_ID }}
           MAIN_VITE_GDRIVE_CLIENT_SECRET: ${{ secrets.MAIN_VITE_GDRIVE_CLIENT_SECRET }}
+
+  publish-release:
+    name: Publish Release
+    needs: [release, build-matrix]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Publish draft release
+        run: gh release edit v${{ needs.release.outputs.new_release_version }} --repo ${{ github.repository }} --draft=false --latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
