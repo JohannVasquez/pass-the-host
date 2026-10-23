@@ -3,6 +3,7 @@ import { app } from "electron";
 import * as path from "path";
 import * as fs from "fs";
 import * as https from "https";
+import { createHash } from "crypto";
 import { execFile, execSync } from "child_process";
 import { promisify } from "util";
 import { IRcloneRepository } from "@main/contexts/cloud-storage/domain/repositories";
@@ -19,17 +20,15 @@ const execFileAsync = promisify(execFile);
 @injectable()
 export class RcloneRepository implements IRcloneRepository {
   private isInstalling = false;
-  // Keyed by remote name: each remote is configured independently.
-  private readonly configuredRemoteSignatures = new Map<string, string>();
-  private readonly configuringRemotePromises = new Map<string, Promise<void>>();
+  private readonly configuredRemotes = new Set<string>();
+  private readonly configuringRemotes = new Map<string, Promise<void>>();
+  private staleRemotesPruned: Promise<void> | null = null;
   private readonly RCLONE_VERSION = "v1.65.0";
   private readonly RCLONE_DIR = path.join(app.getPath("userData"), "rclone");
   private readonly RCLONE_EXECUTABLE = process.platform === "win32" ? "rclone.exe" : "rclone";
   private readonly RCLONE_PATH = path.join(this.RCLONE_DIR, this.RCLONE_EXECUTABLE);
-  // One remote per backend: switching provider must not reconfigure a remote that requests
-  // made with the other provider's config are still using.
-  private readonly S3_REMOTE_NAME = "pass-the-host-s3";
-  private readonly DRIVE_REMOTE_NAME = "pass-the-host-gdrive";
+  // Every remote this app creates starts with this; see getRemoteName.
+  private readonly REMOTE_PREFIX = "pass-the-host-";
   private readonly DRIVE_AUTHORIZE_TIMEOUT_MS = 5 * 60 * 1000;
   // serverId -> Drive folder ID of servers shared with this account. Filled by listSharedDriveServers.
   // ponytail: in-memory only, so the server list must load before syncing a shared server.
@@ -148,9 +147,10 @@ export class RcloneRepository implements IRcloneRepository {
   async testConnection(config: S3Config): Promise<boolean> {
     try {
       await this.ensureConfigured(config);
+      const remoteName = this.getRemoteName(config);
       const target = this.isDrive(config)
-        ? `${this.DRIVE_REMOTE_NAME}:`
-        : `${this.S3_REMOTE_NAME}:${config.bucket_name}`;
+        ? `${remoteName}:`
+        : `${remoteName}:${config.bucket_name}`;
       await this.runRclone(["lsd", target]);
       return true;
     } catch (error) {
@@ -182,39 +182,53 @@ export class RcloneRepository implements IRcloneRepository {
   }
 
   async ensureConfigured(config: S3Config): Promise<void> {
-    const remoteName = this.getRemoteName(config);
-    const signature = this.buildRemoteSignature(config);
+    await (this.staleRemotesPruned ??= this.pruneStaleRemotes());
 
-    if (this.configuredRemoteSignatures.get(remoteName) === signature) {
+    const remoteName = this.getRemoteName(config);
+    if (this.configuredRemotes.has(remoteName)) {
       return;
     }
 
-    const inFlight = this.configuringRemotePromises.get(remoteName);
+    // Same name means same config, so a configure already running is all we need.
+    const inFlight = this.configuringRemotes.get(remoteName);
     if (inFlight) {
-      await inFlight;
-
-      if (this.configuredRemoteSignatures.get(remoteName) === signature) {
-        return;
-      }
+      return await inFlight;
     }
 
-    const configuring = this.configureRemote(config, remoteName, signature);
-    this.configuringRemotePromises.set(remoteName, configuring);
+    const configuring = this.configureRemote(config, remoteName);
+    this.configuringRemotes.set(remoteName, configuring);
 
     try {
       await configuring;
     } finally {
-      if (this.configuringRemotePromises.get(remoteName) === configuring) {
-        this.configuringRemotePromises.delete(remoteName);
-      }
+      this.configuringRemotes.delete(remoteName);
     }
   }
 
-  private async configureRemote(
-    config: S3Config,
-    remoteName: string,
-    signature: string,
-  ): Promise<void> {
+  /**
+   * Drops the remotes earlier runs left in rclone.conf (old keys and tokens). Runs once, and
+   * every ensureConfigured waits for it, so no request of this process can be using them.
+   */
+  private async pruneStaleRemotes(): Promise<void> {
+    try {
+      const { stdout } = await this.runRclone(["listremotes"]);
+      const staleRemotes = stdout
+        .split("\n")
+        .map((line) => line.trim().replace(/:$/, ""))
+        .filter((name) => name.startsWith(this.REMOTE_PREFIX));
+
+      for (const remoteName of staleRemotes) {
+        await this.deleteExistingRemote(remoteName);
+      }
+    } catch (error) {
+      // Best effort: a stale entry only wastes a line in rclone.conf.
+      console.warn(
+        `[RCLONE] Could not prune stale remotes: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  private async configureRemote(config: S3Config, remoteName: string): Promise<void> {
     try {
       const configArgs = this.isDrive(config)
         ? this.buildDriveConfigArgs(config, remoteName)
@@ -222,9 +236,8 @@ export class RcloneRepository implements IRcloneRepository {
 
       await this.deleteExistingRemote(remoteName);
       await this.runRclone(configArgs);
-      this.configuredRemoteSignatures.set(remoteName, signature);
+      this.configuredRemotes.add(remoteName);
     } catch (error) {
-      this.configuredRemoteSignatures.delete(remoteName);
       throw new ExternalServiceError(
         "Rclone",
         `Failed to configure ${config.provider} remote: ${error instanceof Error ? error.message : String(error)}`,
@@ -342,15 +355,15 @@ export class RcloneRepository implements IRcloneRepository {
   /** Remote directory that holds this account's own servers. */
   getRemoteRoot(config: S3Config): string {
     return this.isDrive(config)
-      ? `${this.DRIVE_REMOTE_NAME}:pass_the_host`
-      : `${this.S3_REMOTE_NAME}:${config.bucket_name}/pass_the_host`;
+      ? `${this.getRemoteName(config)}:pass_the_host`
+      : `${this.getRemoteName(config)}:${config.bucket_name}/pass_the_host`;
   }
 
   /** Remote directory of one server. Shared Drive servers are addressed by folder ID. */
   getServerRemotePath(config: S3Config, serverId: string): string {
     const sharedFolderId = this.isDrive(config) ? this.sharedDriveFolders.get(serverId) : undefined;
     return sharedFolderId
-      ? this.driveFolderRemote(sharedFolderId)
+      ? this.driveFolderRemote(config, sharedFolderId)
       : `${this.getRemoteRoot(config)}/${serverId}`;
   }
 
@@ -375,7 +388,7 @@ export class RcloneRepository implements IRcloneRepository {
 
     let sharedFolders: Array<{ Name: string; ID: string }>;
     try {
-      sharedFolders = await this.listDriveFolders(`${this.DRIVE_REMOTE_NAME},shared_with_me:`);
+      sharedFolders = await this.listDriveFolders(`${this.getRemoteName(config)},shared_with_me:`);
     } catch (error) {
       // Own servers must still load if "Shared with me" can't be read.
       console.warn(`[DRIVE] Could not list shared folders: ${error instanceof Error ? error.message : String(error)}`);
@@ -386,9 +399,9 @@ export class RcloneRepository implements IRcloneRepository {
       await Promise.all(
         sharedFolders.map(async (folder) => {
           if (folder.Name === "pass_the_host") {
-            return await this.listDriveFolders(this.driveFolderRemote(folder.ID));
+            return await this.listDriveFolders(this.driveFolderRemote(config, folder.ID));
           }
-          return (await this.isDriveServerFolder(folder.ID)) ? [folder] : [];
+          return (await this.isDriveServerFolder(config, folder.ID)) ? [folder] : [];
         }),
       )
     ).flat();
@@ -504,9 +517,13 @@ export class RcloneRepository implements IRcloneRepository {
     );
   }
 
-  private async isDriveServerFolder(folderId: string): Promise<boolean> {
+  private async isDriveServerFolder(config: S3Config, folderId: string): Promise<boolean> {
     try {
-      const { stdout } = await this.runRclone(["lsf", this.driveFolderRemote(folderId), "--files-only"]);
+      const { stdout } = await this.runRclone([
+        "lsf",
+        this.driveFolderRemote(config, folderId),
+        "--files-only",
+      ]);
       const files = stdout.split("\n");
       return files.includes("manifest.json") || files.includes("server.properties");
     } catch {
@@ -514,12 +531,18 @@ export class RcloneRepository implements IRcloneRepository {
     }
   }
 
-  private driveFolderRemote(folderId: string): string {
-    return `${this.DRIVE_REMOTE_NAME},root_folder_id=${folderId}:`;
+  private driveFolderRemote(config: S3Config, folderId: string): string {
+    return `${this.getRemoteName(config)},root_folder_id=${folderId}:`;
   }
 
+  /**
+   * One rclone remote per distinct config (the name embeds a hash of it). A request always
+   * runs on the remote built from its own config, so saving another config while requests
+   * are in flight can no longer redirect them to a different bucket or provider.
+   */
   private getRemoteName(config: S3Config): string {
-    return this.isDrive(config) ? this.DRIVE_REMOTE_NAME : this.S3_REMOTE_NAME;
+    const hash = createHash("sha256").update(this.buildRemoteSignature(config)).digest("hex");
+    return `${this.REMOTE_PREFIX}${this.isDrive(config) ? "gdrive" : "s3"}-${hash.slice(0, 10)}`;
   }
 
   private isDrive(config: S3Config): boolean {
