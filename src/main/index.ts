@@ -207,7 +207,8 @@ function createWindow(): void {
     mainWindow?.show();
     // Check for updates when window is ready
     if (!is.dev) {
-      autoUpdater.checkForUpdatesAndNotify();
+      // Store installs are read-only and updated by the Store itself
+      if (!process.windowsStore) autoUpdater.checkForUpdatesAndNotify();
     }
   });
   mainWindow.webContents.setWindowOpenHandler((details) => {

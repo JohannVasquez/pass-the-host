@@ -99,6 +99,20 @@ jobs:
           MAIN_VITE_GDRIVE_CLIENT_ID: ${{ secrets.MAIN_VITE_GDRIVE_CLIENT_ID }}
           MAIN_VITE_GDRIVE_CLIENT_SECRET: ${{ secrets.MAIN_VITE_GDRIVE_CLIENT_SECRET }}
 
+      # Microsoft Store package: kept out of the GitHub release, uploaded by hand to Partner Center
+      - name: Build Store package
+        if: matrix.os == 'windows-latest'
+        continue-on-error: true
+        run: pnpm exec electron-builder --win appx --publish never
+
+      - name: Upload Store package
+        if: matrix.os == 'windows-latest'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-appx
+          path: dist/*.appx
+
   publish-release:
     name: Publish Release
     needs: [release, build-matrix]
