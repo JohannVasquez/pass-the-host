@@ -32,6 +32,7 @@ const es = {
     github: "Ver en GitHub",
     platforms: "Windows · macOS (Apple Silicon) · Linux",
     allDownloads: "Todas las descargas",
+    downloadCount: "{n} descargas",
     screenshotAlt:
       "Pantalla principal de Pass the host con el control del servidor y la consola",
   },
@@ -194,6 +195,7 @@ const en: typeof es = {
     github: "View on GitHub",
     platforms: "Windows · macOS (Apple Silicon) · Linux",
     allDownloads: "All downloads",
+    downloadCount: "{n} downloads",
     screenshotAlt:
       "Pass the host main screen with the server controls and the console",
   },
