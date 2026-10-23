@@ -5,6 +5,7 @@ import {
   IServerLockRepository,
   ISessionRepository,
   IServerPropertiesRepository,
+  WhitelistEntry,
 } from "@main/contexts/cloud-storage/domain/repositories";
 import {
   S3Config,
@@ -155,6 +156,41 @@ export class WriteServerPortUseCase {
   constructor(private serverPropertiesRepository: IServerPropertiesRepository) {}
   execute(serverId: string, port: number): boolean {
     return this.serverPropertiesRepository.writePort(serverId, port);
+  }
+}
+@injectable()
+export class ReadServerPropertiesUseCase {
+  constructor(private serverPropertiesRepository: IServerPropertiesRepository) {}
+  execute(serverId: string): Record<string, string> {
+    return this.serverPropertiesRepository.readAll(serverId);
+  }
+}
+@injectable()
+export class WriteServerPropertiesUseCase {
+  constructor(private serverPropertiesRepository: IServerPropertiesRepository) {}
+  execute(serverId: string, properties: Record<string, string>): boolean {
+    return this.serverPropertiesRepository.writeAll(serverId, properties);
+  }
+}
+@injectable()
+export class ReadWhitelistUseCase {
+  constructor(private serverPropertiesRepository: IServerPropertiesRepository) {}
+  execute(serverId: string): WhitelistEntry[] {
+    return this.serverPropertiesRepository.readWhitelist(serverId);
+  }
+}
+@injectable()
+export class WriteWhitelistUseCase {
+  constructor(private serverPropertiesRepository: IServerPropertiesRepository) {}
+  execute(serverId: string, entries: WhitelistEntry[]): boolean {
+    return this.serverPropertiesRepository.writeWhitelist(serverId, entries);
+  }
+}
+@injectable()
+export class LookupPlayerUseCase {
+  constructor(private serverPropertiesRepository: IServerPropertiesRepository) {}
+  async execute(name: string, onlineMode: boolean): Promise<WhitelistEntry | null> {
+    return await this.serverPropertiesRepository.lookupPlayer(name, onlineMode);
   }
 }
 @injectable()

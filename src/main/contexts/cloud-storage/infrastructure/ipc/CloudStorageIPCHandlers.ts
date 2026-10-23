@@ -20,6 +20,11 @@ import {
   GetServerStatisticsUseCase,
   ReadServerPortUseCase,
   WriteServerPortUseCase,
+  ReadServerPropertiesUseCase,
+  WriteServerPropertiesUseCase,
+  ReadWhitelistUseCase,
+  WriteWhitelistUseCase,
+  LookupPlayerUseCase,
   GetBucketSizeUseCase,
   GetServerSizeUseCase,
   AuthorizeGoogleDriveUseCase,
@@ -27,6 +32,7 @@ import {
   CancelGoogleDriveAuthorizationUseCase,
 } from "@main/contexts/cloud-storage/application/use-cases";
 import type { S3Config } from "@main/contexts/cloud-storage/domain/entities";
+import type { WhitelistEntry } from "@main/contexts/cloud-storage/domain/repositories";
 
 export class CloudStorageIPCHandlers {
   constructor(
@@ -49,6 +55,11 @@ export class CloudStorageIPCHandlers {
     private getServerStatisticsUseCase: GetServerStatisticsUseCase,
     private readServerPortUseCase: ReadServerPortUseCase,
     private writeServerPortUseCase: WriteServerPortUseCase,
+    private readServerPropertiesUseCase: ReadServerPropertiesUseCase,
+    private writeServerPropertiesUseCase: WriteServerPropertiesUseCase,
+    private readWhitelistUseCase: ReadWhitelistUseCase,
+    private writeWhitelistUseCase: WriteWhitelistUseCase,
+    private lookupPlayerUseCase: LookupPlayerUseCase,
     private getBucketSizeUseCase: GetBucketSizeUseCase,
     private getServerSizeUseCase: GetServerSizeUseCase,
     private authorizeGoogleDriveUseCase: AuthorizeGoogleDriveUseCase,
@@ -274,6 +285,47 @@ export class CloudStorageIPCHandlers {
       "server:write-port",
       this.handleIPC("writePort", async (_event, serverId: string, port: number) => {
         return this.writeServerPortUseCase.execute(serverId, port);
+      }),
+    );
+
+    ipcMain.handle(
+      "server:read-properties",
+      this.handleIPC("readProperties", async (_event, serverId: string) => {
+        return this.readServerPropertiesUseCase.execute(serverId);
+      }),
+    );
+
+    ipcMain.handle(
+      "server:write-properties",
+      this.handleIPC(
+        "writeProperties",
+        async (_event, serverId: string, properties: Record<string, string>) => {
+          return this.writeServerPropertiesUseCase.execute(serverId, properties);
+        },
+      ),
+    );
+
+    ipcMain.handle(
+      "server:read-whitelist",
+      this.handleIPC("readWhitelist", async (_event, serverId: string) => {
+        return this.readWhitelistUseCase.execute(serverId);
+      }),
+    );
+
+    ipcMain.handle(
+      "server:write-whitelist",
+      this.handleIPC(
+        "writeWhitelist",
+        async (_event, serverId: string, entries: WhitelistEntry[]) => {
+          return this.writeWhitelistUseCase.execute(serverId, entries);
+        },
+      ),
+    );
+
+    ipcMain.handle(
+      "server:lookup-player",
+      this.handleIPC("lookupPlayer", async (_event, name: string, onlineMode: boolean) => {
+        return await this.lookupPlayerUseCase.execute(name, onlineMode);
       }),
     );
 

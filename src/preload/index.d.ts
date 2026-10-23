@@ -89,6 +89,11 @@ interface ServerAPI {
   deleteLocalLock: (serverId: string) => Promise<{ success: boolean; existed: boolean }>;
   readPort: (serverId: string) => Promise<number>;
   writePort: (serverId: string, port: number) => Promise<boolean>;
+  readProperties: (serverId: string) => Promise<Record<string, string>>;
+  writeProperties: (serverId: string, properties: Record<string, string>) => Promise<boolean>;
+  readWhitelist: (serverId: string) => Promise<Array<{ uuid: string; name: string }>>;
+  writeWhitelist: (serverId: string, entries: Array<{ uuid: string; name: string }>) => Promise<boolean>;
+  lookupPlayer: (name: string, onlineMode: boolean) => Promise<{ uuid: string; name: string } | null>;
   getLocalServerPath: (serverId: string) => Promise<string>;
   spawnServerProcess: (
     serverId: string,
