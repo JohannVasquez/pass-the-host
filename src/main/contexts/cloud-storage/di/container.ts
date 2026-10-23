@@ -35,6 +35,11 @@ import {
   GetServerStatisticsUseCase,
   ReadServerPortUseCase,
   WriteServerPortUseCase,
+  ReadServerPropertiesUseCase,
+  WriteServerPropertiesUseCase,
+  ReadWhitelistUseCase,
+  WriteWhitelistUseCase,
+  LookupPlayerUseCase,
   GetBucketSizeUseCase,
   GetServerSizeUseCase,
   AuthorizeGoogleDriveUseCase,
@@ -203,6 +208,36 @@ export function configureCloudStorageContext(container: Container): void {
 
   container.bind<WriteServerPortUseCase>(WriteServerPortUseCase).toDynamicValue(() => {
     return new WriteServerPortUseCase(
+      container.get<IServerPropertiesRepository>(TYPES.ServerPropertiesRepository),
+    );
+  });
+
+  container.bind<ReadServerPropertiesUseCase>(ReadServerPropertiesUseCase).toDynamicValue(() => {
+    return new ReadServerPropertiesUseCase(
+      container.get<IServerPropertiesRepository>(TYPES.ServerPropertiesRepository),
+    );
+  });
+
+  container.bind<WriteServerPropertiesUseCase>(WriteServerPropertiesUseCase).toDynamicValue(() => {
+    return new WriteServerPropertiesUseCase(
+      container.get<IServerPropertiesRepository>(TYPES.ServerPropertiesRepository),
+    );
+  });
+
+  container.bind<ReadWhitelistUseCase>(ReadWhitelistUseCase).toDynamicValue(() => {
+    return new ReadWhitelistUseCase(
+      container.get<IServerPropertiesRepository>(TYPES.ServerPropertiesRepository),
+    );
+  });
+
+  container.bind<WriteWhitelistUseCase>(WriteWhitelistUseCase).toDynamicValue(() => {
+    return new WriteWhitelistUseCase(
+      container.get<IServerPropertiesRepository>(TYPES.ServerPropertiesRepository),
+    );
+  });
+
+  container.bind<LookupPlayerUseCase>(LookupPlayerUseCase).toDynamicValue(() => {
+    return new LookupPlayerUseCase(
       container.get<IServerPropertiesRepository>(TYPES.ServerPropertiesRepository),
     );
   });

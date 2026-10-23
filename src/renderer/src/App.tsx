@@ -30,6 +30,7 @@ import { CreateServerModal } from "./presentation/components/CreateServerModal";
 import { ServerExistsModal } from "./presentation/components/ServerExistsModal";
 import { DeleteServerModal } from "./presentation/components/DeleteServerModal";
 import { ShareServerModal } from "./presentation/components/ShareServerModal";
+import { EditServerModal } from "./presentation/components/EditServerModal";
 import { ServerStatus, canTransitionServerStatus } from "./domain/entities/ServerStatus";
 import {
   PROVIDER_LABELS,
@@ -158,6 +159,7 @@ function AppContent(): React.JSX.Element {
     type: "vanilla" | "forge" | "neoforge";
   } | null>(null);
   const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = React.useState<boolean>(false);
+  const [isEditServerModalOpen, setIsEditServerModalOpen] = React.useState<boolean>(false);
   const [isShareServerModalOpen, setIsShareServerModalOpen] = React.useState<boolean>(false);
   const [totalBucketSize, setTotalBucketSize] = React.useState<number>(0);
   const [selectedServerSize, setSelectedServerSize] = React.useState<number>(0);
@@ -1681,7 +1683,7 @@ function AppContent(): React.JSX.Element {
   };
 
   const handleEditProperties = (): void => {
-    console.debug("Opening server.properties editor");
+    setIsEditServerModalOpen(true);
   };
 
   const handleOpenServerFolder = async (): Promise<void> => {
@@ -2151,6 +2153,14 @@ function AppContent(): React.JSX.Element {
           cloudSyncEnabled={isCloudSyncEnabled}
           onClose={() => setIsDeleteServerModalOpen(false)}
           onConfirm={handleConfirmDeleteServer}
+        />
+
+        <EditServerModal
+          open={isEditServerModalOpen}
+          serverId={selectedServer}
+          isRunning={serverStatus === ServerStatus.RUNNING}
+          onClose={() => setIsEditServerModalOpen(false)}
+          onSaved={() => appendLog("server.properties updated", "success")}
         />
 
         <ShareServerModal

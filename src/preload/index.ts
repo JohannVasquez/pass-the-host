@@ -142,6 +142,18 @@ const serverAPI = {
   readPort: (serverId: string): Promise<number> => ipcRenderer.invoke("server:read-port", serverId),
   writePort: (serverId: string, port: number): Promise<boolean> =>
     ipcRenderer.invoke("server:write-port", serverId, port),
+  readProperties: (serverId: string): Promise<Record<string, string>> =>
+    ipcRenderer.invoke("server:read-properties", serverId),
+  writeProperties: (serverId: string, properties: Record<string, string>): Promise<boolean> =>
+    ipcRenderer.invoke("server:write-properties", serverId, properties),
+  readWhitelist: (serverId: string): Promise<Array<{ uuid: string; name: string }>> =>
+    ipcRenderer.invoke("server:read-whitelist", serverId),
+  writeWhitelist: (
+    serverId: string,
+    entries: Array<{ uuid: string; name: string }>,
+  ): Promise<boolean> => ipcRenderer.invoke("server:write-whitelist", serverId, entries),
+  lookupPlayer: (name: string, onlineMode: boolean): Promise<{ uuid: string; name: string } | null> =>
+    ipcRenderer.invoke("server:lookup-player", name, onlineMode),
   getLocalServerPath: (serverId: string): Promise<string> =>
     ipcRenderer.invoke("server:get-local-server-path", serverId),
   spawnServerProcess: (
