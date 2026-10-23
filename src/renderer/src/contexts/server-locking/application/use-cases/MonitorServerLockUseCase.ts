@@ -1,7 +1,7 @@
 import { injectable, inject } from "inversify";
 import type { CheckServerLockUseCase } from "./CheckServerLockUseCase";
 import type { S3Config } from "@cloud-storage/domain/entities";
-import { SERVER_LOCKING_TYPES, SHARED_TYPES } from "@shared/di";
+import { SERVER_LOCKING_TYPES } from "@shared/di";
 import { EventBus } from "@shared/infrastructure/event-bus";
 import {
   ServerLockDetectedEvent,
@@ -22,12 +22,11 @@ export class MonitorServerLockUseCase {
   private readonly maxDelay: number = 300000; // 5 minutes
   private retryCount: number = 0;
   private lastLockState: boolean = false;
+  private eventBus = EventBus.getInstance();
 
   constructor(
     @inject(SERVER_LOCKING_TYPES.CheckServerLockUseCase)
     private checkLockUseCase: CheckServerLockUseCase,
-    @inject(SHARED_TYPES.EventBus)
-    private eventBus: EventBus,
   ) {}
 
   /**
