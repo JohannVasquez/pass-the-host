@@ -26,7 +26,7 @@ export const es = {
       saveError: "Error al guardar la configuración",
       lock: "Bloquear configuración",
       unlock: "Desbloquear configuración",
-      enableSync: "Habilitar sincronizacion en la nube",
+      enableSync: "Habilitar sincronización en la nube",
       shareServer: "Compartir {{serverName}}",
       shareServerNoSelection: "Selecciona un servidor para compartirlo",
       driveConnect: "Conectar con Google",
@@ -52,7 +52,7 @@ export const es = {
       cloudNotConfigured:
         "Por favor configure los ajustes de almacenamiento en la nube antes de usar los controles del servidor",
       cloudSyncDisabled:
-        "La sincronizacion en la nube esta desactivada. Los servidores se gestionaran solo en local.",
+        "La sincronización en la nube está desactivada. Los servidores se gestionarán solo en local.",
       r2NotConfigured:
         "Por favor configure los ajustes de R2 antes de usar los controles del servidor",
       usernameNotConfigured:
