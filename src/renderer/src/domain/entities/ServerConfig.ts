@@ -18,6 +18,17 @@ export interface S3Config {
   drive_token?: string;
 }
 
+/** Display name of each provider, shown in the provider picker and in logs. */
+export const PROVIDER_LABELS: Record<S3Provider, string> = {
+  AWS: "Amazon S3",
+  Cloudflare: "Cloudflare R2",
+  MinIO: "MinIO",
+  Backblaze: "Backblaze B2",
+  DigitalOcean: "DigitalOcean Spaces",
+  Other: "S3",
+  GoogleDrive: "Google Drive",
+};
+
 /** @deprecated Use S3Config instead */
 export type R2Config = S3Config;
 

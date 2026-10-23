@@ -31,7 +31,12 @@ import { ServerExistsModal } from "./presentation/components/ServerExistsModal";
 import { DeleteServerModal } from "./presentation/components/DeleteServerModal";
 import { ShareServerModal } from "./presentation/components/ShareServerModal";
 import { ServerStatus, canTransitionServerStatus } from "./domain/entities/ServerStatus";
-import { S3Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
+import {
+  PROVIDER_LABELS,
+  S3Config,
+  RamConfig,
+  NetworkInterface,
+} from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
 import { Server } from "./domain/entities/Server";
 import {
@@ -875,7 +880,7 @@ function AppContent(): React.JSX.Element {
         ...prev,
         {
           timestamp: new Date(),
-          message: `Found ${serverList.length} server(s) in R2`,
+          message: `Found ${serverList.length} server(s) in ${PROVIDER_LABELS[s3Config.provider]}`,
           type: "info",
         },
       ]);
@@ -883,12 +888,12 @@ function AppContent(): React.JSX.Element {
       // Load bucket size after loading servers
       loadBucketSize();
     } catch (error) {
-      console.error("Error loading servers from R2:", error);
+      console.error(`Error loading servers from ${PROVIDER_LABELS[s3Config.provider]}:`, error);
       setLogs((prev) => [
         ...prev,
         {
           timestamp: new Date(),
-          message: "Error loading servers from R2",
+          message: `Error loading servers from ${PROVIDER_LABELS[s3Config.provider]}`,
           type: "error",
         },
       ]);
@@ -1495,7 +1500,7 @@ function AppContent(): React.JSX.Element {
             ...prev,
             {
               timestamp: new Date(),
-              message: "Warning: Failed to delete lock from R2",
+              message: `Warning: Failed to delete lock from ${PROVIDER_LABELS[s3Config.provider]}`,
               type: "warning",
             },
           ]);
@@ -1667,7 +1672,7 @@ function AppContent(): React.JSX.Element {
         ...prev,
         {
           timestamp: new Date(),
-          message: "Failed to sync server files to R2",
+          message: `Failed to sync server files to ${PROVIDER_LABELS[s3Config.provider]}`,
           type: "error",
         },
       ]);

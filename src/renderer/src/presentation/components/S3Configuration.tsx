@@ -27,7 +27,7 @@ import {
   Share as ShareIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
-import { S3Config, S3Provider } from "@renderer/domain/entities/ServerConfig";
+import { PROVIDER_LABELS, S3Config, S3Provider } from "@renderer/domain/entities/ServerConfig";
 
 interface S3ConfigurationProps {
   config: S3Config;
@@ -185,13 +185,13 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
               label={t("s3Configuration.provider")}
               onChange={handleProviderChange}
             >
-              <MenuItem value="AWS">Amazon S3</MenuItem>
-              <MenuItem value="Cloudflare">Cloudflare R2</MenuItem>
-              <MenuItem value="MinIO">MinIO</MenuItem>
-              <MenuItem value="Backblaze">Backblaze B2</MenuItem>
-              <MenuItem value="DigitalOcean">DigitalOcean Spaces</MenuItem>
-              <MenuItem value="Other">{t("s3Configuration.otherProvider")}</MenuItem>
-              <MenuItem value="GoogleDrive">Google Drive</MenuItem>
+              {(Object.keys(PROVIDER_LABELS) as S3Provider[]).map((provider) => (
+                <MenuItem key={provider} value={provider}>
+                  {provider === "Other"
+                    ? t("s3Configuration.otherProvider")
+                    : PROVIDER_LABELS[provider]}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
           {isDrive ? (

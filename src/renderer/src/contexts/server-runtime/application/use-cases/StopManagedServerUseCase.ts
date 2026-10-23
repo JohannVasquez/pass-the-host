@@ -1,5 +1,5 @@
 import type { LogEntry } from "@renderer/domain/entities/LogEntry";
-import type { S3Config } from "@renderer/domain/entities/ServerConfig";
+import { PROVIDER_LABELS, type S3Config } from "@renderer/domain/entities/ServerConfig";
 import { ServerStatus } from "@renderer/domain/entities/ServerStatus";
 
 type LogType = LogEntry["type"];
@@ -140,7 +140,10 @@ export class StopManagedServerUseCase {
     const uploadSuccess = await this.dependencies.uploadServer(request.serverId);
 
     if (!uploadSuccess) {
-      this.presenter.log("Warning: Failed to upload server files to R2", "warning");
+      this.presenter.log(
+        `Warning: Failed to upload server files to ${PROVIDER_LABELS[request.s3Config.provider]}`,
+        "warning",
+      );
       return;
     }
 
