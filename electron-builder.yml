@@ -36,7 +36,7 @@ linux:
   desktop:
     entry:
       Name: "Pass the host"
-      Comment: "Minecraft server manager using Cloudflare R2"
+      Comment: "Share a Minecraft server with friends, synced through your own cloud storage"
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
