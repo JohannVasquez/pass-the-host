@@ -38,7 +38,7 @@ const faqs = [
   },
   {
     q: "¿Cómo se conectan mis amigos al servidor?",
-    a: "Quien hostea comparte su IP pública (abriendo el puerto 25565 en su router) o todos se unen a una VPN como Tailscale o ZeroTier y se conectan a la IP de la VPN.",
+    a: "Quien hostea comparte su IP pública (abriendo el puerto 25565 en su router) o todos se unen a una misma VPN, como Hamachi, Radmin VPN, Tailscale o ZeroTier, y se conectan a la IP que esa VPN le asigna al host.",
   },
   {
     q: "¿Qué pasa si dos personas intentan abrir el servidor al mismo tiempo?",
@@ -308,7 +308,7 @@ export default async function PassTheHostPage() {
         </ol>
         <p className="mt-8 text-sm text-[#A1A1AA]">
           Para que tus amigos se conecten, solo falta compartir tu IP o usar una
-          VPN como Tailscale o ZeroTier.
+          VPN como Hamachi, Radmin VPN, Tailscale o ZeroTier.
         </p>
       </section>
 
