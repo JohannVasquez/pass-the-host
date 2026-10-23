@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 
 // S3 provider types
-type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other";
+type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other" | "GoogleDrive";
 
 interface S3ConfigType {
   provider: S3Provider;
@@ -11,6 +11,7 @@ interface S3ConfigType {
   access_key: string;
   secret_key: string;
   bucket_name: string;
+  drive_token?: string;
 }
 
 const api = {};
@@ -32,6 +33,10 @@ const rcloneAPI = {
     ipcRenderer.invoke("cloud-storage:get-bucket-size", config),
   getServerSize: (config: S3ConfigType, serverId: string): Promise<number> =>
     ipcRenderer.invoke("cloud-storage:get-server-size", config, serverId),
+  authorizeDrive: (): Promise<string> => ipcRenderer.invoke("rclone:authorize-drive"),
+  cancelAuthorizeDrive: (): Promise<void> => ipcRenderer.invoke("rclone:cancel-authorize-drive"),
+  shareDriveServer: (config: S3ConfigType, serverId: string, email: string): Promise<void> =>
+    ipcRenderer.invoke("rclone:share-drive-server", config, serverId, email),
   onProgress: (callback: (message: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, message: string): void =>
       callback(message);
@@ -58,6 +63,7 @@ interface AppConfigData {
     access_key: string;
     secret_key: string;
     bucket_name: string;
+    drive_token?: string;
   };
   server: {
     server_path: string;

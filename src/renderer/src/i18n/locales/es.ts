@@ -13,7 +13,7 @@ export const es = {
     },
     // Nuevas claves para almacenamiento S3 compatible
     s3Configuration: {
-      title: "Almacenamiento en la Nube (S3)",
+      title: "Almacenamiento en la Nube",
       provider: "Proveedor de Almacenamiento",
       otherProvider: "Otro compatible con S3",
       endpoint: "URL del Endpoint",
@@ -27,6 +27,17 @@ export const es = {
       lock: "Bloquear configuración",
       unlock: "Desbloquear configuración",
       enableSync: "Habilitar sincronizacion en la nube",
+      shareServer: "Compartir {{serverName}}",
+      shareServerNoSelection: "Selecciona un servidor para compartirlo",
+      driveConnect: "Conectar con Google",
+      driveReconnect: "Reconectar cuenta de Google",
+      driveConnecting: "Esperando el inicio de sesión en el navegador...",
+      driveCancel: "Cancelar",
+      driveConnected: "Cuenta de Google conectada",
+      driveNotConnected: "Inicia sesión con Google para usar tu Drive",
+      driveError: "No se pudo conectar con Google. Inténtalo de nuevo.",
+      driveHelp:
+        "Tus servidores se guardan en la carpeta pass_the_host de tu Drive. Comparte esa carpeta, o la de un solo servidor, con tus amigos para que también puedan hostearlo.",
     },
     serverControl: {
       title: "Control del Servidor",
@@ -223,6 +234,16 @@ export const es = {
     storage: {
       total: "Almacenamiento Total",
       server: "Tamaño del Servidor",
+    },
+    shareServer: {
+      title: "Compartir {{serverName}}",
+      description:
+        "Ingresa el Gmail de tu amigo. Le daremos acceso de editor a la carpeta del servidor en tu Google Drive y Google le enviará un correo. El servidor le aparecerá en Pass the host cuando use Google Drive.",
+      emailLabel: "Correo de Google",
+      share: "Compartir",
+      close: "Cerrar",
+      success: "Listo, {{email}} ya tiene acceso al servidor.",
+      error: "No se pudo compartir el servidor.",
     },
   },
 };
