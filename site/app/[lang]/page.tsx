@@ -189,6 +189,8 @@ export default async function PassTheHostPage({
           </div>
           <p className="mt-4 text-sm text-[#A1A1AA]">
             {downloads.version && `${downloads.version} · `}
+            {downloads.count &&
+              `${t.hero.downloadCount.replace("{n}", downloads.count)} · `}
             {t.hero.platforms} ·{" "}
             <a
               href={DOWNLOAD_URL}
