@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { SiGithub } from "react-icons/si";
 import { getDictionary } from "../dictionaries";
 import { DownloadButton } from "../DownloadButton";
 import { isLocale, locales } from "../i18n";
@@ -90,11 +91,13 @@ export default async function RootLayout({
               </Link>
               <a
                 href={GITHUB_URL}
-                className="hidden min-[480px]:inline hover:text-[#EAEAEA] transition-colors"
+                aria-label="GitHub"
+                title="GitHub"
+                className="flex hover:text-[#EAEAEA] transition-colors"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                GitHub
+                <SiGithub aria-hidden className="h-5 w-5" />
               </a>
               <LanguageSwitcher lang={lang} label={t.languageLabel} />
               <DownloadButton
@@ -121,12 +124,17 @@ export default async function RootLayout({
               </a>
               . {t.footer.license}
             </p>
-            <div className="flex gap-6">
+            <div className="flex items-center gap-6">
               <Link href={`/${lang}/privacy`} className="hover:text-[#EAEAEA]">
                 {t.footer.privacy}
               </Link>
-              <a href={GITHUB_URL} className="hover:text-[#EAEAEA]">
-                GitHub
+              <a
+                href={GITHUB_URL}
+                aria-label="GitHub"
+                title="GitHub"
+                className="flex hover:text-[#EAEAEA]"
+              >
+                <SiGithub aria-hidden className="h-5 w-5" />
               </a>
             </div>
           </div>
