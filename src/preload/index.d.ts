@@ -1,7 +1,7 @@
 import { ElectronAPI } from "@electron-toolkit/preload";
 
 // S3-compatible storage types
-type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other";
+type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other" | "GoogleDrive";
 
 interface S3ConfigType {
   provider?: S3Provider;
@@ -10,6 +10,7 @@ interface S3ConfigType {
   access_key: string;
   secret_key: string;
   bucket_name: string;
+  drive_token?: string;
 }
 
 interface RcloneAPI {
@@ -27,6 +28,9 @@ interface RcloneAPI {
   uploadServer: (config: S3ConfigType, serverId: string) => Promise<boolean>;
   getBucketSize: (config: S3ConfigType) => Promise<number>;
   getServerSize: (config: S3ConfigType, serverId: string) => Promise<number>;
+  authorizeDrive: () => Promise<string>;
+  cancelAuthorizeDrive: () => Promise<void>;
+  shareDriveServer: (config: S3ConfigType, serverId: string, email: string) => Promise<void>;
 }
 
 interface AppConfigData {
@@ -37,6 +41,7 @@ interface AppConfigData {
     access_key: string;
     secret_key: string;
     bucket_name: string;
+    drive_token?: string;
   };
   server: {
     server_path: string;

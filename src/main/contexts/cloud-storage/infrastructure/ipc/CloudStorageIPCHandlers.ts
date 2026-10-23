@@ -22,6 +22,9 @@ import {
   WriteServerPortUseCase,
   GetBucketSizeUseCase,
   GetServerSizeUseCase,
+  AuthorizeGoogleDriveUseCase,
+  ShareGoogleDriveServerUseCase,
+  CancelGoogleDriveAuthorizationUseCase,
 } from "@main/contexts/cloud-storage/application/use-cases";
 import type { S3Config } from "@main/contexts/cloud-storage/domain/entities";
 
@@ -48,6 +51,9 @@ export class CloudStorageIPCHandlers {
     private writeServerPortUseCase: WriteServerPortUseCase,
     private getBucketSizeUseCase: GetBucketSizeUseCase,
     private getServerSizeUseCase: GetServerSizeUseCase,
+    private authorizeGoogleDriveUseCase: AuthorizeGoogleDriveUseCase,
+    private shareGoogleDriveServerUseCase: ShareGoogleDriveServerUseCase,
+    private cancelGoogleDriveAuthorizationUseCase: CancelGoogleDriveAuthorizationUseCase,
   ) {}
 
   /**
@@ -100,6 +106,30 @@ export class CloudStorageIPCHandlers {
       this.handleIPC("testR2Connection", async (_event, config: S3Config) => {
         return await this.testR2ConnectionUseCase.execute(config);
       }),
+    );
+
+    ipcMain.handle(
+      "rclone:authorize-drive",
+      this.handleIPC("authorizeDrive", async () => {
+        return await this.authorizeGoogleDriveUseCase.execute();
+      }),
+    );
+
+    ipcMain.handle(
+      "rclone:cancel-authorize-drive",
+      this.handleIPC("cancelAuthorizeDrive", async () => {
+        this.cancelGoogleDriveAuthorizationUseCase.execute();
+      }),
+    );
+
+    ipcMain.handle(
+      "rclone:share-drive-server",
+      this.handleIPC(
+        "shareDriveServer",
+        async (_event, config: S3Config, serverId: string, email: string) => {
+          return await this.shareGoogleDriveServerUseCase.execute(config, serverId, email);
+        },
+      ),
     );
 
     // S3 Server handlers

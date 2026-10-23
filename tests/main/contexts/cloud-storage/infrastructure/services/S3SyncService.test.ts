@@ -51,9 +51,9 @@ function createRemoteRepository(): IS3SyncRemoteRepository {
   return {
     readManifest: vi.fn(),
     uploadManifest: vi.fn(),
-    uploadFile: vi.fn(),
-    downloadFile: vi.fn(),
-    deleteFile: vi.fn(),
+    uploadFiles: vi.fn(),
+    downloadFiles: vi.fn(),
+    deleteFiles: vi.fn(),
     fullDownloadServer: vi.fn(),
   };
 }
@@ -134,23 +134,18 @@ describe("S3SyncService", () => {
 
     const result = await service.uploadServer(createConfig(), "server-1");
 
-    expect(remoteRepository.uploadFile).toHaveBeenCalledTimes(2);
-    expect(remoteRepository.uploadFile).toHaveBeenCalledWith(
+    expect(remoteRepository.uploadFiles).toHaveBeenCalledTimes(1);
+    expect(remoteRepository.uploadFiles).toHaveBeenCalledWith(
       createConfig(),
       "server-1",
-      "changed.txt",
-      path.join(serverRoot, "changed.txt"),
+      ["new.txt", "changed.txt"],
+      serverRoot,
+      undefined,
     );
-    expect(remoteRepository.uploadFile).toHaveBeenCalledWith(
+    expect(remoteRepository.deleteFiles).toHaveBeenCalledWith(
       createConfig(),
       "server-1",
-      "new.txt",
-      path.join(serverRoot, "new.txt"),
-    );
-    expect(remoteRepository.deleteFile).toHaveBeenCalledWith(
-      createConfig(),
-      "server-1",
-      "removed.txt",
+      ["removed.txt"],
     );
     expect(remoteRepository.uploadManifest).toHaveBeenCalledTimes(1);
     expect(result.deletedRemoteFiles).toEqual(["removed.txt"]);
@@ -177,18 +172,13 @@ describe("S3SyncService", () => {
 
     const result = await service.downloadServer(createConfig(), "server-1");
 
-    expect(remoteRepository.downloadFile).toHaveBeenCalledTimes(2);
-    expect(remoteRepository.downloadFile).toHaveBeenCalledWith(
+    expect(remoteRepository.downloadFiles).toHaveBeenCalledTimes(1);
+    expect(remoteRepository.downloadFiles).toHaveBeenCalledWith(
       createConfig(),
       "server-1",
-      "changed.txt",
-      path.join(serverRoot, "changed.txt"),
-    );
-    expect(remoteRepository.downloadFile).toHaveBeenCalledWith(
-      createConfig(),
-      "server-1",
-      "new-remote.txt",
-      path.join(serverRoot, "new-remote.txt"),
+      ["new-remote.txt", "changed.txt"],
+      serverRoot,
+      undefined,
     );
     expect(fs.existsSync(path.join(serverRoot, "old-local.txt"))).toBe(false);
     expect(result.deletedLocalFiles).toEqual(["old-local.txt"]);

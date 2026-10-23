@@ -29,6 +29,7 @@ import { ServerStatisticsModal } from "./presentation/components/ServerStatistic
 import { CreateServerModal } from "./presentation/components/CreateServerModal";
 import { ServerExistsModal } from "./presentation/components/ServerExistsModal";
 import { DeleteServerModal } from "./presentation/components/DeleteServerModal";
+import { ShareServerModal } from "./presentation/components/ShareServerModal";
 import { ServerStatus, canTransitionServerStatus } from "./domain/entities/ServerStatus";
 import { S3Config, RamConfig, NetworkInterface } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
@@ -152,6 +153,7 @@ function AppContent(): React.JSX.Element {
     type: "vanilla" | "forge" | "neoforge";
   } | null>(null);
   const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = React.useState<boolean>(false);
+  const [isShareServerModalOpen, setIsShareServerModalOpen] = React.useState<boolean>(false);
   const [totalBucketSize, setTotalBucketSize] = React.useState<number>(0);
   const [selectedServerSize, setSelectedServerSize] = React.useState<number>(0);
   const [isLoadingBucketSize, setIsLoadingBucketSize] = React.useState<boolean>(false);
@@ -368,7 +370,7 @@ function AppContent(): React.JSX.Element {
     const eventBus = EventBus.getInstance();
 
     // Handle lock detected event
-    eventBus.subscribe("server.lock.detected", (event: ServerLockDetectedEvent) => {
+    const onLockDetected = (event: ServerLockDetectedEvent): void => {
       setLockedServerInfo({
         username: event.username,
         startedAt: event.timestamp.toISOString(),
@@ -394,10 +396,10 @@ function AppContent(): React.JSX.Element {
           type: "warning",
         },
       ]);
-    });
+    };
 
     // Handle lock available event (server became available)
-    eventBus.subscribe("server.lock.available", (event: ServerLockAvailableEvent) => {
+    const onLockAvailable = (event: ServerLockAvailableEvent): void => {
       setLockedServerInfo({ username: "", startedAt: "" });
 
       // Show OS notification
@@ -430,10 +432,10 @@ function AppContent(): React.JSX.Element {
           type: "success",
         },
       ]);
-    });
+    };
 
     // Handle lock check failed event
-    eventBus.subscribe("server.lock.checkFailed", (event: ServerLockCheckFailedEvent) => {
+    const onLockCheckFailed = (event: ServerLockCheckFailedEvent): void => {
       const retrySeconds = Math.round(event.retryDelay / 1000);
 
       // Show toast notification
@@ -449,10 +451,18 @@ function AppContent(): React.JSX.Element {
 
       // Log to console (only for debugging, not spamming)
       console.warn(`Lock check failed: ${event.error}. Retry in ${retrySeconds}s`);
-    });
+    };
 
-    // No cleanup needed for EventBus subscriptions in this implementation
-    // EventBus keeps subscriptions active until manually unsubscribed
+    eventBus.subscribe("server.lock.detected", onLockDetected);
+    eventBus.subscribe("server.lock.available", onLockAvailable);
+    eventBus.subscribe("server.lock.checkFailed", onLockCheckFailed);
+
+    // Without this, StrictMode and every `t` change would stack duplicate handlers.
+    return () => {
+      eventBus.unsubscribe("server.lock.detected", onLockDetected);
+      eventBus.unsubscribe("server.lock.available", onLockAvailable);
+      eventBus.unsubscribe("server.lock.checkFailed", onLockCheckFailed);
+    };
   }, [t, enqueueSnackbar]);
 
   // Load configuration from config.json on mount
@@ -479,6 +489,7 @@ function AppContent(): React.JSX.Element {
           access_key: cloudConfig?.access_key || "",
           secret_key: cloudConfig?.secret_key || "",
           bucket_name: cloudConfig?.bucket_name || "",
+          drive_token: cloudConfig?.drive_token,
         });
 
         setRamConfig({
@@ -610,6 +621,10 @@ function AppContent(): React.JSX.Element {
 
   // Validate S3 configuration
   const validateS3Config = (config: S3Config): boolean => {
+    if (config.provider === "GoogleDrive") {
+      return !!config.drive_token;
+    }
+
     return !!(
       config.endpoint &&
       config.access_key &&
@@ -1970,6 +1985,8 @@ function AppContent(): React.JSX.Element {
               cloudSyncEnabled={isCloudSyncEnabledByUser}
               onToggleCloudSync={handleToggleCloudSync}
               disabled={serverStatus !== ServerStatus.STOPPED}
+              selectedServer={selectedServer}
+              onShareServer={() => setIsShareServerModalOpen(true)}
             />
 
             <NetworkConfiguration
@@ -2128,6 +2145,13 @@ function AppContent(): React.JSX.Element {
           cloudSyncEnabled={isCloudSyncEnabled}
           onClose={() => setIsDeleteServerModalOpen(false)}
           onConfirm={handleConfirmDeleteServer}
+        />
+
+        <ShareServerModal
+          open={isShareServerModalOpen}
+          serverName={selectedServer}
+          s3Config={s3Config}
+          onClose={() => setIsShareServerModalOpen(false)}
         />
       </Box>
     </ThemeProvider>

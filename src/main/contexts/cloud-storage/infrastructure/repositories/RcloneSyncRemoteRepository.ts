@@ -3,7 +3,7 @@ import { app } from "electron";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { exec, spawn } from "child_process";
+import { exec, execFile, spawn } from "child_process";
 import { promisify } from "util";
 import type { IS3SyncRemoteRepository } from "@main/contexts/cloud-storage/domain/repositories";
 import type {
@@ -15,6 +15,7 @@ import { ExternalServiceError } from "@shared/domain/errors";
 import { RcloneRepository } from "./RcloneRepository";
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 @injectable()
 export class RcloneSyncRemoteRepository implements IS3SyncRemoteRepository {
@@ -68,56 +69,64 @@ export class RcloneSyncRemoteRepository implements IS3SyncRemoteRepository {
     }
   }
 
-  async uploadFile(
+  async uploadFiles(
     config: S3Config,
     serverId: string,
-    relativePath: string,
-    localFilePath: string,
+    relativePaths: string[],
+    localServerPath: string,
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<void> {
-    await this.copyLocalFileToRemote(
-      config,
-      localFilePath,
-      this.getRemoteFilePath(config, serverId, relativePath),
+    if (relativePaths.length === 0) return;
+
+    await this.withFileList(relativePaths, (listPath) =>
+      this.runTransfer(
+        ["copy", localServerPath, this.getRemoteServerDirectory(config, serverId), ...this.batchFlags(listPath)],
+        `upload ${relativePaths.length} files for ${serverId}`,
+        onProgress,
+      ),
     );
   }
 
-  async downloadFile(
+  async downloadFiles(
     config: S3Config,
     serverId: string,
-    relativePath: string,
-    localFilePath: string,
+    relativePaths: string[],
+    localServerPath: string,
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<void> {
-    fs.mkdirSync(path.dirname(localFilePath), { recursive: true });
+    if (relativePaths.length === 0) return;
 
-    try {
-      await execAsync(
-        `"${this.rcloneRepository.getRclonePath()}" copyto "${this.getRemoteFilePath(config, serverId, relativePath)}" "${localFilePath}"`,
-        { maxBuffer: 1024 * 1024 * 10 },
-      );
-    } catch (error) {
-      throw new ExternalServiceError(
-        "S3",
-        `Failed to download ${relativePath} for ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
+    fs.mkdirSync(localServerPath, { recursive: true });
+    await this.withFileList(relativePaths, (listPath) =>
+      this.runTransfer(
+        ["copy", this.getRemoteServerDirectory(config, serverId), localServerPath, ...this.batchFlags(listPath)],
+        `download ${relativePaths.length} files for ${serverId}`,
+        onProgress,
+      ),
+    );
   }
 
-  async deleteFile(config: S3Config, serverId: string, relativePath: string): Promise<void> {
-    try {
-      await execAsync(
-        `"${this.rcloneRepository.getRclonePath()}" deletefile "${this.getRemoteFilePath(config, serverId, relativePath)}"`,
-        { maxBuffer: 1024 * 1024 * 10 },
-      );
-    } catch (error) {
-      if (this.isNotFoundError(error)) {
-        return;
-      }
+  async deleteFiles(config: S3Config, serverId: string, relativePaths: string[]): Promise<void> {
+    if (relativePaths.length === 0) return;
 
-      throw new ExternalServiceError(
-        "S3",
-        `Failed to delete remote file ${relativePath} for ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
+    await this.withFileList(relativePaths, async (listPath) => {
+      try {
+        await execFileAsync(
+          this.rcloneRepository.getRclonePath(),
+          ["delete", this.getRemoteServerDirectory(config, serverId), "--files-from-raw", listPath],
+          { maxBuffer: 1024 * 1024 * 10 },
+        );
+      } catch (error) {
+        if (this.isNotFoundError(error)) {
+          return;
+        }
+
+        throw new ExternalServiceError(
+          "S3",
+          `Failed to delete ${relativePaths.length} remote files for ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    });
   }
 
   async fullDownloadServer(
@@ -126,28 +135,57 @@ export class RcloneSyncRemoteRepository implements IS3SyncRemoteRepository {
     localServerPath: string,
     onProgress?: (progress: TransferProgress) => void,
   ): Promise<boolean> {
-    const remoteServerPath = this.getRemoteServerDirectory(config, serverId);
     fs.mkdirSync(localServerPath, { recursive: true });
+    // copy, not sync: without a manifest the remote may be a half-finished upload, and sync
+    // would delete every local file it doesn't have.
+    await this.runTransfer(
+      ["copy", this.getRemoteServerDirectory(config, serverId), localServerPath, "--transfers", "8"],
+      `perform fallback download for ${serverId}`,
+      onProgress,
+    );
+    return true;
+  }
 
-    return await new Promise<boolean>((resolve, reject) => {
+  // The manifest already decided what changed, so copy every listed file unconditionally
+  // (--ignore-times) and skip listing the whole destination (--no-traverse).
+  private batchFlags(listPath: string): string[] {
+    return ["--files-from-raw", listPath, "--no-traverse", "--ignore-times", "--transfers", "8"];
+  }
+
+  private async withFileList<T>(
+    relativePaths: string[],
+    run: (listPath: string) => Promise<T>,
+  ): Promise<T> {
+    const listPath = path.join(
+      fs.mkdtempSync(path.join(this.getTempDirectory(), "s3-files-")),
+      "files.txt",
+    );
+
+    try {
+      fs.writeFileSync(listPath, relativePaths.map((p) => p.replace(/\\/g, "/")).join("\n"), "utf-8");
+      return await run(listPath);
+    } finally {
+      this.cleanupTempPath(listPath);
+    }
+  }
+
+  /** Runs one rclone transfer, forwarding its byte progress. */
+  private async runTransfer(
+    args: string[],
+    description: string,
+    onProgress?: (progress: TransferProgress) => void,
+  ): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
       const rcloneProcess = spawn(
         this.rcloneRepository.getRclonePath(),
-        [
-          "sync",
-          remoteServerPath,
-          localServerPath,
-          "--progress",
-          "--stats",
-          "500ms",
-          "--transfers",
-          "8",
-        ],
+        [...args, "--progress", "--stats", "500ms"],
         { shell: false },
       );
 
       let lastProgress = "";
       let stdoutBuffer = "";
       let stderrBuffer = "";
+      let stderrTail = "";
 
       const parseProgress = (line: string): void => {
         const match = line.match(
@@ -169,41 +207,37 @@ export class RcloneSyncRemoteRepository implements IS3SyncRemoteRepository {
         }
       };
 
-      rcloneProcess.stdout.on("data", (data: Buffer) => {
-        stdoutBuffer += data.toString();
-        const lines = stdoutBuffer.split(/[\r\n]+/);
-        stdoutBuffer = lines.pop() || "";
-
+      const consume = (buffer: string, data: Buffer): string => {
+        const lines = (buffer + data.toString()).split(/[\r\n]+/);
+        const rest = lines.pop() || "";
         for (const line of lines) {
           if (line.trim()) {
             parseProgress(line);
           }
         }
+        return rest;
+      };
+
+      rcloneProcess.stdout.on("data", (data: Buffer) => {
+        stdoutBuffer = consume(stdoutBuffer, data);
       });
 
       rcloneProcess.stderr.on("data", (data: Buffer) => {
-        stderrBuffer += data.toString();
-        const lines = stderrBuffer.split(/[\r\n]+/);
-        stderrBuffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (line.trim()) {
-            parseProgress(line);
-          }
-        }
+        stderrTail = (stderrTail + data.toString()).slice(-4000);
+        stderrBuffer = consume(stderrBuffer, data);
       });
 
       rcloneProcess.on("close", (code) => {
         if (code === 0) {
           onProgress?.({ percent: 100, transferred: "Complete", total: "Complete" });
-          resolve(true);
+          resolve();
           return;
         }
 
         reject(
           new ExternalServiceError(
             "S3",
-            `Failed to perform fallback download for ${serverId} (code ${code}). ${stderrBuffer || stdoutBuffer}`,
+            `Failed to ${description} (code ${code}). ${stderrTail || stdoutBuffer}`,
           ),
         );
       });
@@ -233,15 +267,15 @@ export class RcloneSyncRemoteRepository implements IS3SyncRemoteRepository {
   }
 
   private getRemoteServerDirectory(config: S3Config, serverId: string): string {
-    return `${this.rcloneRepository.getRcloneConfigName()}:${config.bucket_name}/pass_the_host/${serverId}`;
+    return this.rcloneRepository.getServerRemotePath(config, serverId);
   }
 
   private getRemoteManifestPath(config: S3Config, serverId: string): string {
-    return `${this.getRemoteServerDirectory(config, serverId)}/manifest.json`;
+    return this.getRemoteFilePath(config, serverId, "manifest.json");
   }
 
   private getRemoteFilePath(config: S3Config, serverId: string, relativePath: string): string {
-    return `${this.getRemoteServerDirectory(config, serverId)}/${relativePath.replace(/\\/g, "/")}`;
+    return this.rcloneRepository.getServerRemoteFilePath(config, serverId, relativePath);
   }
 
   private isNotFoundError(error: unknown): boolean {
