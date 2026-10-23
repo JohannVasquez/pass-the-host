@@ -39,11 +39,6 @@ jobs:
       - name: Semantic Release
         id: semantic
         uses: cycjimmy/semantic-release-action@v4
-        with:
-          extra_plugins: |
-            @semantic-release/changelog
-            @semantic-release/git
-            @semantic-release/npm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -72,8 +67,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Pull latest version bump
-        run: git pull origin main
+      - name: Set release version
+        run: npm pkg set version=${{ needs.release.outputs.new_release_version }}
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
