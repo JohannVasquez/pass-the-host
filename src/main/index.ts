@@ -144,6 +144,29 @@ function setupAutoUpdater(container: Container): void {
       }
     });
   });
+  // macOS builds are unsigned, so Squirrel.Mac can't install updates: link to the release instead
+  if (process.platform === "darwin") {
+    autoUpdater.autoDownload = false;
+    autoUpdater.on("update-available", async (info) => {
+      const loadConfigUseCase = container.get<LoadConfigUseCase>(ConfigTYPES.LoadConfigUseCase);
+      const config = await loadConfigUseCase.execute();
+      const es = config?.app?.language === "es";
+      const { response } = await dialog.showMessageBox({
+        type: "info",
+        buttons: es ? ["Descargar", "Más tarde"] : ["Download", "Later"],
+        title: es ? "Actualización de la Aplicación" : "Application Update",
+        message: info.version,
+        detail: es
+          ? "Hay una nueva versión disponible. Descarga el .dmg y reemplaza la app en Aplicaciones."
+          : "A new version is available. Download the .dmg and replace the app in Applications.",
+      });
+      if (response === 0) {
+        shell.openExternal(
+          `https://github.com/JohannVasquez/pass-the-host/releases/tag/v${info.version}`,
+        );
+      }
+    });
+  }
   // Optional: Log update events
   autoUpdater.on("checking-for-update", () => {
     logger.info("Checking for updates...");
