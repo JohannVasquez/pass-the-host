@@ -27,7 +27,12 @@ import {
   Share as ShareIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
-import { PROVIDER_LABELS, S3Config, S3Provider } from "@renderer/domain/entities/ServerConfig";
+import {
+  PROVIDER_LABELS,
+  S3Config,
+  S3Provider,
+  toStorageProfile,
+} from "@renderer/domain/entities/ServerConfig";
 
 interface S3ConfigurationProps {
   config: S3Config;
@@ -97,12 +102,17 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
   const handleProviderChange = (event: SelectChangeEvent<S3Provider>): void => {
     if (!effectivelyLocked) {
       const newProvider = event.target.value as S3Provider;
+      // Load what was saved for that provider; never carry over another provider's settings.
+      const saved = localConfig.profiles?.[newProvider] ?? {};
       setLocalConfig({
         ...localConfig,
         provider: newProvider,
-        // Auto-fill endpoint and region placeholders when changing provider
-        endpoint: localConfig.endpoint || PROVIDER_ENDPOINTS[newProvider],
-        region: localConfig.region || PROVIDER_REGIONS[newProvider],
+        endpoint: saved.endpoint ?? "",
+        region: saved.region || PROVIDER_REGIONS[newProvider],
+        access_key: saved.access_key ?? "",
+        secret_key: saved.secret_key ?? "",
+        bucket_name: saved.bucket_name ?? "",
+        drive_token: saved.drive_token,
       });
     }
   };
@@ -111,7 +121,16 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
     try {
       const ok = await window.configAPI.saveS3Config(configToSave);
       setSaveStatus(ok ? "success" : "error");
-      if (ok) onSave(configToSave);
+      // Mirror the profile main just stored, so switching back before a reload shows it.
+      if (ok) {
+        onSave({
+          ...configToSave,
+          profiles: {
+            ...configToSave.profiles,
+            [configToSave.provider]: toStorageProfile(configToSave),
+          },
+        });
+      }
     } catch {
       setSaveStatus("error");
     }

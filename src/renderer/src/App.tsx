@@ -495,6 +495,7 @@ function AppContent(): React.JSX.Element {
           secret_key: cloudConfig?.secret_key || "",
           bucket_name: cloudConfig?.bucket_name || "",
           drive_token: cloudConfig?.drive_token,
+          profiles: cloudConfig?.profiles,
         });
 
         setRamConfig({
