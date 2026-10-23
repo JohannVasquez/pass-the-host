@@ -37,6 +37,9 @@ import {
   WriteServerPortUseCase,
   GetBucketSizeUseCase,
   GetServerSizeUseCase,
+  AuthorizeGoogleDriveUseCase,
+  ShareGoogleDriveServerUseCase,
+  CancelGoogleDriveAuthorizationUseCase,
 } from "@main/contexts/cloud-storage/application/use-cases";
 import { TYPES } from "@main/contexts/cloud-storage/application/use-cases/types";
 
@@ -210,5 +213,23 @@ export function configureCloudStorageContext(container: Container): void {
 
   container.bind<GetServerSizeUseCase>(GetServerSizeUseCase).toDynamicValue(() => {
     return new GetServerSizeUseCase(container.get<IS3ServerRepository>(TYPES.S3ServerRepository));
+  });
+
+  container.bind<AuthorizeGoogleDriveUseCase>(AuthorizeGoogleDriveUseCase).toDynamicValue(() => {
+    return new AuthorizeGoogleDriveUseCase(container.get<IRcloneRepository>(TYPES.RcloneRepository));
+  });
+
+  container
+    .bind<CancelGoogleDriveAuthorizationUseCase>(CancelGoogleDriveAuthorizationUseCase)
+    .toDynamicValue(() => {
+      return new CancelGoogleDriveAuthorizationUseCase(
+        container.get<IRcloneRepository>(TYPES.RcloneRepository),
+      );
+    });
+
+  container.bind<ShareGoogleDriveServerUseCase>(ShareGoogleDriveServerUseCase).toDynamicValue(() => {
+    return new ShareGoogleDriveServerUseCase(
+      container.get<IRcloneRepository>(TYPES.RcloneRepository),
+    );
   });
 }

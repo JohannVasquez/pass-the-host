@@ -34,6 +34,21 @@ export interface IRcloneRepository {
    * Get the size of the entire bucket in bytes
    */
   getBucketSize(config: S3Config): Promise<number>;
+
+  /**
+   * Opens Google sign-in in the browser and returns the OAuth token JSON
+   */
+  authorizeDrive(): Promise<string>;
+
+  /**
+   * Stops a pending Google sign-in started by authorizeDrive
+   */
+  cancelDriveAuthorization(): void;
+
+  /**
+   * Gives an email editor access to a server's Google Drive folder
+   */
+  shareDriveServer(config: S3Config, serverId: string, email: string): Promise<void>;
 }
 
 export interface IS3ServerRepository {
@@ -91,21 +106,26 @@ export interface IS3SyncRemoteRepository {
 
   uploadManifest(config: S3Config, serverId: string, manifest: ServerManifest): Promise<void>;
 
-  uploadFile(
+  /** Uploads the given server-relative paths in one batch. No-op for an empty list. */
+  uploadFiles(
     config: S3Config,
     serverId: string,
-    relativePath: string,
-    localFilePath: string,
+    relativePaths: string[],
+    localServerPath: string,
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<void>;
 
-  downloadFile(
+  /** Downloads the given server-relative paths in one batch. No-op for an empty list. */
+  downloadFiles(
     config: S3Config,
     serverId: string,
-    relativePath: string,
-    localFilePath: string,
+    relativePaths: string[],
+    localServerPath: string,
+    onProgress?: (progress: TransferProgress) => void,
   ): Promise<void>;
 
-  deleteFile(config: S3Config, serverId: string, relativePath: string): Promise<void>;
+  /** Deletes the given server-relative paths remotely. No-op for an empty list. */
+  deleteFiles(config: S3Config, serverId: string, relativePaths: string[]): Promise<void>;
 
   fullDownloadServer(
     config: S3Config,

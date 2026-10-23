@@ -1,7 +1,14 @@
 /**
  * S3-Compatible Provider Types
  */
-export type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other";
+export type S3Provider =
+  | "AWS"
+  | "Cloudflare"
+  | "MinIO"
+  | "Backblaze"
+  | "DigitalOcean"
+  | "Other"
+  | "GoogleDrive";
 
 /**
  * S3-Compatible Storage Configuration entity
@@ -14,6 +21,7 @@ export interface S3Config {
   access_key: string;
   secret_key: string;
   bucket_name: string;
+  drive_token?: string;
   region?: string;
 }
 

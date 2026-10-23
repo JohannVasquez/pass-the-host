@@ -23,6 +23,8 @@ import {
   Lock as LockIcon,
   LockOpen as LockOpenIcon,
   ExpandMore as ExpandMoreIcon,
+  Google as GoogleIcon,
+  Share as ShareIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 import { S3Config, S3Provider } from "@renderer/domain/entities/ServerConfig";
@@ -33,6 +35,8 @@ interface S3ConfigurationProps {
   cloudSyncEnabled: boolean;
   onToggleCloudSync: (enabled: boolean) => void;
   disabled?: boolean;
+  selectedServer: string | null;
+  onShareServer: () => void;
 }
 
 // Provider-specific endpoint placeholders
@@ -43,6 +47,7 @@ const PROVIDER_ENDPOINTS: Record<S3Provider, string> = {
   Backblaze: "https://s3.us-west-000.backblazeb2.com",
   DigitalOcean: "https://<region>.digitaloceanspaces.com",
   Other: "https://s3.example.com",
+  GoogleDrive: "",
 };
 
 // Provider-specific region placeholders
@@ -53,6 +58,7 @@ const PROVIDER_REGIONS: Record<S3Provider, string> = {
   Backblaze: "us-west-000",
   DigitalOcean: "nyc3",
   Other: "us-east-1",
+  GoogleDrive: "",
 };
 
 export const S3Configuration: React.FC<S3ConfigurationProps> = ({
@@ -61,12 +67,17 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
   cloudSyncEnabled,
   onToggleCloudSync,
   disabled = false,
+  selectedServer,
+  onShareServer,
 }): React.JSX.Element => {
   const { t } = useTranslation();
   const [localConfig, setLocalConfig] = React.useState<S3Config>(config);
   const [saveStatus, setSaveStatus] = React.useState<"idle" | "success" | "error">("idle");
   const [isLocked, setIsLocked] = React.useState<boolean>(false);
   const [isExpanded, setIsExpanded] = React.useState<boolean>(true);
+  const [driveStatus, setDriveStatus] = React.useState<"idle" | "connecting" | "error">("idle");
+  const driveSignInCancelled = React.useRef(false);
+  const isDrive = localConfig.provider === "GoogleDrive";
 
   // Lock automatically when disabled from parent
   const effectivelyLocked = isLocked || disabled;
@@ -96,20 +107,43 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
     }
   };
 
-  const handleSave = async (): Promise<void> => {
+  const saveConfig = async (configToSave: S3Config): Promise<void> => {
     try {
-      const ok = await window.configAPI.saveS3Config(localConfig);
+      const ok = await window.configAPI.saveS3Config(configToSave);
       setSaveStatus(ok ? "success" : "error");
-      if (ok) onSave(localConfig);
+      if (ok) onSave(configToSave);
     } catch {
       setSaveStatus("error");
     }
     setTimeout(() => setSaveStatus("idle"), 2000);
   };
 
+  const handleSave = (): Promise<void> => saveConfig(localConfig);
+
+  const handleConnectDrive = async (): Promise<void> => {
+    driveSignInCancelled.current = false;
+    setDriveStatus("connecting");
+    try {
+      const driveToken = await window.rclone.authorizeDrive();
+      const connectedConfig = { ...localConfig, drive_token: driveToken };
+      setLocalConfig(connectedConfig);
+      setDriveStatus("idle");
+      await saveConfig(connectedConfig);
+    } catch {
+      setDriveStatus(driveSignInCancelled.current ? "idle" : "error");
+    }
+  };
+
+  const handleCancelDrive = async (): Promise<void> => {
+    driveSignInCancelled.current = true;
+    setDriveStatus("idle");
+    await window.rclone.cancelAuthorizeDrive();
+  };
+
   return (
     <Accordion expanded={isExpanded} onChange={() => setIsExpanded(!isExpanded)} elevation={2}>
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+      {/* div, not the default button: it contains the lock IconButton, and HTML forbids nested buttons. */}
+      <AccordionSummary component="div" expandIcon={<ExpandMoreIcon />}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             {t("s3Configuration.title")}
@@ -157,51 +191,110 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
               <MenuItem value="Backblaze">Backblaze B2</MenuItem>
               <MenuItem value="DigitalOcean">DigitalOcean Spaces</MenuItem>
               <MenuItem value="Other">{t("s3Configuration.otherProvider")}</MenuItem>
+              <MenuItem value="GoogleDrive">Google Drive</MenuItem>
             </Select>
           </FormControl>
-          <TextField
-            label={t("s3Configuration.endpoint")}
-            value={localConfig.endpoint}
-            onChange={(e) => handleChange("endpoint", e.target.value)}
-            fullWidth
-            size="small"
-            disabled={storageFieldsDisabled}
-            placeholder={PROVIDER_ENDPOINTS[localConfig.provider]}
-          />
-          <TextField
-            label={t("s3Configuration.region")}
-            value={localConfig.region}
-            onChange={(e) => handleChange("region", e.target.value)}
-            fullWidth
-            size="small"
-            disabled={storageFieldsDisabled}
-            placeholder={PROVIDER_REGIONS[localConfig.provider]}
-          />
-          <TextField
-            label={t("s3Configuration.access_key")}
-            value={localConfig.access_key}
-            onChange={(e) => handleChange("access_key", e.target.value)}
-            fullWidth
-            size="small"
-            disabled={storageFieldsDisabled}
-          />
-          <TextField
-            label={t("s3Configuration.secret_key")}
-            type="password"
-            value={localConfig.secret_key}
-            onChange={(e) => handleChange("secret_key", e.target.value)}
-            fullWidth
-            size="small"
-            disabled={storageFieldsDisabled}
-          />
-          <TextField
-            label={t("s3Configuration.bucket_name")}
-            value={localConfig.bucket_name}
-            onChange={(e) => handleChange("bucket_name", e.target.value)}
-            fullWidth
-            size="small"
-            disabled={storageFieldsDisabled}
-          />
+          {isDrive ? (
+            <Stack spacing={1}>
+              <Typography
+                variant="body2"
+                color={localConfig.drive_token ? "success.main" : "text.secondary"}
+              >
+                {localConfig.drive_token
+                  ? t("s3Configuration.driveConnected")
+                  : t("s3Configuration.driveNotConnected")}
+              </Typography>
+              <Button
+                variant="outlined"
+                startIcon={<GoogleIcon />}
+                onClick={handleConnectDrive}
+                fullWidth
+                disabled={storageFieldsDisabled || driveStatus === "connecting"}
+              >
+                {driveStatus === "connecting"
+                  ? t("s3Configuration.driveConnecting")
+                  : localConfig.drive_token
+                    ? t("s3Configuration.driveReconnect")
+                    : t("s3Configuration.driveConnect")}
+              </Button>
+              {driveStatus === "connecting" && (
+                <Button variant="text" color="inherit" onClick={handleCancelDrive} fullWidth>
+                  {t("s3Configuration.driveCancel")}
+                </Button>
+              )}
+              {driveStatus === "error" && (
+                <Typography color="error.main" variant="body2">
+                  {t("s3Configuration.driveError")}
+                </Typography>
+              )}
+              <Typography variant="caption" color="text.secondary">
+                {t("s3Configuration.driveHelp")}
+              </Typography>
+              {/* Uses the saved config: sharing needs the stored Google session, not unsaved edits. */}
+              <Button
+                variant="outlined"
+                startIcon={<ShareIcon />}
+                onClick={onShareServer}
+                fullWidth
+                disabled={
+                  !cloudSyncEnabled ||
+                  config.provider !== "GoogleDrive" ||
+                  !config.drive_token ||
+                  !selectedServer
+                }
+              >
+                {selectedServer
+                  ? t("s3Configuration.shareServer", { serverName: selectedServer })
+                  : t("s3Configuration.shareServerNoSelection")}
+              </Button>
+            </Stack>
+          ) : (
+            <>
+              <TextField
+                label={t("s3Configuration.endpoint")}
+                value={localConfig.endpoint}
+                onChange={(e) => handleChange("endpoint", e.target.value)}
+                fullWidth
+                size="small"
+                disabled={storageFieldsDisabled}
+                placeholder={PROVIDER_ENDPOINTS[localConfig.provider]}
+              />
+              <TextField
+                label={t("s3Configuration.region")}
+                value={localConfig.region}
+                onChange={(e) => handleChange("region", e.target.value)}
+                fullWidth
+                size="small"
+                disabled={storageFieldsDisabled}
+                placeholder={PROVIDER_REGIONS[localConfig.provider]}
+              />
+              <TextField
+                label={t("s3Configuration.access_key")}
+                value={localConfig.access_key}
+                onChange={(e) => handleChange("access_key", e.target.value)}
+                fullWidth
+                size="small"
+                disabled={storageFieldsDisabled}
+              />
+              <TextField
+                label={t("s3Configuration.secret_key")}
+                type="password"
+                value={localConfig.secret_key}
+                onChange={(e) => handleChange("secret_key", e.target.value)}
+                fullWidth
+                size="small"
+                disabled={storageFieldsDisabled}
+              />
+              <TextField
+                label={t("s3Configuration.bucket_name")}
+                value={localConfig.bucket_name}
+                onChange={(e) => handleChange("bucket_name", e.target.value)}
+                fullWidth
+                size="small"
+                disabled={storageFieldsDisabled}
+              />
+            </>
+          )}
           <Button
             variant="contained"
             startIcon={<SaveIcon />}
