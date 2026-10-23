@@ -35,6 +35,8 @@ export function LanguageSwitcher({
             href={pathname.replace(/^\/[^/]+/, `/${l}`)}
             hrefLang={l}
             lang={l}
+            // Both languages share the same layout: stay where the reader is
+            scroll={false}
             onClick={() => {
               document.cookie = `NEXT_LOCALE=${l}; path=/; max-age=31536000; samesite=lax`;
             }}
