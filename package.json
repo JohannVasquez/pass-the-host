@@ -5,6 +5,7 @@
   "description": "Minecraft server manager using Cloudflare R2",
   "main": "./out/main/index.js",
   "author": "Johann Vasquez",
+  "license": "MIT",
   "homepage": "https://electron-vite.org",
   "scripts": {
     "format": "prettier --write .",
