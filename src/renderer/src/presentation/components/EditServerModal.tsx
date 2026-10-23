@@ -358,7 +358,8 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
         >
           {options.map((option) => (
             <MenuItem key={option} value={option}>
-              {t(`editServer.options.${option}`, { defaultValue: option })}
+              {/* nsSeparator: values like "minecraft:normal" contain i18next's namespace separator */}
+              {t(`editServer.options.${option}`, { defaultValue: option, nsSeparator: false })}
             </MenuItem>
           ))}
         </TextField>
