@@ -13,7 +13,7 @@ export const en = {
     },
     // New S3-compatible storage keys
     s3Configuration: {
-      title: "Cloud Storage (S3)",
+      title: "Cloud Storage",
       provider: "Storage Provider",
       otherProvider: "Other S3-compatible",
       endpoint: "Endpoint URL",
@@ -27,6 +27,17 @@ export const en = {
       lock: "Lock configuration",
       unlock: "Unlock configuration",
       enableSync: "Enable cloud sync",
+      shareServer: "Share {{serverName}}",
+      shareServerNoSelection: "Select a server to share it",
+      driveConnect: "Sign in with Google",
+      driveReconnect: "Reconnect Google account",
+      driveConnecting: "Waiting for sign-in in your browser...",
+      driveCancel: "Cancel",
+      driveConnected: "Google account connected",
+      driveNotConnected: "Sign in with Google to use your Drive",
+      driveError: "Could not connect to Google. Please try again.",
+      driveHelp:
+        "Your servers are stored in the pass_the_host folder of your Drive. Share that folder, or a single server's folder, with your friends so they can host it too.",
     },
     serverControl: {
       title: "Server Control",
@@ -218,6 +229,16 @@ export const en = {
     storage: {
       total: "Total Storage",
       server: "Server Size",
+    },
+    shareServer: {
+      title: "Share {{serverName}}",
+      description:
+        "Enter your friend's Gmail. We'll give them editor access to the server's folder in your Google Drive and Google will email them. The server shows up in their Pass the host once they use Google Drive.",
+      emailLabel: "Google email",
+      share: "Share",
+      close: "Close",
+      success: "Done, {{email}} now has access to the server.",
+      error: "Could not share the server.",
     },
   },
 };

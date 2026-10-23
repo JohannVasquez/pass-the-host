@@ -1,1 +1,1 @@
-export { useDependency, useContainerReady } from "./useDependency";
+export { useDependency } from "./useDependency";

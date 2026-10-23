@@ -43,8 +43,11 @@ export class ServerLockRepository implements IServerLockRepository {
     await this.rcloneRepository.ensureConfigured(config);
 
     const rclonePath = this.rcloneRepository.getRclonePath();
-    const configName = this.rcloneRepository.getRcloneConfigName();
-    const r2LockPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/server.lock`;
+    const r2LockPath = this.rcloneRepository.getServerRemoteFilePath(
+      config,
+      serverId,
+      "server.lock",
+    );
 
     try {
       const catCommand = `"${rclonePath}" cat "${r2LockPath}"`;
@@ -92,10 +95,13 @@ export class ServerLockRepository implements IServerLockRepository {
     await this.rcloneRepository.ensureConfigured(config);
 
     const rclonePath = this.rcloneRepository.getRclonePath();
-    const configName = this.rcloneRepository.getRcloneConfigName();
     const serverPath = this.getLocalServerPath(serverId);
     const lockFilePath = path.join(serverPath, "server.lock");
-    const r2LockPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/server.lock`;
+    const r2LockPath = this.rcloneRepository.getServerRemoteFilePath(
+      config,
+      serverId,
+      "server.lock",
+    );
 
     if (!fs.existsSync(lockFilePath)) {
       throw new NotFoundError("Lock file", lockFilePath);
@@ -120,8 +126,11 @@ export class ServerLockRepository implements IServerLockRepository {
     await this.rcloneRepository.ensureConfigured(config);
 
     const rclonePath = this.rcloneRepository.getRclonePath();
-    const configName = this.rcloneRepository.getRcloneConfigName();
-    const r2LockPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/server.lock`;
+    const r2LockPath = this.rcloneRepository.getServerRemoteFilePath(
+      config,
+      serverId,
+      "server.lock",
+    );
 
     // Check if lock exists
     const checkCommand = `"${rclonePath}" ls "${r2LockPath}"`;
@@ -133,7 +142,10 @@ export class ServerLockRepository implements IServerLockRepository {
     }
 
     try {
-      const deleteCommand = `"${rclonePath}" deletefile "${r2LockPath}"`;
+      // Delete by filter, not by path: Drive allows duplicate names, so racing uploads can leave
+      // several server.lock files and every one of them must go.
+      const serverPath = this.rcloneRepository.getServerRemotePath(config, serverId);
+      const deleteCommand = `"${rclonePath}" delete "${serverPath}" --include "/server.lock"`;
       await execAsync(deleteCommand, { maxBuffer: 1024 * 1024 });
       return { success: true, existed: true };
     } catch (error) {

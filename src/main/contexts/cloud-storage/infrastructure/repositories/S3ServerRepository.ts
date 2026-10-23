@@ -33,22 +33,17 @@ export class S3ServerRepository implements IS3ServerRepository {
       await this.rcloneRepository.ensureConfigured(config);
 
       const rclonePath = this.rcloneRepository.getRclonePath();
-      const configName = this.rcloneRepository.getRcloneConfigName();
-      const listCommand = `"${rclonePath}" lsf "${configName}:${config.bucket_name}/pass_the_host" --dirs-only`;
-      const { stdout } = await execAsync(listCommand);
-
-      const serverDirs = stdout
-        .trim()
-        .split("\n")
-        .filter((line) => line.trim() !== "")
-        .map((line) => line.replace(/\/$/, ""));
+      const ownServerIds = await this.listOwnServerIds(rclonePath, config);
+      const sharedServerIds =
+        config.provider === "GoogleDrive"
+          ? await this.rcloneRepository.listSharedDriveServers(config, new Set(ownServerIds))
+          : [];
 
       const servers = await Promise.all(
-        serverDirs.map(async (serverName) => {
-          const serverPath = `${configName}:${config.bucket_name}/pass_the_host/${serverName}`;
+        [...ownServerIds, ...sharedServerIds].map(async (serverName) => {
           const { version, type } = await this.detectServerVersionAndType(
             rclonePath,
-            serverPath,
+            config,
             serverName,
           );
 
@@ -148,8 +143,7 @@ export class S3ServerRepository implements IS3ServerRepository {
       await this.rcloneRepository.ensureConfigured(config);
 
       const rclonePath = this.rcloneRepository.getRclonePath();
-      const configName = this.rcloneRepository.getRcloneConfigName();
-      const s3ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
+      const s3ServerPath = this.rcloneRepository.getServerRemotePath(config, serverId);
 
       const deleteCommand = `"${rclonePath}" purge "${s3ServerPath}"`;
       await execAsync(deleteCommand, { maxBuffer: 1024 * 1024 });
@@ -168,8 +162,7 @@ export class S3ServerRepository implements IS3ServerRepository {
       await this.rcloneRepository.ensureConfigured(config);
 
       const rclonePath = this.rcloneRepository.getRclonePath();
-      const configName = this.rcloneRepository.getRcloneConfigName();
-      const s3ServerPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}`;
+      const s3ServerPath = this.rcloneRepository.getServerRemotePath(config, serverId);
 
       const sizeCommand = `"${rclonePath}" size "${s3ServerPath}" --json`;
       const { stdout } = await execAsync(sizeCommand);
@@ -213,8 +206,7 @@ export class S3ServerRepository implements IS3ServerRepository {
 
       await this.rcloneRepository.ensureConfigured(config);
       const rclonePath = this.rcloneRepository.getRclonePath();
-      const configName = this.rcloneRepository.getRcloneConfigName();
-      const s3SessionPath = `${configName}:${config.bucket_name}/pass_the_host/${serverId}/session.json`;
+      const s3SessionPath = this.rcloneRepository.getServerRemoteFilePath(config, serverId, "session.json");
       const catCommand = `"${rclonePath}" cat "${s3SessionPath}"`;
 
       let s3Session = null;
@@ -258,6 +250,25 @@ export class S3ServerRepository implements IS3ServerRepository {
         "S3",
         `Failed to check if download needed for ${serverId}: ${error instanceof Error ? error.message : String(error)}`,
       );
+    }
+  }
+
+  private async listOwnServerIds(rclonePath: string, config: S3Config): Promise<string[]> {
+    try {
+      const listCommand = `"${rclonePath}" lsf "${this.rcloneRepository.getRemoteRoot(config)}" --dirs-only`;
+      const { stdout } = await execAsync(listCommand);
+
+      return stdout
+        .trim()
+        .split("\n")
+        .filter((line) => line.trim() !== "")
+        .map((line) => line.replace(/\/$/, ""));
+    } catch (error) {
+      // Drive has real folders: pass_the_host doesn't exist until the first upload.
+      if (this.rcloneRepository.isNotFoundError(error)) {
+        return [];
+      }
+      throw error;
     }
   }
 
@@ -311,13 +322,17 @@ export class S3ServerRepository implements IS3ServerRepository {
 
   private async detectServerVersionAndType(
     rclonePath: string,
-    serverPath: string,
-    _serverName: string,
+    config: S3Config,
+    serverId: string,
   ): Promise<{ version: string; type: string }> {
+    const serverPath = this.rcloneRepository.getServerRemotePath(config, serverId);
+    const remoteFile = (relativePath: string): string =>
+      this.rcloneRepository.getServerRemoteFilePath(config, serverId, relativePath);
+
     try {
       // First, try to read server_info.json if it exists
       try {
-        const infoCommand = `"${rclonePath}" cat "${serverPath}/server_info.json"`;
+        const infoCommand = `"${rclonePath}" cat "${remoteFile("server_info.json")}"`;
         const { stdout: infoStdout } = await execAsync(infoCommand);
         const serverInfo = JSON.parse(infoStdout.trim());
         if (serverInfo.version && serverInfo.type) {
@@ -339,7 +354,7 @@ export class S3ServerRepository implements IS3ServerRepository {
 
       if (hasLibrariesFolder) {
         try {
-          const forgePathCommand = `"${rclonePath}" lsf "${serverPath}/libraries/net/minecraftforge/forge/" --dirs-only`;
+          const forgePathCommand = `"${rclonePath}" lsf "${remoteFile("libraries/net/minecraftforge/forge/")}" --dirs-only`;
           const { stdout: forgeStdout } = await execAsync(forgePathCommand);
 
           const forgeVersionDirs = forgeStdout
@@ -363,7 +378,7 @@ export class S3ServerRepository implements IS3ServerRepository {
 
       if (hasLibrariesFolder) {
         try {
-          const neoForgePathCommand = `"${rclonePath}" lsf "${serverPath}/libraries/net/neoforged/neoforge/" --dirs-only`;
+          const neoForgePathCommand = `"${rclonePath}" lsf "${remoteFile("libraries/net/neoforged/neoforge/")}" --dirs-only`;
           const { stdout: neoForgeStdout } = await execAsync(neoForgePathCommand);
 
           const neoForgeVersionDirs = neoForgeStdout
@@ -393,7 +408,7 @@ export class S3ServerRepository implements IS3ServerRepository {
 
       if (hasVersionsFolder) {
         try {
-          const versionPathCommand = `"${rclonePath}" lsf "${serverPath}/versions/" --dirs-only`;
+          const versionPathCommand = `"${rclonePath}" lsf "${remoteFile("versions/")}" --dirs-only`;
           const { stdout: versionStdout } = await execAsync(versionPathCommand);
 
           const versionDirs = versionStdout
