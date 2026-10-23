@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --test app/i18n.test.mjs"
   },
   "dependencies": {
     "next": "^16.4.3",

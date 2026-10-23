@@ -6,6 +6,8 @@ html {
 }
 
 body {
+  /* The hero glow bleeds past the viewport; clip keeps the sticky header working */
+  overflow-x: clip;
   color: #eaeaea;
   background-color: #0f1115;
   background-image:
