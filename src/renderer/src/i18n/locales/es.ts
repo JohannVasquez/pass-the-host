@@ -36,8 +36,6 @@ export const es = {
       driveConnected: "Cuenta de Google conectada",
       driveNotConnected: "Inicia sesión con Google para usar tu Drive",
       driveError: "No se pudo conectar con Google. Inténtalo de nuevo.",
-      driveHelp:
-        "Tus servidores se guardan en la carpeta pass_the_host de tu Drive. Comparte esa carpeta, o la de un solo servidor, con tus amigos para que también puedan hostearlo.",
     },
     serverControl: {
       title: "Control del Servidor",
