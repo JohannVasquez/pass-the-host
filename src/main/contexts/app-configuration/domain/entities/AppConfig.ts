@@ -15,7 +15,11 @@ export interface S3Config {
   secret_key?: string;
   bucket_name?: string;
   drive_token?: string;
+  /** Saved settings of every provider used, so switching provider doesn't overwrite them. */
+  profiles?: Partial<Record<S3Provider, StorageProfile>>;
 }
+
+export type StorageProfile = Omit<S3Config, "provider" | "profiles">;
 
 export interface ServerConfig {
   server_path?: string;

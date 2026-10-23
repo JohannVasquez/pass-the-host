@@ -16,6 +16,21 @@ export interface S3Config {
   bucket_name: string;
   /** OAuth token JSON from `rclone authorize drive` (GoogleDrive provider only). */
   drive_token?: string;
+  /** Saved settings of every provider used, so switching provider doesn't overwrite them. */
+  profiles?: Partial<Record<S3Provider, StorageProfile>>;
+}
+
+export type StorageProfile = Partial<Omit<S3Config, "provider" | "profiles">>;
+
+export function toStorageProfile(config: S3Config): StorageProfile {
+  return {
+    endpoint: config.endpoint,
+    region: config.region,
+    access_key: config.access_key,
+    secret_key: config.secret_key,
+    bucket_name: config.bucket_name,
+    drive_token: config.drive_token,
+  };
 }
 
 /** Display name of each provider, shown in the provider picker and in logs. */

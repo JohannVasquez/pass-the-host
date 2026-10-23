@@ -11,6 +11,7 @@ interface S3ConfigType {
   secret_key: string;
   bucket_name: string;
   drive_token?: string;
+  profiles?: Partial<Record<S3Provider, Partial<Omit<S3ConfigType, "provider" | "profiles">>>>;
 }
 
 interface RcloneAPI {
@@ -42,6 +43,7 @@ interface AppConfigData {
     secret_key: string;
     bucket_name: string;
     drive_token?: string;
+    profiles?: S3ConfigType["profiles"];
   };
   server: {
     server_path: string;
