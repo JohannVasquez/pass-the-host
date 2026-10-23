@@ -20,12 +20,16 @@ export const metadata: Metadata = {
     template: "%s — Pass the host",
   },
   description:
-    "App de escritorio gratuita y de código abierto para compartir un servidor de Minecraft entre amigos: cualquiera puede iniciarlo, el mundo se sincroniza en la nube.",
+    "App gratuita para compartir un servidor de Minecraft entre amigos sin pagar hosting: cualquiera del grupo lo inicia y el mundo se sincroniza en la nube.",
+  applicationName: "Pass the host",
+  authors: [{ name: "Johann Vásquez", url: "https://jvdev.cl" }],
+  creator: "Johann Vásquez",
+  // og:image and twitter:image come from app/opengraph-image.tsx
   openGraph: {
     type: "website",
+    url: "/",
     locale: "es_CL",
     siteName: "Pass the host",
-    images: [{ url: "/pass-the-host-home.png", width: 3840, height: 2036 }],
   },
   twitter: { card: "summary_large_image" },
 };
@@ -64,6 +68,12 @@ export default async function RootLayout({
                 className="hidden sm:inline hover:text-[#EAEAEA] transition-colors"
               >
                 Cómo funciona
+              </Link>
+              <Link
+                href="/#preguntas-frecuentes"
+                className="hidden md:inline hover:text-[#EAEAEA] transition-colors"
+              >
+                Preguntas
               </Link>
               <a
                 href={GITHUB_URL}

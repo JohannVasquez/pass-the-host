@@ -4,6 +4,8 @@ export const metadata: Metadata = {
   title: { absolute: "Política de privacidad — Pass the host" },
   description:
     "Política de privacidad de Pass the Host, app de escritorio para servidores de Minecraft compartidos.",
+  alternates: { canonical: "/privacy" },
+  openGraph: { url: "/privacy" },
 };
 
 export default function PassTheHostPrivacy() {

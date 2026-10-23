@@ -20,9 +20,43 @@ import { DOWNLOAD_URL, GITHUB_URL, getDownloads } from "./links";
 export const metadata: Metadata = {
   title: { absolute: "Pass the host — Servidores de Minecraft entre amigos" },
   description:
-    "App de escritorio gratuita y de código abierto para compartir un servidor de Minecraft entre amigos: cualquiera puede iniciarlo, el mundo se sincroniza en la nube.",
+    "App gratuita para compartir un servidor de Minecraft entre amigos sin pagar hosting: cualquiera del grupo lo inicia y el mundo se sincroniza en la nube.",
   alternates: { canonical: "/" },
 };
+
+const SITE_URL = "https://passthehost.jvdev.cl";
+
+// Shown on the page and reused as FAQPage structured data, so both always match
+const faqs = [
+  {
+    q: "¿Pass the host es gratis?",
+    a: "Sí. La app es gratuita y su código está publicado en GitHub. Solo podrías pagar por el almacenamiento en la nube, pero Google Drive o el plan gratuito de Cloudflare R2 suelen alcanzar para un mundo de Minecraft.",
+  },
+  {
+    q: "¿Necesito pagar un hosting o tener un servidor dedicado?",
+    a: "No. El servidor corre en el computador de quien hostea esa partida. El mundo se guarda en tu propio almacenamiento en la nube, así que nadie del grupo tiene que dejar su PC encendido.",
+  },
+  {
+    q: "¿Cómo se conectan mis amigos al servidor?",
+    a: "Quien hostea comparte su IP pública (abriendo el puerto 25565 en su router) o todos se unen a una VPN como Tailscale o ZeroTier y se conectan a la IP de la VPN.",
+  },
+  {
+    q: "¿Qué pasa si dos personas intentan abrir el servidor al mismo tiempo?",
+    a: "No se puede. Al iniciar el servidor, la app crea un bloqueo en la nube que muestra quién está hosteando. Nadie más puede abrirlo ni sobrescribir el mundo hasta que esa persona lo cierre y suba los cambios.",
+  },
+  {
+    q: "¿Qué versiones de Minecraft y mods soporta?",
+    a: "Servidores de Minecraft Java Edition Vanilla, Forge y NeoForge. La app descarga automáticamente la versión de Java que necesita cada versión de Minecraft.",
+  },
+  {
+    q: "¿En qué sistemas operativos funciona?",
+    a: "Windows, macOS (Apple Silicon) y Linux (AppImage, deb y snap). La interfaz está en español e inglés.",
+  },
+  {
+    q: "¿Dónde se guardan mis mundos?",
+    a: "En el almacenamiento que tú elijas: Google Drive o cualquier bucket compatible con S3, como Cloudflare R2, AWS S3, Backblaze B2, DigitalOcean Spaces o MinIO. Pass the host no tiene servidores propios ni recibe tus archivos.",
+  },
+];
 
 const steps = [
   {
@@ -123,8 +157,59 @@ function GoogleDriveLogo({ className }: { className?: string }) {
 export default async function PassTheHostPage() {
   const downloads = await getDownloads();
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "@id": `${SITE_URL}/#app`,
+        name: "Pass the host",
+        url: SITE_URL,
+        description:
+          "App de escritorio gratuita para compartir un servidor de Minecraft entre amigos: cualquiera del grupo puede iniciarlo y el mundo se sincroniza en la nube.",
+        applicationCategory: "GameApplication",
+        applicationSubCategory: "Minecraft server manager",
+        operatingSystem: "Windows, macOS, Linux",
+        ...(downloads.version && {
+          softwareVersion: downloads.version.replace(/^v/, ""),
+        }),
+        downloadUrl: DOWNLOAD_URL,
+        image: `${SITE_URL}/pass-the-host-home.png`,
+        screenshot: [
+          `${SITE_URL}/pass-the-host-home.png`,
+          `${SITE_URL}/pass-the-host-create-server.png`,
+        ],
+        inLanguage: ["es", "en"],
+        offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+        featureList: features.map((f) => f.title),
+        author: {
+          "@type": "Person",
+          name: "Johann Vásquez",
+          url: "https://jvdev.cl",
+        },
+        sameAs: [GITHUB_URL],
+      },
+      {
+        "@type": "FAQPage",
+        "@id": `${SITE_URL}/#faq`,
+        mainEntity: faqs.map((f) => ({
+          "@type": "Question",
+          name: f.q,
+          acceptedAnswer: { "@type": "Answer", text: f.a },
+        })),
+      },
+    ],
+  };
+
   return (
     <main>
+      <script
+        type="application/ld+json"
+        // Escape "<" so the JSON can't close the script tag
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
+        }}
+      />
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-16 sm:pt-24">
         <div className="max-w-3xl">
@@ -322,6 +407,32 @@ export default async function PassTheHostPage() {
               </Link>
             </p>
           </div>
+        </div>
+      </section>
+
+      {/* Preguntas frecuentes */}
+      <section
+        id="preguntas-frecuentes"
+        className="max-w-3xl mx-auto px-4 sm:px-6 pb-24 scroll-mt-16"
+      >
+        <h2 className="text-3xl sm:text-4xl font-bold text-[#EAEAEA]">
+          Preguntas frecuentes
+        </h2>
+        <div className="mt-10 divide-y divide-white/10 border-y border-white/10">
+          {faqs.map((f) => (
+            <details key={f.q} className="group py-5">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold text-[#EAEAEA] [&::-webkit-details-marker]:hidden">
+                <h3>{f.q}</h3>
+                <span
+                  aria-hidden
+                  className="text-xl text-[#8BCB6B] transition-transform group-open:rotate-45"
+                >
+                  +
+                </span>
+              </summary>
+              <p className="mt-3 text-[#A1A1AA]">{f.a}</p>
+            </details>
+          ))}
         </div>
       </section>
 

@@ -1,0 +1,19 @@
+# Pass the host
+
+> Free desktop app (Windows, macOS, Linux) to share one Minecraft Java Edition server among a group of friends. The world is stored in the group's own cloud storage, so anyone can download it, host the server and upload the changes afterwards, without paying for hosting or depending on one person's PC.
+
+- How it works: download the latest world from the cloud → start the server (a cloud lock tells everyone who is hosting and prevents two people from opening it at once) → play, then the changes are uploaded automatically so someone else can host next time.
+- Server types: Vanilla, Forge and NeoForge. The right Java version is downloaded automatically for each Minecraft version.
+- Storage: Google Drive, or any S3-compatible bucket (Cloudflare R2, AWS S3, Backblaze B2, DigitalOcean Spaces, MinIO). Pass the host has no servers of its own and never receives your files.
+- Features: built-in server console, differential sync (only changed files are transferred), session statistics (who hosted, when, for how long).
+- Connecting friends: the host shares their public IP (port 25565 forwarded) or everyone joins a VPN such as Tailscale or ZeroTier.
+- Price: free. Source code on GitHub.
+- UI languages: Spanish and English.
+
+## Links
+
+- [Website (Spanish)](https://passthehost.jvdev.cl/)
+- [Download the latest release](https://github.com/JohannVasquez/pass-the-host/releases/latest)
+- [Source code](https://github.com/JohannVasquez/pass-the-host)
+- [Privacy policy](https://passthehost.jvdev.cl/privacy)
+- [Author: Johann Vásquez](https://jvdev.cl)
