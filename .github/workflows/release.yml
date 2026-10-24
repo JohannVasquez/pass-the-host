@@ -120,18 +120,28 @@ jobs:
         uses: microsoft/microsoft-store-apppublisher@v1.4
 
       # Submits the package for certification; the artifact above is the manual fallback
+      # msstore only picks up .msix files; an .appx is the same package format
       - name: Publish to Microsoft Store
+        id: store
         if: matrix.os == 'windows-latest'
         continue-on-error: true
         shell: pwsh
         run: |
           msstore reconfigure --tenantId $env:TENANT_ID --sellerId $env:SELLER_ID --clientId $env:CLIENT_ID --clientSecret $env:CLIENT_SECRET
-          msstore publish (Get-Item dist/*.appx).FullName -id 9P12F6CZLBR0
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $appx = (Get-Item dist/*.appx).FullName
+          $msix = [IO.Path]::ChangeExtension($appx, ".msix")
+          Copy-Item $appx $msix
+          msstore publish $msix -id 9P12F6CZLBR0
         env:
           TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
           SELLER_ID: ${{ secrets.SELLER_ID }}
           CLIENT_ID: ${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }}
           CLIENT_SECRET: ${{ secrets.AZURE_AD_APPLICATION_SECRET }}
+
+      - name: Warn about Store submission
+        if: steps.store.outcome == 'failure'
+        run: echo "::warning::Microsoft Store submission failed; upload the store-appx artifact in Partner Center"
 
   publish-release:
     name: Publish Release
