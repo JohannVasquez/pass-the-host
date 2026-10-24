@@ -8,7 +8,7 @@
 - Features: built-in server console, differential sync (only changed files are transferred), session statistics (who hosted, when, for how long).
 - Connecting friends: the host shares their public IP (port 25565 forwarded) or everyone joins a VPN such as Hamachi, Radmin VPN, Tailscale or ZeroTier.
 - Price: free. Open source under the MIT license.
-- UI languages: Spanish and English.
+- UI languages: English, Spanish, Portuguese (Brazil), German, French and Russian.
 
 ## Links
 
