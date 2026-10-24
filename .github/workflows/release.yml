@@ -63,7 +63,8 @@ jobs:
             command: pnpm run build:mac
 
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    # Windows also uploads the Store package
+    timeout-minutes: 20
 
     steps:
       - name: Checkout Code
@@ -99,7 +100,7 @@ jobs:
           MAIN_VITE_GDRIVE_CLIENT_ID: ${{ secrets.MAIN_VITE_GDRIVE_CLIENT_ID }}
           MAIN_VITE_GDRIVE_CLIENT_SECRET: ${{ secrets.MAIN_VITE_GDRIVE_CLIENT_SECRET }}
 
-      # Microsoft Store package: kept out of the GitHub release, uploaded by hand to Partner Center
+      # Microsoft Store package: kept out of the GitHub release, submitted to Partner Center below
       - name: Build Store package
         if: matrix.os == 'windows-latest'
         continue-on-error: true
@@ -112,6 +113,25 @@ jobs:
         with:
           name: store-appx
           path: dist/*.appx
+
+      - name: Setup Microsoft Store CLI
+        if: matrix.os == 'windows-latest'
+        continue-on-error: true
+        uses: microsoft/microsoft-store-apppublisher@v1.4
+
+      # Submits the package for certification; the artifact above is the manual fallback
+      - name: Publish to Microsoft Store
+        if: matrix.os == 'windows-latest'
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          msstore reconfigure --tenantId $env:TENANT_ID --sellerId $env:SELLER_ID --clientId $env:CLIENT_ID --clientSecret $env:CLIENT_SECRET
+          msstore publish (Get-Item dist/*.appx).FullName -id 9P12F6CZLBR0
+        env:
+          TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
+          SELLER_ID: ${{ secrets.SELLER_ID }}
+          CLIENT_ID: ${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.AZURE_AD_APPLICATION_SECRET }}
 
   publish-release:
     name: Publish Release
