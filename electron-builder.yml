@@ -26,6 +26,8 @@ appx:
   identityName: JohannV.Dev.Passthehost
   publisher: CN=95840A7B-6A6C-4FA6-BCFA-C147C7886902
   publisherDisplayName: "Johann V. Dev"
+  # Partner Center rejects .msix packages targeting Windows 10 1803 (10.0.17134) or older
+  minVersion: 10.0.17763.0
   languages:
     - en-US
     - es-ES
