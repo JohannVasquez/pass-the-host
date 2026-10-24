@@ -1,5 +1,7 @@
 export const GITHUB_URL = "https://github.com/JohannVasquez/pass-the-host";
 export const DOWNLOAD_URL = `${GITHUB_URL}/releases/latest`;
+// Store builds are signed (no SmartScreen warning) and update themselves
+export const MS_STORE_URL = "https://apps.microsoft.com/detail/9P12F6CZLBR0";
 
 export type Downloads = {
   version: string | null;
@@ -63,7 +65,7 @@ export async function getDownloads(): Promise<Downloads> {
 
     return {
       version: release.tag_name,
-      windows: find(".exe"),
+      windows: MS_STORE_URL,
       mac: find(".dmg"),
       linux: find(".AppImage"),
       count: formatDownloadCount(total),

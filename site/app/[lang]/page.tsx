@@ -19,7 +19,7 @@ import { getDictionary } from "../dictionaries";
 import { DownloadButton } from "../DownloadButton";
 import { isLocale } from "../i18n";
 import icon from "../icon.png";
-import { DOWNLOAD_URL, GITHUB_URL, getDownloads } from "../links";
+import { DOWNLOAD_URL, GITHUB_URL, MS_STORE_URL, getDownloads } from "../links";
 
 const SITE_URL = "https://passthehost.jvdev.cl";
 
@@ -133,7 +133,7 @@ export default async function PassTheHostPage({
           name: "Johann Vásquez",
           url: "https://jvdev.cl",
         },
-        sameAs: [GITHUB_URL],
+        sameAs: [GITHUB_URL, MS_STORE_URL],
       },
       {
         "@type": "FAQPage",
