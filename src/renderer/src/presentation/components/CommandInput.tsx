@@ -75,6 +75,7 @@ export const CommandInput: React.FC<CommandInputProps> = ({
             variant="contained"
             endIcon={<SendIcon />}
             disabled={!command.trim()}
+            sx={{ flexShrink: 0 }}
           >
             {t("commands.send")}
           </Button>

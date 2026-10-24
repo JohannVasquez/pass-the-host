@@ -2,6 +2,7 @@ import React from "react";
 import { Box, IconButton, Menu, MenuItem, Tooltip } from "@mui/material";
 import { Language as LanguageIcon } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
+import { LANGUAGES } from "../../i18n/config";
 
 export const LanguageSwitcher: React.FC = (): React.JSX.Element => {
   const { i18n, t } = useTranslation();
@@ -35,8 +36,15 @@ export const LanguageSwitcher: React.FC = (): React.JSX.Element => {
         </IconButton>
       </Tooltip>
       <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
-        <MenuItem onClick={() => handleLanguageChange("en")}>{t("language.en")}</MenuItem>
-        <MenuItem onClick={() => handleLanguageChange("es")}>{t("language.es")}</MenuItem>
+        {LANGUAGES.map(({ code, name }) => (
+          <MenuItem
+            key={code}
+            selected={i18n.language === code}
+            onClick={() => handleLanguageChange(code)}
+          >
+            {name}
+          </MenuItem>
+        ))}
       </Menu>
     </Box>
   );
