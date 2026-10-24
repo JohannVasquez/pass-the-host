@@ -14,6 +14,7 @@
 
 - [Website (English)](https://passthehost.jvdev.cl/en)
 - [Website (Spanish)](https://passthehost.jvdev.cl/es)
+- [Microsoft Store (Windows)](https://apps.microsoft.com/detail/9P12F6CZLBR0)
 - [Download the latest release](https://github.com/JohannVasquez/pass-the-host/releases/latest)
 - [Source code](https://github.com/JohannVasquez/pass-the-host)
 - [Privacy policy](https://passthehost.jvdev.cl/en/privacy)
