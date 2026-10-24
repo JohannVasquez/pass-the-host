@@ -89,16 +89,76 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 const icon = nativeImage.createFromPath(join(__dirname, "../../resources/icon.png"));
-const trayIcon =
-  process.platform === "darwin"
-    ? icon.resize({ width: 18, height: 18 })
-    : icon;
+const trayIcon = process.platform === "darwin" ? icon.resize({ width: 18, height: 18 }) : icon;
 
 if (process.platform === "darwin" && app.dock) {
   app.dock.setIcon(icon);
 }
 
 app.setName("Pass the host");
+// Native update dialogs, outside the renderer's i18n; keys match the app's language codes
+const UPDATE_DIALOG_TEXT = {
+  en: {
+    title: "Application Update",
+    downloaded: "A new version has been downloaded. Restart the application to apply the updates.",
+    availableMac:
+      "A new version is available. Download the .dmg and replace the app in Applications.",
+    restartNow: "Restart now",
+    download: "Download",
+    later: "Later",
+  },
+  es: {
+    title: "Actualización de la Aplicación",
+    downloaded:
+      "Se ha descargado una nueva versión. Reinicia la aplicación para aplicar las actualizaciones.",
+    availableMac:
+      "Hay una nueva versión disponible. Descarga el .dmg y reemplaza la app en Aplicaciones.",
+    restartNow: "Reiniciar ahora",
+    download: "Descargar",
+    later: "Más tarde",
+  },
+  "pt-BR": {
+    title: "Atualização do aplicativo",
+    downloaded: "Uma nova versão foi baixada. Reinicie o aplicativo para aplicar as atualizações.",
+    availableMac: "Há uma nova versão disponível. Baixe o .dmg e substitua o app em Aplicativos.",
+    restartNow: "Reiniciar agora",
+    download: "Baixar",
+    later: "Mais tarde",
+  },
+  de: {
+    title: "Anwendungsupdate",
+    downloaded:
+      "Eine neue Version wurde heruntergeladen. Starte die Anwendung neu, um das Update anzuwenden.",
+    availableMac:
+      "Eine neue Version ist verfügbar. Lade die .dmg herunter und ersetze die App im Ordner Programme.",
+    restartNow: "Jetzt neu starten",
+    download: "Herunterladen",
+    later: "Später",
+  },
+  fr: {
+    title: "Mise à jour de l'application",
+    downloaded:
+      "Une nouvelle version a été téléchargée. Redémarre l'application pour appliquer la mise à jour.",
+    availableMac:
+      "Une nouvelle version est disponible. Télécharge le .dmg et remplace l'app dans Applications.",
+    restartNow: "Redémarrer",
+    download: "Télécharger",
+    later: "Plus tard",
+  },
+  ru: {
+    title: "Обновление приложения",
+    downloaded: "Загружена новая версия. Перезапустите приложение, чтобы применить обновление.",
+    availableMac: "Доступна новая версия. Скачайте .dmg и замените приложение в папке «Программы».",
+    restartNow: "Перезапустить",
+    download: "Скачать",
+    later: "Позже",
+  },
+};
+
+function updateDialogText(language = "en"): (typeof UPDATE_DIALOG_TEXT)["en"] {
+  return UPDATE_DIALOG_TEXT[language as keyof typeof UPDATE_DIALOG_TEXT] ?? UPDATE_DIALOG_TEXT.en;
+}
+
 // Auto-updater functions
 function setupAutoUpdater(container: Container): void {
   // Handle update-downloaded event
@@ -106,40 +166,13 @@ function setupAutoUpdater(container: Container): void {
     // Get language from config
     const loadConfigUseCase = container.get<LoadConfigUseCase>(ConfigTYPES.LoadConfigUseCase);
     const config = await loadConfigUseCase.execute();
-    const language = config?.app?.language || "en";
-    // Messages in different languages
-    const messages: {
-      [key: string]: {
-        title: string;
-        message: string;
-        detail: string;
-        restartNow: string;
-        later: string;
-      };
-    } = {
-      en: {
-        title: "Application Update",
-        message: event.version || "Update Available",
-        detail: "A new version has been downloaded. Restart the application to apply the updates.",
-        restartNow: "Restart now",
-        later: "Later",
-      },
-      es: {
-        title: "Actualización de la Aplicación",
-        message: event.version || "Actualización Disponible",
-        detail:
-          "Se ha descargado una nueva versión. Reinicia la aplicación para aplicar las actualizaciones.",
-        restartNow: "Reiniciar ahora",
-        later: "Más tarde",
-      },
-    };
-    const msg = messages[language] || messages["en"];
+    const msg = updateDialogText(config?.app?.language);
     const dialogOpts = {
       type: "info" as const,
       buttons: [msg.restartNow, msg.later],
       title: msg.title,
-      message: msg.message,
-      detail: msg.detail,
+      message: event.version,
+      detail: msg.downloaded,
     };
     dialog.showMessageBox(dialogOpts).then((returnValue) => {
       if (returnValue.response === 0) {
@@ -155,15 +188,13 @@ function setupAutoUpdater(container: Container): void {
     autoUpdater.on("update-available", async (info) => {
       const loadConfigUseCase = container.get<LoadConfigUseCase>(ConfigTYPES.LoadConfigUseCase);
       const config = await loadConfigUseCase.execute();
-      const es = config?.app?.language === "es";
+      const msg = updateDialogText(config?.app?.language);
       const { response } = await dialog.showMessageBox({
         type: "info",
-        buttons: es ? ["Descargar", "Más tarde"] : ["Download", "Later"],
-        title: es ? "Actualización de la Aplicación" : "Application Update",
+        buttons: [msg.download, msg.later],
+        title: msg.title,
         message: info.version,
-        detail: es
-          ? "Hay una nueva versión disponible. Descarga el .dmg y reemplaza la app en Aplicaciones."
-          : "A new version is available. Download the .dmg and replace the app in Applications.",
+        detail: msg.availableMac,
       });
       if (response === 0) {
         shell.openExternal(

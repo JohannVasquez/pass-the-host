@@ -124,7 +124,7 @@ const es = {
       },
       {
         q: "¿En qué sistemas operativos funciona?",
-        a: "Windows (Microsoft Store o instalador .exe), macOS (Apple Silicon) y Linux (AppImage, deb y snap). La interfaz está en español e inglés.",
+        a: "Windows (Microsoft Store o instalador .exe), macOS (Apple Silicon) y Linux (AppImage, deb y snap). La interfaz está en español, inglés, portugués (Brasil), alemán, francés y ruso.",
       },
       {
         q: "¿Dónde se guardan mis mundos?",
@@ -287,7 +287,7 @@ const en: typeof es = {
       },
       {
         q: "Which operating systems does it run on?",
-        a: "Windows (Microsoft Store or .exe installer), macOS (Apple Silicon) and Linux (AppImage, deb and snap). The interface is available in English and Spanish.",
+        a: "Windows (Microsoft Store or .exe installer), macOS (Apple Silicon) and Linux (AppImage, deb and snap). The interface is available in English, Spanish, Portuguese (Brazil), German, French and Russian.",
       },
       {
         q: "Where are my worlds stored?",

@@ -107,8 +107,6 @@ export const es = {
     },
     language: {
       title: "Idioma",
-      en: "Inglés",
-      es: "Español",
     },
     rclone: {
       modalTitle: "Configurando Rclone",
