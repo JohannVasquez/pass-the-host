@@ -96,7 +96,7 @@ if (process.platform === "darwin" && app.dock) {
 }
 
 app.setName("Pass the host");
-// Native update dialogs, outside the renderer's i18n; keys match the app's language codes
+// Native update dialogs live outside the renderer's i18n; keys match the app's language codes
 const UPDATE_DIALOG_TEXT = {
   en: {
     title: "Application Update",
