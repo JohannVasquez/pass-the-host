@@ -1,0 +1,491 @@
+import React from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  FormControl,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
+import { PanelTitle } from "@renderer/presentation/components/PanelTitle";
+import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
+import { useSnackbar } from "notistack";
+import { useTranslation } from "react-i18next";
+import type { P2PGroup } from "@preload/index.d";
+import {
+  joinServer,
+  startHosting,
+  type JoinedServer,
+} from "@contexts/p2p-tunnel/infrastructure/PeerTunnel";
+import { resetRealtime } from "@contexts/p2p-tunnel/infrastructure/Realtime";
+import {
+  watchPresence,
+  type NetworkPresence,
+  type OnlineMember,
+} from "@contexts/p2p-tunnel/infrastructure/NetworkPresence";
+import {
+  hostingChanges,
+  type HostingChange,
+} from "@contexts/p2p-tunnel/infrastructure/hostingChanges";
+import { MembersDialog } from "@contexts/p2p-tunnel/presentation/components/MembersDialog";
+import { RoomsInfoDialog } from "@contexts/p2p-tunnel/presentation/components/RoomsInfoDialog";
+
+const MINECRAFT_PORT = 25565;
+const GROUP_STORAGE_KEY = "p2p.groupId";
+
+type Mode = "join" | "create";
+
+interface P2PPanelProps {
+  serverRunning: boolean;
+  serverPort: number;
+  username: string;
+  /** Name of the selected Minecraft server, announced to the network while hosting */
+  serverName: string | null;
+}
+
+const readStoredGroup = (): string => {
+  try {
+    return localStorage.getItem(GROUP_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+};
+
+const errorCode = (error: unknown): string =>
+  (error instanceof Error ? error.message : String(error))
+    .replace(/^Error invoking remote method '[^']+': /, "")
+    .replace(/^Error: /, "");
+
+/** ABCDEFGHJKLM → ABCD-EFGH-JKLM */
+const formatCode = (code: string): string => code.match(/.{1,4}/g)?.join("-") ?? code;
+
+export const P2PPanel: React.FC<P2PPanelProps> = ({
+  serverRunning,
+  serverPort,
+  username,
+  serverName,
+}) => {
+  const { t } = useTranslation();
+  const { enqueueSnackbar } = useSnackbar();
+  const [groups, setGroups] = React.useState<P2PGroup[]>([]);
+  const [groupId, setGroupId] = React.useState<string>(readStoredGroup);
+  const [mode, setMode] = React.useState<Mode>("join");
+  const [newGroupName, setNewGroupName] = React.useState("");
+  const [codeInput, setCodeInput] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [hosting, setHosting] = React.useState(false);
+  const [joined, setJoined] = React.useState<JoinedServer | null>(null);
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [membersOpen, setMembersOpen] = React.useState(false);
+  const [infoOpen, setInfoOpen] = React.useState(false);
+  // null until presence works (e.g. the Ably key may lack the presence capability)
+  const [online, setOnline] = React.useState<OnlineMember[] | null>(null);
+  // Bumped whenever the Ably connection is replaced, so channel users re-attach
+  const [realtimeEpoch, setRealtimeEpoch] = React.useState(0);
+  const presenceRef = React.useRef<NetworkPresence | null>(null);
+  const hostingSinceRef = React.useRef<number | null>(null);
+
+  const selectedGroup = groups.find((group) => group.id === groupId);
+  const hosts = online?.filter((member) => member.hosting && !member.isYou) ?? [];
+
+  const showError = React.useCallback(
+    (error: unknown) => {
+      const code = errorCode(error);
+      enqueueSnackbar(
+        t(`p2p.errors.${code}`, { defaultValue: t("p2p.errors.generic", { code }) }),
+        { variant: "error" },
+      );
+    },
+    [enqueueSnackbar, t],
+  );
+
+  const run = async (action: () => Promise<void>): Promise<void> => {
+    setBusy(true);
+    try {
+      await action();
+    } catch (error) {
+      showError(error);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const refreshGroups = React.useCallback(async (selectId?: string) => {
+    const list = await window.p2pAPI.listGroups();
+    setGroups(list);
+    setGroupId((current) => {
+      const wanted = selectId ?? current;
+      return list.some((group) => group.id === wanted) ? wanted : (list[0]?.id ?? "");
+    });
+  }, []);
+
+  // The first call registers this device with the API, no login needed
+  React.useEffect(() => {
+    refreshGroups().catch(showError);
+  }, [refreshGroups, showError]);
+
+  // Other members see this name in the network's member list
+  React.useEffect(() => {
+    if (username) window.p2pAPI.setDisplayName(username).catch(showError);
+  }, [username, showError]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem(GROUP_STORAGE_KEY, groupId);
+    } catch {
+      // Storage unavailable: the selection just won't survive a restart
+    }
+  }, [groupId]);
+
+  // Desktop notification when a friend starts or stops hosting in the selected network
+  const notifyHosting = ({ type, member }: HostingChange): void => {
+    const vars = {
+      name: member.name,
+      server: member.serverName ?? selectedGroup?.name ?? "",
+      network: selectedGroup?.name ?? "",
+    };
+    const minutes = Math.floor((Date.now() - (member.hostingSince ?? Date.now())) / 60_000);
+    const duration =
+      minutes < 1
+        ? t("p2p.notify.lessThanMinute")
+        : minutes < 60
+          ? t("p2p.notify.minutes", { m: minutes })
+          : t("p2p.notify.hoursMinutes", { h: Math.floor(minutes / 60), m: minutes % 60 });
+    void window.notificationAPI.show(
+      t(`p2p.notify.${type}Title`, vars),
+      t(`p2p.notify.${type}Body`, { ...vars, duration }),
+    );
+  };
+  // Read from the presence callback without re-subscribing on every render
+  const notifyRef = React.useRef(notifyHosting);
+  notifyRef.current = notifyHosting;
+
+  // Presence: everyone with the app open on this network, and who is hosting
+  React.useEffect(() => {
+    if (!groupId) return undefined;
+    let last: OnlineMember[] | null = null;
+    const onChange = (next: OnlineMember[]): void => {
+      for (const change of hostingChanges(last, next)) notifyRef.current(change);
+      last = next;
+      setOnline(next);
+    };
+    const presence = watchPresence(groupId, onChange, (error) => {
+      console.warn("P2P presence unavailable", error);
+      setOnline(null);
+    });
+    presenceRef.current = presence;
+    return () => {
+      presence.leave();
+      presenceRef.current = null;
+      setOnline(null);
+    };
+  }, [groupId, realtimeEpoch]);
+
+  // Runs after the effect above, so it also enters presence for a new network
+  React.useEffect(() => {
+    if (!hosting) hostingSinceRef.current = null;
+    else hostingSinceRef.current ??= Date.now();
+    if (!username) return;
+    presenceRef.current?.set({
+      name: username,
+      hosting,
+      ...(hosting && {
+        serverName: serverName ?? undefined,
+        hostingSince: hostingSinceRef.current ?? undefined,
+      }),
+    });
+  }, [username, hosting, serverName, groupId, realtimeEpoch]);
+
+  const reconnectRealtime = (): void => {
+    resetRealtime();
+    setRealtimeEpoch((epoch) => epoch + 1);
+  };
+
+  // Host: while the server runs, answer friends of the selected group
+  React.useEffect(() => {
+    if (!groupId || !serverRunning) return undefined;
+    let stop: (() => void) | null = null;
+    let cancelled = false;
+    startHosting(groupId, serverPort).then((stopHosting) => {
+      if (cancelled) return stopHosting();
+      stop = stopHosting;
+      setHosting(true);
+    }, showError);
+    return () => {
+      cancelled = true;
+      stop?.();
+      setHosting(false);
+    };
+  }, [groupId, serverRunning, serverPort, showError, realtimeEpoch]);
+
+  const handleCreateGroup = (): Promise<void> =>
+    run(async () => {
+      const group = await window.p2pAPI.createGroup(newGroupName.trim());
+      reconnectRealtime();
+      setNewGroupName("");
+      await refreshGroups(group.id);
+      enqueueSnackbar(t("p2p.groupCreated"), { variant: "success" });
+    });
+
+  const handleJoinGroup = (): Promise<void> =>
+    run(async () => {
+      const group = await window.p2pAPI.joinGroup(codeInput);
+      reconnectRealtime();
+      setCodeInput("");
+      await refreshGroups(group.id);
+      enqueueSnackbar(t("p2p.groupJoined", { name: group.name }), { variant: "success" });
+    });
+
+  const handleDeleteGroup = (): Promise<void> =>
+    run(async () => {
+      setConfirmDelete(false);
+      await window.p2pAPI.deleteGroup(groupId);
+      reconnectRealtime();
+      await refreshGroups();
+      enqueueSnackbar(t("p2p.groupDeleted"), { variant: "success" });
+    });
+
+  const handleCopyCode = async (): Promise<void> => {
+    if (!selectedGroup) return;
+    await navigator.clipboard.writeText(formatCode(selectedGroup.inviteCode));
+    enqueueSnackbar(t("p2p.inviteCopied"), { variant: "success" });
+  };
+
+  const handleConnect = (): Promise<void> =>
+    run(async () => {
+      setJoined(
+        await joinServer(groupId, MINECRAFT_PORT, () => {
+          setJoined(null);
+          enqueueSnackbar(t("p2p.disconnected"), { variant: "warning" });
+        }),
+      );
+    });
+
+  const handleDisconnect = (): void => {
+    joined?.stop();
+    setJoined(null);
+  };
+
+  return (
+    <Paper elevation={2} sx={{ p: 2 }}>
+      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 1 }}>
+        <PanelTitle icon={<GroupsOutlinedIcon />}>{t("p2p.title")}</PanelTitle>
+        <Tooltip title={t("p2p.info.button")}>
+          <IconButton
+            size="small"
+            onClick={() => setInfoOpen(true)}
+            aria-label={t("p2p.info.button")}
+          >
+            <InfoOutlinedIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Stack>
+
+      <Stack spacing={2}>
+        {selectedGroup ? (
+          <>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <FormControl fullWidth size="small">
+                <InputLabel>{t("p2p.group")}</InputLabel>
+                <Select
+                  value={groupId}
+                  label={t("p2p.group")}
+                  onChange={(e) => setGroupId(e.target.value)}
+                  disabled={busy || hosting || joined !== null}
+                >
+                  {groups.map((group) => (
+                    <MenuItem key={group.id} value={group.id}>
+                      {group.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Tooltip title={t("p2p.viewMembers")}>
+                <Button
+                  size="small"
+                  color="inherit"
+                  onClick={() => {
+                    setMembersOpen(true);
+                    refreshGroups().catch(showError);
+                  }}
+                  startIcon={<PeopleOutlineIcon />}
+                  aria-label={t("p2p.viewMembers")}
+                  sx={{ minWidth: 0, flexShrink: 0 }}
+                >
+                  {online
+                    ? `${online.length}/${selectedGroup.memberCount}`
+                    : selectedGroup.memberCount}
+                </Button>
+              </Tooltip>
+              {selectedGroup.isOwner && (
+                <Tooltip title={t("p2p.deleteGroup")}>
+                  <span>
+                    <IconButton
+                      color="error"
+                      onClick={() => setConfirmDelete(true)}
+                      disabled={busy || hosting || joined !== null}
+                      aria-label={t("p2p.deleteGroup")}
+                    >
+                      <DeleteOutlineIcon fontSize="small" />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              )}
+            </Stack>
+
+            <Box sx={{ bgcolor: "action.hover", p: 1, pl: 1.5, borderRadius: 1 }}>
+              <Typography variant="caption" color="text.secondary">
+                {t("p2p.inviteCode")}
+              </Typography>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Typography
+                  variant="h6"
+                  sx={{ fontFamily: "monospace", letterSpacing: 1, flexGrow: 1 }}
+                >
+                  {formatCode(selectedGroup.inviteCode)}
+                </Typography>
+                <Tooltip title={t("p2p.copyInvite")}>
+                  <IconButton onClick={handleCopyCode} aria-label={t("p2p.copyInvite")}>
+                    <ContentCopyIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            </Box>
+
+            {serverRunning ? (
+              <Alert severity={hosting ? "success" : "info"}>
+                {hosting ? t("p2p.hosting") : t("p2p.connecting")}
+              </Alert>
+            ) : joined ? (
+              <Box>
+                <Alert severity="success" sx={{ mb: 1 }}>
+                  {t("p2p.connected", { address: `localhost:${joined.port}` })}
+                </Alert>
+                <Button fullWidth variant="outlined" color="warning" onClick={handleDisconnect}>
+                  {t("p2p.disconnect")}
+                </Button>
+              </Box>
+            ) : (
+              <Box>
+                {online && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    {hosts.length > 0
+                      ? t("p2p.hostingNow", { name: hosts.map((host) => host.name).join(", ") })
+                      : t("p2p.nobodyHosting")}
+                  </Typography>
+                )}
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={handleConnect}
+                  // Without presence we can't tell, so let the connection attempt decide
+                  disabled={busy || (online !== null && hosts.length === 0)}
+                  startIcon={busy ? <CircularProgress size={16} /> : undefined}
+                >
+                  {busy ? t("p2p.connecting") : t("p2p.connect")}
+                </Button>
+              </Box>
+            )}
+          </>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            {t("p2p.noGroups")}
+          </Typography>
+        )}
+
+        <ToggleButtonGroup
+          value={mode}
+          exclusive
+          size="small"
+          fullWidth
+          onChange={(_e, value: Mode | null) => value && setMode(value)}
+          disabled={busy}
+        >
+          <ToggleButton value="join">{t("p2p.modeJoin")}</ToggleButton>
+          <ToggleButton value="create">{t("p2p.modeCreate")}</ToggleButton>
+        </ToggleButtonGroup>
+
+        {mode === "join" ? (
+          <Stack direction="row" spacing={1}>
+            <TextField
+              size="small"
+              fullWidth
+              label={t("p2p.inviteCode")}
+              placeholder="XXXX-XXXX-XXXX"
+              value={codeInput}
+              onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === "Enter" && codeInput.trim() && void handleJoinGroup()}
+              slotProps={{ htmlInput: { maxLength: 20, style: { fontFamily: "monospace" } } }}
+              disabled={busy}
+            />
+            <Button onClick={handleJoinGroup} disabled={busy || !codeInput.trim()}>
+              {t("p2p.join")}
+            </Button>
+          </Stack>
+        ) : (
+          <Stack direction="row" spacing={1}>
+            <TextField
+              size="small"
+              fullWidth
+              label={t("p2p.newGroupName")}
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              onKeyDown={(e) =>
+                e.key === "Enter" && newGroupName.trim() && void handleCreateGroup()
+              }
+              slotProps={{ htmlInput: { maxLength: 50 } }}
+              disabled={busy}
+            />
+            <Button onClick={handleCreateGroup} disabled={busy || !newGroupName.trim()}>
+              {t("p2p.create")}
+            </Button>
+          </Stack>
+        )}
+      </Stack>
+
+      {selectedGroup && (
+        <MembersDialog
+          open={membersOpen}
+          groupId={selectedGroup.id}
+          groupName={selectedGroup.name}
+          online={online}
+          onClose={() => setMembersOpen(false)}
+        />
+      )}
+
+      <RoomsInfoDialog open={infoOpen} onClose={() => setInfoOpen(false)} />
+
+      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>{t("p2p.deleteConfirmTitle", { name: selectedGroup?.name })}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{t("p2p.deleteConfirmBody")}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDelete(false)}>{t("p2p.cancel")}</Button>
+          <Button color="error" variant="contained" onClick={handleDeleteGroup}>
+            {t("p2p.deleteGroup")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Paper>
+  );
+};

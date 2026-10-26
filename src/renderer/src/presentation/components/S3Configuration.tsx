@@ -24,9 +24,10 @@ import {
   LockOpen as LockOpenIcon,
   ExpandMore as ExpandMoreIcon,
   Google as GoogleIcon,
-  Share as ShareIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
+import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
+import { PanelTitle } from "@renderer/presentation/components/PanelTitle";
 import {
   PROVIDER_LABELS,
   S3Config,
@@ -40,8 +41,6 @@ interface S3ConfigurationProps {
   cloudSyncEnabled: boolean;
   onToggleCloudSync: (enabled: boolean) => void;
   disabled?: boolean;
-  selectedServer: string | null;
-  onShareServer: () => void;
 }
 
 // Provider-specific endpoint placeholders
@@ -72,8 +71,6 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
   cloudSyncEnabled,
   onToggleCloudSync,
   disabled = false,
-  selectedServer,
-  onShareServer,
 }): React.JSX.Element => {
   const { t } = useTranslation();
   const [localConfig, setLocalConfig] = React.useState<S3Config>(config);
@@ -164,9 +161,9 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
       {/* div, not the default button: it contains the lock IconButton, and HTML forbids nested buttons. */}
       <AccordionSummary component="div" expandIcon={<ExpandMoreIcon />}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+          <PanelTitle icon={<CloudOutlinedIcon />} sx={{ flexGrow: 1 }}>
             {t("s3Configuration.title")}
-          </Typography>
+          </PanelTitle>
           <Tooltip
             title={effectivelyLocked ? t("s3Configuration.unlock") : t("s3Configuration.lock")}
           >
@@ -246,23 +243,6 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
                   {t("s3Configuration.driveError")}
                 </Typography>
               )}
-              {/* Uses the saved config: sharing needs the stored Google session, not unsaved edits. */}
-              <Button
-                variant="outlined"
-                startIcon={<ShareIcon />}
-                onClick={onShareServer}
-                fullWidth
-                disabled={
-                  !cloudSyncEnabled ||
-                  config.provider !== "GoogleDrive" ||
-                  !config.drive_token ||
-                  !selectedServer
-                }
-              >
-                {selectedServer
-                  ? t("s3Configuration.shareServer", { serverName: selectedServer })
-                  : t("s3Configuration.shareServerNoSelection")}
-              </Button>
             </Stack>
           ) : (
             <>

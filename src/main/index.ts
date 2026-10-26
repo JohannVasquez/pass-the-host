@@ -43,6 +43,7 @@ import {
 import { registerServerLifecycleIPCHandlers } from "@main/contexts/server-lifecycle/infrastructure/ipc";
 import { registerSystemResourcesIPCHandlers } from "@main/contexts/system-resources/infrastructure/ipc";
 import { registerAppConfigurationIPCHandlers } from "@main/contexts/app-configuration/infrastructure/ipc";
+import { registerP2PIPCHandlers } from "@main/contexts/p2p-tunnel/infrastructure/ipc";
 import { LoadConfigUseCase } from "@main/contexts/app-configuration/application/use-cases";
 import { TYPES as ConfigTYPES } from "@main/contexts/app-configuration/application/use-cases/types";
 import { Container } from "inversify";
@@ -381,6 +382,9 @@ if (!gotTheLock) {
     // ===== APP CONFIGURATION HANDLERS =====
     registerAppConfigurationIPCHandlers(container);
     logger.info("App Configuration IPC handlers registered");
+    // ===== P2P TUNNEL HANDLERS =====
+    registerP2PIPCHandlers();
+    logger.info("P2P Tunnel IPC handlers registered");
 
     // ===== NOTIFICATION HANDLER =====
     ipcMain.handle("notification:show", async (_event, title: string, body: string) => {
