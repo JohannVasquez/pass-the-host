@@ -6,7 +6,7 @@
 - Server types: Vanilla, Forge and NeoForge. The right Java version is downloaded automatically for each Minecraft version.
 - Storage: Google Drive, or any S3-compatible bucket (Cloudflare R2, AWS S3, Backblaze B2, DigitalOcean Spaces, MinIO). Pass the host has no servers of its own and never receives your files.
 - Features: built-in server console, differential sync (only changed files are transferred), session statistics (who hosted, when, for how long).
-- Connecting friends: the host shares their public IP (port 25565 forwarded) or everyone joins a VPN such as Hamachi, Radmin VPN, Tailscale or ZeroTier.
+- Connecting friends: built-in rooms. Friends join a room with an invite code; when someone hosts, the others press Connect and the app opens a direct peer-to-peer tunnel (WebRTC), so they play on localhost:25565. No port forwarding, VPN or public IP needed.
 - Price: free. Open source under the MIT license.
 - UI languages: English, Spanish, Portuguese (Brazil), German, French and Russian.
 

@@ -36,7 +36,7 @@ const es = {
     allDownloads: "Todas las descargas",
     downloadCount: "{n} descargas",
     screenshotAlt:
-      "Pantalla principal de Pass the host con el control del servidor y la consola",
+      "Pantalla principal de Pass the host con el control del servidor, las salas y la consola",
   },
   video: {
     title: "Míralo en acción",
@@ -61,7 +61,7 @@ const es = {
       },
     ],
     connectNote:
-      "Para que tus amigos se conecten, solo falta compartir tu IP o usar una VPN como Hamachi, Radmin VPN, Tailscale o ZeroTier.",
+      "Tus amigos se conectan desde la misma app con una sala: sin abrir puertos, sin VPN y sin IP pública.",
   },
   features: {
     title: "Todo lo que necesitas para hostear",
@@ -119,7 +119,7 @@ const es = {
       },
       {
         q: "¿Cómo se conectan mis amigos al servidor?",
-        a: "Quien hostea comparte su IP pública (abriendo el puerto 25565 en su router) o todos se unen a una misma VPN, como Hamachi, Radmin VPN, Tailscale o ZeroTier, y se conectan a la IP que esa VPN le asigna al host.",
+        a: "Con las salas de la app. Crea una sala y comparte su código de invitación; cuando alguien de la sala inicia el servidor, los demás pulsan Conectarse y la app abre un túnel directo a su computador. En Minecraft solo agregan el servidor localhost:25565. No hace falta abrir puertos, usar VPN ni tener IP pública.",
       },
       {
         q: "¿Qué pasa si dos personas intentan abrir el servidor al mismo tiempo?",
@@ -226,7 +226,7 @@ const en: typeof es = {
     allDownloads: "All downloads",
     downloadCount: "{n} downloads",
     screenshotAlt:
-      "Pass the host main screen with the server controls and the console",
+      "Pass the host main screen with the server controls, rooms and the console",
   },
   video: {
     title: "See it in action",
@@ -251,7 +251,7 @@ const en: typeof es = {
       },
     ],
     connectNote:
-      "For your friends to join, just share your IP or use a VPN such as Hamachi, Radmin VPN, Tailscale or ZeroTier.",
+      "Your friends join from the app itself with a room: no port forwarding, no VPN, no public IP.",
   },
   features: {
     title: "Everything you need to host",
@@ -309,7 +309,7 @@ const en: typeof es = {
       },
       {
         q: "How do my friends connect to the server?",
-        a: "The host shares their public IP (forwarding port 25565 on their router), or everyone joins the same VPN, such as Hamachi, Radmin VPN, Tailscale or ZeroTier, and connects to the IP that VPN assigns to the host.",
+        a: "With the app's rooms. Create a room and share its invite code; when someone in the room starts the server, the others press Connect and the app opens a direct tunnel to their computer. In Minecraft they just add the server localhost:25565. No port forwarding, VPN or public IP needed.",
       },
       {
         q: "What happens if two people try to open the server at the same time?",
