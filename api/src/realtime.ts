@@ -18,7 +18,9 @@ realtime.get('/ably-auth', async (c) => {
   )
   const tokenRequest = await new Ably.Rest({ key: c.env.ABLY_API_KEY }).auth.createTokenRequest({
     clientId: userId,
-    capability
+    capability,
+    // Short-lived so leaving or being removed from a room cuts channel access soon after
+    ttl: 10 * 60 * 1000
   })
   return c.json(tokenRequest)
 })

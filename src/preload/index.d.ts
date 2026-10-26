@@ -188,6 +188,8 @@ interface P2PAPI {
   joinGroup: (code: string) => Promise<P2PGroup>;
   deleteGroup: (groupId: string) => Promise<void>;
   leaveGroup: (groupId: string) => Promise<void>;
+  rotateInviteCode: (groupId: string) => Promise<P2PGroup>;
+  removeMember: (groupId: string, userId: string) => Promise<void>;
   deleteMyData: () => Promise<void>;
   listMembers: (groupId: string) => Promise<P2PMember[]>;
   setDisplayName: (name: string) => Promise<void>;

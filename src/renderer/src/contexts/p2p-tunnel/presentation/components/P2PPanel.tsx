@@ -24,6 +24,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import AutorenewIcon from "@mui/icons-material/Autorenew";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -305,16 +306,27 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
     enqueueSnackbar(t("p2p.inviteCopied"), { variant: "success" });
   };
 
+  // A leaked code stops working; people already in the room stay
+  const handleRotateCode = (): Promise<void> =>
+    run(async () => {
+      await window.p2pAPI.rotateInviteCode(groupId);
+      await refreshGroups();
+      enqueueSnackbar(t("p2p.codeRotated"), { variant: "success" });
+    });
+
   // What the friend pastes into Minecraft's Multiplayer screen
   const handleCopyAddress = async (port: number): Promise<void> => {
     await navigator.clipboard.writeText(`localhost:${port}`);
     enqueueSnackbar(t("p2p.addressCopied"), { variant: "success" });
   };
 
+  // Only the chosen host's answer is accepted, so joining needs presence to know who hosts
   const handleConnect = (): Promise<void> =>
     run(async () => {
+      const target = hosts[0];
+      if (!target) throw new Error("p2p_host_not_found");
       setJoined(
-        await joinServer(groupId, MINECRAFT_PORT, () => {
+        await joinServer(groupId, target.clientId, MINECRAFT_PORT, () => {
           setJoined(null);
           enqueueSnackbar(t("p2p.disconnected"), { variant: "warning" });
         }),
@@ -445,6 +457,19 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
                     <ContentCopyIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
+                {selectedGroup.isOwner && (
+                  <Tooltip title={t("p2p.rotateCode")}>
+                    <span>
+                      <IconButton
+                        onClick={handleRotateCode}
+                        disabled={busy}
+                        aria-label={t("p2p.rotateCode")}
+                      >
+                        <AutorenewIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                )}
               </Stack>
             </Box>
 
@@ -489,8 +514,7 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
                   fullWidth
                   variant="contained"
                   onClick={handleConnect}
-                  // Without presence we can't tell, so let the connection attempt decide
-                  disabled={busy || (online !== null && hosts.length === 0)}
+                  disabled={busy || hosts.length === 0}
                   startIcon={busy ? <CircularProgress size={16} /> : undefined}
                 >
                   {busy ? t("p2p.connecting") : t("p2p.connect")}
@@ -571,7 +595,13 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
           open={membersOpen}
           groupId={selectedGroup.id}
           groupName={selectedGroup.name}
+          canRemove={selectedGroup.isOwner}
           online={online}
+          onRemoved={(name) => {
+            enqueueSnackbar(t("p2p.memberRemoved", { name }), { variant: "success" });
+            refreshGroups().catch(showError);
+          }}
+          onError={showError}
           onClose={() => setMembersOpen(false)}
         />
       )}

@@ -26,6 +26,14 @@ export function registerP2PIPCHandlers(): void {
     if (!UUID.test(groupId)) throw new Error("group_not_found");
     return api(`/groups/${groupId}/membership`, { method: "DELETE" });
   });
+  ipcMain.handle("p2p:rotate-invite-code", (_e, groupId: string) => {
+    if (!UUID.test(groupId)) throw new Error("group_not_found");
+    return api(`/groups/${groupId}/invite-code`, { method: "POST" });
+  });
+  ipcMain.handle("p2p:remove-member", (_e, groupId: string, userId: string) => {
+    if (!UUID.test(groupId) || !UUID.test(userId)) throw new Error("group_not_found");
+    return api(`/groups/${groupId}/members/${userId}`, { method: "DELETE" });
+  });
   ipcMain.handle("p2p:delete-my-data", async () => {
     tunnel.closeAll();
     await api("/me", { method: "DELETE" });
