@@ -55,6 +55,8 @@ export const en = {
       viewStatistics: "View Statistics",
     },
     network: {
+      copyAddress: "Copy address",
+      addressCopied: "Address copied",
       title: "Network Configuration",
       selectIp: "Server IP",
       selectedIp: "Selected IP",

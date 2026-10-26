@@ -57,6 +57,8 @@ export const ru: typeof en = {
       viewStatistics: "Статистика",
     },
     network: {
+      copyAddress: "Скопировать адрес",
+      addressCopied: "Адрес скопирован",
       title: "Настройки сети",
       selectIp: "IP сервера",
       selectedIp: "Выбранный IP",

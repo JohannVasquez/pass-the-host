@@ -59,6 +59,8 @@ export const ptBR: typeof en = {
       viewStatistics: "Ver estatísticas",
     },
     network: {
+      copyAddress: "Copiar endereço",
+      addressCopied: "Endereço copiado",
       title: "Configuração de rede",
       selectIp: "IP do servidor",
       selectedIp: "IP selecionado",

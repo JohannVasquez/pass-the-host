@@ -59,6 +59,8 @@ export const es = {
       viewStatistics: "Ver Estadísticas",
     },
     network: {
+      copyAddress: "Copiar dirección",
+      addressCopied: "Dirección copiada",
       title: "Configuración de Red",
       selectIp: "IP del Servidor",
       selectedIp: "IP Seleccionada",

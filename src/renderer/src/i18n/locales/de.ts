@@ -58,6 +58,8 @@ export const de: typeof en = {
       viewStatistics: "Statistiken anzeigen",
     },
     network: {
+      copyAddress: "Adresse kopieren",
+      addressCopied: "Adresse kopiert",
       title: "Netzwerkeinstellungen",
       selectIp: "Server-IP",
       selectedIp: "Ausgewählte IP",
