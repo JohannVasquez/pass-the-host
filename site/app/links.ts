@@ -65,7 +65,7 @@ export async function getDownloads(): Promise<Downloads> {
 
     return {
       version: release.tag_name,
-      windows: MS_STORE_URL,
+      windows: find(".exe"),
       mac: find(".dmg"),
       linux: find(".AppImage"),
       count: formatDownloadCount(total),
