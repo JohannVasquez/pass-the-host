@@ -37,6 +37,9 @@ function deviceToken(): Promise<string> {
   return registering;
 }
 
+/** Drops the local token: the next call registers this device as a new user. */
+export const forgetDevice = (): void => removeSecureJson(SESSION_FILE);
+
 export async function api<T>(
   path: string,
   { method = "GET", body }: { method?: string; body?: unknown } = {},

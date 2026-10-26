@@ -282,6 +282,8 @@ const p2pAPI = {
   createGroup: (name: string): Promise<P2PGroup> => ipcRenderer.invoke("p2p:create-group", name),
   joinGroup: (code: string): Promise<P2PGroup> => ipcRenderer.invoke("p2p:join-group", code),
   deleteGroup: (groupId: string): Promise<void> => ipcRenderer.invoke("p2p:delete-group", groupId),
+  leaveGroup: (groupId: string): Promise<void> => ipcRenderer.invoke("p2p:leave-group", groupId),
+  deleteMyData: (): Promise<void> => ipcRenderer.invoke("p2p:delete-my-data"),
   listMembers: (groupId: string): Promise<P2PMember[]> =>
     ipcRenderer.invoke("p2p:list-members", groupId),
   setDisplayName: (name: string): Promise<void> => ipcRenderer.invoke("p2p:set-display-name", name),

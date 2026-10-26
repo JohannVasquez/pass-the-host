@@ -24,6 +24,7 @@ import {
 } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import LogoutIcon from "@mui/icons-material/Logout";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import { PanelTitle } from "@renderer/presentation/components/PanelTitle";
@@ -94,7 +95,8 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
   const [busy, setBusy] = React.useState(false);
   const [hosting, setHosting] = React.useState(false);
   const [joined, setJoined] = React.useState<JoinedServer | null>(null);
-  const [confirmDelete, setConfirmDelete] = React.useState(false);
+  // Destructive room actions wait for confirmation: delete (creator) or leave (member)
+  const [confirm, setConfirm] = React.useState<"delete" | "leave" | null>(null);
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [infoOpen, setInfoOpen] = React.useState(false);
   // null until presence works (e.g. the Ably key may lack the presence capability)
@@ -255,14 +257,33 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
       enqueueSnackbar(t("p2p.groupJoined", { name: group.name }), { variant: "success" });
     });
 
-  const handleDeleteGroup = (): Promise<void> =>
+  const handleConfirmed = (): Promise<void> =>
     run(async () => {
-      setConfirmDelete(false);
-      await window.p2pAPI.deleteGroup(groupId);
+      const action = confirm;
+      setConfirm(null);
+      if (action === "delete") await window.p2pAPI.deleteGroup(groupId);
+      else await window.p2pAPI.leaveGroup(groupId);
       reconnectRealtime();
       await refreshGroups();
-      enqueueSnackbar(t("p2p.groupDeleted"), { variant: "success" });
+      enqueueSnackbar(t(action === "delete" ? "p2p.groupDeleted" : "p2p.groupLeft"), {
+        variant: "success",
+      });
     });
+
+  // "Delete my data" lives in Settings: start over with whatever this device is now
+  React.useEffect(() => {
+    const onDeleted = (): void => {
+      setJoined((current) => {
+        current?.stop();
+        return null;
+      });
+      resetRealtime();
+      setRealtimeEpoch((epoch) => epoch + 1);
+      refreshGroups().catch(showError);
+    };
+    window.addEventListener("p2p:data-deleted", onDeleted);
+    return () => window.removeEventListener("p2p:data-deleted", onDeleted);
+  }, [refreshGroups, showError]);
 
   const handleCopyCode = async (): Promise<void> => {
     if (!selectedGroup) return;
@@ -336,20 +357,22 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
                     : selectedGroup.memberCount}
                 </Button>
               </Tooltip>
-              {selectedGroup.isOwner && (
-                <Tooltip title={t("p2p.deleteGroup")}>
-                  <span>
-                    <IconButton
-                      color="error"
-                      onClick={() => setConfirmDelete(true)}
-                      disabled={busy || hosting || joined !== null}
-                      aria-label={t("p2p.deleteGroup")}
-                    >
+              <Tooltip title={t(selectedGroup.isOwner ? "p2p.deleteGroup" : "p2p.leaveGroup")}>
+                <span>
+                  <IconButton
+                    color="error"
+                    onClick={() => setConfirm(selectedGroup.isOwner ? "delete" : "leave")}
+                    disabled={busy || hosting || joined !== null}
+                    aria-label={t(selectedGroup.isOwner ? "p2p.deleteGroup" : "p2p.leaveGroup")}
+                  >
+                    {selectedGroup.isOwner ? (
                       <DeleteOutlineIcon fontSize="small" />
-                    </IconButton>
-                  </span>
-                </Tooltip>
-              )}
+                    ) : (
+                      <LogoutIcon fontSize="small" />
+                    )}
+                  </IconButton>
+                </span>
+              </Tooltip>
             </Stack>
 
             <Box sx={{ bgcolor: "action.hover", p: 1, pl: 1.5, borderRadius: 1 }}>
@@ -474,15 +497,21 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
 
       <RoomsInfoDialog open={infoOpen} onClose={() => setInfoOpen(false)} />
 
-      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>{t("p2p.deleteConfirmTitle", { name: selectedGroup?.name })}</DialogTitle>
+      <Dialog open={confirm !== null} onClose={() => setConfirm(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>
+          {t(confirm === "leave" ? "p2p.leaveConfirmTitle" : "p2p.deleteConfirmTitle", {
+            name: selectedGroup?.name,
+          })}
+        </DialogTitle>
         <DialogContent>
-          <DialogContentText>{t("p2p.deleteConfirmBody")}</DialogContentText>
+          <DialogContentText>
+            {t(confirm === "leave" ? "p2p.leaveConfirmBody" : "p2p.deleteConfirmBody")}
+          </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmDelete(false)}>{t("p2p.cancel")}</Button>
-          <Button color="error" variant="contained" onClick={handleDeleteGroup}>
-            {t("p2p.deleteGroup")}
+          <Button onClick={() => setConfirm(null)}>{t("p2p.cancel")}</Button>
+          <Button color="error" variant="contained" onClick={handleConfirmed}>
+            {t(confirm === "leave" ? "p2p.leaveGroup" : "p2p.deleteGroup")}
           </Button>
         </DialogActions>
       </Dialog>

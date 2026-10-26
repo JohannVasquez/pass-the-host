@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { api } from "@main/contexts/p2p-tunnel/infrastructure/DeviceSession";
+import { api, forgetDevice } from "@main/contexts/p2p-tunnel/infrastructure/DeviceSession";
 import * as tunnel from "@main/contexts/p2p-tunnel/infrastructure/TcpTunnel";
 import {
   getIceServers,
@@ -21,6 +21,15 @@ export function registerP2PIPCHandlers(): void {
   ipcMain.handle("p2p:delete-group", (_e, groupId: string) => {
     if (!UUID.test(groupId)) throw new Error("group_not_found");
     return api(`/groups/${groupId}`, { method: "DELETE" });
+  });
+  ipcMain.handle("p2p:leave-group", (_e, groupId: string) => {
+    if (!UUID.test(groupId)) throw new Error("group_not_found");
+    return api(`/groups/${groupId}/membership`, { method: "DELETE" });
+  });
+  ipcMain.handle("p2p:delete-my-data", async () => {
+    tunnel.closeAll();
+    await api("/me", { method: "DELETE" });
+    forgetDevice();
   });
   ipcMain.handle("p2p:list-members", (_e, groupId: string) => {
     if (!UUID.test(groupId)) throw new Error("group_not_found");
