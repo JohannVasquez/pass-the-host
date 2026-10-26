@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { S3Config } from "@main/contexts/app-configuration/domain/entities";
 import {
+  DEFAULT_STORAGE,
+  isUnconfiguredStorage,
   saveStorageProfile,
   withStorageProfiles,
 } from "@main/contexts/app-configuration/domain/utils/storageProfiles";
@@ -77,5 +79,45 @@ describe("saveStorageProfile", () => {
 
     expect(next.profiles?.Cloudflare).toEqual(r2Fields);
     expect(next.profiles?.GoogleDrive?.drive_token).toBe("new-token");
+  });
+});
+
+describe("default storage", () => {
+  it("is Google Drive", () => {
+    expect(DEFAULT_STORAGE.provider).toBe("GoogleDrive");
+  });
+
+  it("treats the blank Cloudflare placeholder of older installs as unconfigured", () => {
+    const placeholder: S3Config = {
+      provider: "Cloudflare",
+      endpoint: "",
+      region: "auto",
+      access_key: "",
+      secret_key: "",
+      bucket_name: "",
+    };
+    expect(isUnconfiguredStorage(placeholder)).toBe(true);
+    expect(isUnconfiguredStorage({})).toBe(true);
+  });
+
+  it("keeps any storage the user set up", () => {
+    expect(isUnconfiguredStorage({ provider: "Cloudflare", ...r2Fields })).toBe(false);
+    expect(isUnconfiguredStorage({ provider: "GoogleDrive", drive_token: "token" })).toBe(false);
+  });
+
+  it("keeps a provider the user picked and saved, even with empty fields", () => {
+    const saved = saveStorageProfile(
+      {},
+      {
+        provider: "AWS",
+        endpoint: "",
+        region: "",
+        access_key: "",
+        secret_key: "",
+        bucket_name: "",
+      },
+    );
+    expect(isUnconfiguredStorage(saved)).toBe(false);
+    expect(saved.provider).toBe("AWS");
   });
 });

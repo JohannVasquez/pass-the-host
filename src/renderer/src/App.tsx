@@ -107,9 +107,9 @@ function AppContent(): React.JSX.Element {
   const [rcloneCheckCompleted, setRcloneCheckCompleted] = React.useState<boolean>(false);
   const [configLoaded, setConfigLoaded] = React.useState<boolean>(false);
   const [s3Config, setS3Config] = React.useState<S3Config>({
-    provider: "Cloudflare",
+    provider: "GoogleDrive",
     endpoint: "",
-    region: "auto",
+    region: "",
     access_key: "",
     secret_key: "",
     bucket_name: "",
