@@ -33,15 +33,18 @@ export function toStorageProfile(config: S3Config): StorageProfile {
   };
 }
 
-/** Display name of each provider, shown in the provider picker and in logs. */
+/**
+ * Display name of each provider, shown in the provider picker and in logs.
+ * Key order is the picker's order: Google Drive first, since most people don't know S3.
+ */
 export const PROVIDER_LABELS: Record<S3Provider, string> = {
+  GoogleDrive: "Google Drive",
   AWS: "Amazon S3",
   Cloudflare: "Cloudflare R2",
   MinIO: "MinIO",
   Backblaze: "Backblaze B2",
   DigitalOcean: "DigitalOcean Spaces",
   Other: "S3",
-  GoogleDrive: "Google Drive",
 };
 
 /** @deprecated Use S3Config instead */
