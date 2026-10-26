@@ -141,22 +141,42 @@ const es = {
   privacy: {
     title: "Política de privacidad — Pass the host",
     description:
-      "Política de privacidad de Pass the host, app de escritorio para servidores de Minecraft compartidos.",
-    updated: "Última actualización: 22 de octubre de 2026",
+      "Política de privacidad de Pass the host: qué datos usa la app, con quién se comparten y cómo borrarlos.",
+    updated: "Última actualización: 26 de octubre de 2026",
     intro:
-      "Pass the host es una aplicación de escritorio de código abierto para gestionar servidores de Minecraft compartidos entre amigos.",
+      "Pass the host es una aplicación de escritorio de código abierto para gestionar servidores de Minecraft compartidos entre amigos. Esta política explica qué datos trata la app, dónde quedan y cómo borrarlos.",
     sections: [
       {
         h: "Datos de Google que usa",
         p: "La app solicita acceso a Google Drive únicamente para crear, leer, modificar y eliminar los archivos de los servidores de Minecraft (mundos, configuración, archivos de bloqueo y estadísticas de sesión) dentro de las carpetas de Pass the host.",
       },
       {
-        h: "Dónde se guardan",
-        p: "Los tokens de acceso y todos los datos se almacenan solo en tu computador y en tu propio Google Drive. La app no tiene servidores propios, no envía tus datos a terceros y no recopila analíticas.",
+        h: "Dónde quedan tus datos de Google",
+        p: "Los tokens de acceso de Google se guardan solo en tu computador y los archivos solo en tu propio Google Drive. Nunca pasan por los servidores de Pass the host ni se comparten con terceros. Los archivos solo se comparten con las personas a las que tú les das acceso a una carpeta desde Google Drive.",
       },
       {
-        h: "Compartir",
-        p: "Los archivos solo se comparten con las personas a las que tú les das acceso a una carpeta desde Google Drive.",
+        h: "Salas (jugar con amigos)",
+        p: "Si usas Salas, la app registra tu dispositivo con un identificador aleatorio: no hay cuenta, correo ni contraseña. En el servidor de Pass the host se guardan ese identificador, el nombre de usuario que elegiste en la app, las salas que creas (nombre y código de invitación) y las salas a las que te uniste, con sus fechas. Los miembros de una sala ven los nombres de los demás miembros.",
+      },
+      {
+        h: "Presencia y notificaciones",
+        p: "Mientras la app está abierta, tu nombre, si estás hosteando, el nombre del servidor de Minecraft y la hora en que lo iniciaste se comparten en tiempo real con los miembros de la sala seleccionada, para mostrar quién está en línea y enviar avisos. Estos mensajes pasan por Ably, que los guarda solo el tiempo necesario para entregarlos.",
+      },
+      {
+        h: "Conexión entre jugadores y dirección IP",
+        p: "Para conectarte al servidor de un amigo, los dos equipos se conectan directamente (WebRTC). Para lograrlo intercambian sus direcciones IP públicas y locales, que quedan visibles para la otra persona de la sala. Comparte el código de tu sala solo con gente de confianza. El tráfico del juego va directo entre ustedes y no pasa por los servidores de Pass the host. Si configuras un servidor TURN propio, el tráfico puede pasar por ese servidor, y sus credenciales se guardan solo en tu computador.",
+      },
+      {
+        h: "Proveedores",
+        p: "Cloudflare aloja el servidor y la base de datos de Salas (en Estados Unidos) y registra tu dirección IP para prevenir abusos y diagnosticar errores. Ably procesa los mensajes de conexión y presencia. Pass the host no vende tus datos, no muestra publicidad y no recopila analíticas.",
+      },
+      {
+        h: "Conservación y borrado",
+        p: "Los datos de Salas se guardan mientras uses la función. Puedes salir de una sala o eliminar las que creaste desde el panel Salas, y borrar todos tus datos desde Configuración → Privacidad → Borrar mis datos. También puedes pedir el borrado escribiendo al contacto que aparece abajo.",
+      },
+      {
+        h: "Menores de edad",
+        p: "La app no pide correo, edad ni datos de contacto. Si eres menor de edad, usa un nombre de usuario que no te identifique.",
       },
     ],
     revokeTitle: "Revocar acceso",
@@ -306,22 +326,42 @@ const en: typeof es = {
   privacy: {
     title: "Privacy policy — Pass the host",
     description:
-      "Privacy policy for Pass the host, a desktop app for shared Minecraft servers.",
-    updated: "Last updated: October 22, 2026",
+      "Pass the host privacy policy: what data the app uses, who it is shared with and how to delete it.",
+    updated: "Last updated: October 26, 2026",
     intro:
-      "Pass the host is an open-source desktop application for managing Minecraft servers shared among friends.",
+      "Pass the host is an open-source desktop application for managing Minecraft servers shared among friends. This policy explains what data the app handles, where it ends up and how to delete it.",
     sections: [
       {
         h: "Google data it uses",
         p: "The app requests access to Google Drive only to create, read, modify and delete Minecraft server files (worlds, configuration, lock files and session statistics) inside the Pass the host folders.",
       },
       {
-        h: "Where it is stored",
-        p: "Access tokens and all data are stored only on your computer and in your own Google Drive. The app has no servers of its own, does not send your data to third parties and does not collect analytics.",
+        h: "Where your Google data stays",
+        p: "Google access tokens are stored only on your computer and files only in your own Google Drive. They never go through the Pass the host servers and are not shared with third parties. Files are only shared with the people you give access to a folder in Google Drive.",
       },
       {
-        h: "Sharing",
-        p: "Files are only shared with the people you give access to a folder in Google Drive.",
+        h: "Rooms (playing with friends)",
+        p: "If you use Rooms, the app registers your device with a random identifier: there is no account, email or password. The Pass the host server stores that identifier, the username you chose in the app, the rooms you create (name and invite code) and the rooms you joined, with their dates. Members of a room see the names of the other members.",
+      },
+      {
+        h: "Presence and notifications",
+        p: "While the app is open, your name, whether you are hosting, the Minecraft server name and when you started it are shared in real time with the members of the selected room, to show who is online and send alerts. These messages go through Ably, which keeps them only as long as needed to deliver them.",
+      },
+      {
+        h: "Player connections and IP address",
+        p: "To connect to a friend's server, both computers connect directly (WebRTC). To do so they exchange their public and local IP addresses, which become visible to the other person in the room. Only share your room code with people you trust. Game traffic goes directly between you and does not go through the Pass the host servers. If you set up your own TURN server, traffic may go through it, and its credentials are stored only on your computer.",
+      },
+      {
+        h: "Providers",
+        p: "Cloudflare hosts the Rooms server and database (in the United States) and logs your IP address to prevent abuse and diagnose errors. Ably processes the connection and presence messages. Pass the host does not sell your data, show ads or collect analytics.",
+      },
+      {
+        h: "Retention and deletion",
+        p: "Rooms data is kept while you use the feature. You can leave a room or delete the ones you created from the Rooms panel, and delete all your data from Settings → Privacy → Delete my data. You can also ask for deletion by writing to the contact below.",
+      },
+      {
+        h: "Children",
+        p: "The app does not ask for an email, age or contact details. If you are a minor, use a username that doesn't identify you.",
       },
     ],
     revokeTitle: "Revoking access",
