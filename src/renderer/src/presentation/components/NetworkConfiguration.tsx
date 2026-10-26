@@ -2,6 +2,7 @@ import React from "react";
 import {
   Box,
   FormControl,
+  IconButton,
   InputLabel,
   Select,
   MenuItem,
@@ -9,7 +10,10 @@ import {
   Paper,
   Stack,
   TextField,
+  Tooltip,
 } from "@mui/material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import { useSnackbar } from "notistack";
 import { useTranslation } from "react-i18next";
 import LanOutlinedIcon from "@mui/icons-material/LanOutlined";
 import { PanelTitle } from "@renderer/presentation/components/PanelTitle";
@@ -33,6 +37,13 @@ export const NetworkConfiguration: React.FC<NetworkConfigurationProps> = ({
   disabled = false,
 }): React.JSX.Element => {
   const { t } = useTranslation();
+  const { enqueueSnackbar } = useSnackbar();
+
+  // The exact text a friend on the same network pastes into Minecraft
+  const handleCopy = async (): Promise<void> => {
+    await navigator.clipboard.writeText(`${selectedIp}:${serverPort}`);
+    enqueueSnackbar(t("network.addressCopied"), { variant: "success" });
+  };
 
   const handlePortChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
     const value = parseInt(event.target.value, 10);
@@ -84,14 +95,25 @@ export const NetworkConfiguration: React.FC<NetworkConfigurationProps> = ({
         />
 
         {selectedIp && (
-          <Box sx={{ bgcolor: "action.hover", p: 1, pt: 0.5, borderRadius: 1 }}>
-            <Typography variant="caption" color="text.secondary">
-              {t("network.selectedIp")}:
-            </Typography>
-            <Typography variant="body2" fontWeight="medium">
-              {selectedIp}:{serverPort}
-            </Typography>
-          </Box>
+          <Stack
+            direction="row"
+            alignItems="center"
+            sx={{ bgcolor: "action.hover", p: 1, pt: 0.5, borderRadius: 1 }}
+          >
+            <Box sx={{ flexGrow: 1 }}>
+              <Typography variant="caption" color="text.secondary">
+                {t("network.selectedIp")}:
+              </Typography>
+              <Typography variant="body2" fontWeight="medium">
+                {selectedIp}:{serverPort}
+              </Typography>
+            </Box>
+            <Tooltip title={t("network.copyAddress")}>
+              <IconButton onClick={handleCopy} aria-label={t("network.copyAddress")}>
+                <ContentCopyIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
         )}
       </Stack>
     </Paper>

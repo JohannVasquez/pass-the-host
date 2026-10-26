@@ -2000,6 +2000,7 @@ function AppContent(): React.JSX.Element {
 
             <P2PPanel
               serverRunning={serverStatus === ServerStatus.RUNNING}
+              serverActive={serverStatus !== ServerStatus.STOPPED}
               serverPort={serverPort}
               username={username}
               serverName={servers.find((server) => server.id === selectedServer)?.name ?? null}

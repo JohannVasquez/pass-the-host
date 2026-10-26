@@ -15,6 +15,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useTranslation } from "react-i18next";
 import { UsernameInput } from "./UsernameInput";
 import { TurnSettings } from "@contexts/p2p-tunnel/presentation/components/TurnSettings";
+import { PrivacySettings } from "@contexts/p2p-tunnel/presentation/components/PrivacySettings";
 
 interface SettingsModalProps {
   open: boolean;
@@ -50,6 +51,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </AccordionSummary>
             <AccordionDetails>
               <TurnSettings />
+            </AccordionDetails>
+          </Accordion>
+          <Accordion disableGutters>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Stack>
+                <Typography variant="subtitle1">{t("p2p.privacy.title")}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {t("p2p.privacy.subtitle")}
+                </Typography>
+              </Stack>
+            </AccordionSummary>
+            <AccordionDetails>
+              <PrivacySettings />
             </AccordionDetails>
           </Accordion>
         </Stack>

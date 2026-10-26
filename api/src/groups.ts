@@ -99,6 +99,18 @@ groups.get('/:id/members', async (c) => {
   )
 })
 
+groups.delete('/:id/membership', async (c) => {
+  const userId = c.get('jwtPayload').sub
+  const groupId = c.req.param('id')
+  const prisma = getPrisma(c.env.DB)
+  const group = await prisma.serverGroup.findUnique({ where: { id: groupId }, select: { ownerId: true } })
+  if (!group) return c.json({ error: 'group_not_found' }, 404)
+  // The creator deletes the room instead; leaving would orphan it
+  if (group.ownerId === userId) return c.json({ error: 'owner_cannot_leave' }, 409)
+  await prisma.groupMember.deleteMany({ where: { userId, groupId } })
+  return c.body(null, 204)
+})
+
 groups.delete('/:id', async (c) => {
   const userId = c.get('jwtPayload').sub
   const groupId = c.req.param('id')
