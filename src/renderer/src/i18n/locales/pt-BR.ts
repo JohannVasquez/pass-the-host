@@ -321,6 +321,9 @@ export const ptBR: typeof en = {
       close: "Fechar",
     },
     p2p: {
+      copyAddress: "Copiar endereço para o Minecraft",
+      addressCopied: "Endereço copiado: cole no Minecraft → Multijogador",
+      autoConnect: "Conectar automaticamente quando alguém hospedar",
       leaveGroup: "Sair da sala",
       leaveConfirmTitle: "Sair de {{name}}?",
       leaveConfirmBody: "Você deixará de ver esta sala. Para voltar, precisará do código de convite.",

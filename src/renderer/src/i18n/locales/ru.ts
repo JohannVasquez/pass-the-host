@@ -320,6 +320,9 @@ export const ru: typeof en = {
       close: "Закрыть",
     },
     p2p: {
+      copyAddress: "Скопировать адрес для Minecraft",
+      addressCopied: "Адрес скопирован: вставьте его в Minecraft → Сетевая игра",
+      autoConnect: "Подключаться автоматически, когда кто-то хостит",
       leaveGroup: "Покинуть комнату",
       leaveConfirmTitle: "Покинуть {{name}}?",
       leaveConfirmBody: "Вы больше не будете видеть эту комнату. Чтобы вернуться, понадобится код приглашения.",

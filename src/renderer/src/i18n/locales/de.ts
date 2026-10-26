@@ -322,6 +322,9 @@ export const de: typeof en = {
       close: "Schließen",
     },
     p2p: {
+      copyAddress: "Adresse für Minecraft kopieren",
+      addressCopied: "Adresse kopiert: füge sie in Minecraft → Mehrspieler ein",
+      autoConnect: "Automatisch verbinden, wenn jemand hostet",
       leaveGroup: "Raum verlassen",
       leaveConfirmTitle: "{{name}} verlassen?",
       leaveConfirmBody: "Du siehst diesen Raum dann nicht mehr. Um zurückzukommen, brauchst du den Einladungscode.",

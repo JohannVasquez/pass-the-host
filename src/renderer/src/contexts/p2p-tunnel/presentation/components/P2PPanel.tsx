@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   CircularProgress,
+  FormControlLabel,
   Dialog,
   DialogActions,
   DialogContent,
@@ -16,6 +17,7 @@ import {
   Paper,
   Select,
   Stack,
+  Switch,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
@@ -52,11 +54,14 @@ import { RoomsInfoDialog } from "@contexts/p2p-tunnel/presentation/components/Ro
 
 const MINECRAFT_PORT = 25565;
 const GROUP_STORAGE_KEY = "p2p.groupId";
+const AUTO_CONNECT_STORAGE_KEY = "p2p.autoConnect";
 
 type Mode = "join" | "create";
 
 interface P2PPanelProps {
   serverRunning: boolean;
+  /** Server starting, running or stopping: our own server needs the Minecraft port */
+  serverActive: boolean;
   serverPort: number;
   username: string;
   /** Name of the selected Minecraft server, announced to the network while hosting */
@@ -71,6 +76,14 @@ const readStoredGroup = (): string => {
   }
 };
 
+const readAutoConnect = (): boolean => {
+  try {
+    return localStorage.getItem(AUTO_CONNECT_STORAGE_KEY) !== "false";
+  } catch {
+    return true;
+  }
+};
+
 const errorCode = (error: unknown): string =>
   (error instanceof Error ? error.message : String(error))
     .replace(/^Error invoking remote method '[^']+': /, "")
@@ -81,6 +94,7 @@ const formatCode = (code: string): string => code.match(/.{1,4}/g)?.join("-") ??
 
 export const P2PPanel: React.FC<P2PPanelProps> = ({
   serverRunning,
+  serverActive,
   serverPort,
   username,
   serverName,
@@ -291,6 +305,12 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
     enqueueSnackbar(t("p2p.inviteCopied"), { variant: "success" });
   };
 
+  // What the friend pastes into Minecraft's Multiplayer screen
+  const handleCopyAddress = async (port: number): Promise<void> => {
+    await navigator.clipboard.writeText(`localhost:${port}`);
+    enqueueSnackbar(t("p2p.addressCopied"), { variant: "success" });
+  };
+
   const handleConnect = (): Promise<void> =>
     run(async () => {
       setJoined(
@@ -305,6 +325,40 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
     joined?.stop();
     setJoined(null);
   };
+
+  // Auto-connect: join as soon as someone in the room starts hosting
+  const [autoConnect, setAutoConnect] = React.useState(readAutoConnect);
+  // One attempt per hosting session (host + start time): a failure or a manual
+  // disconnect waits for the next time someone starts a server
+  const attemptedRef = React.useRef<string | null>(null);
+  const connectRef = React.useRef(handleConnect);
+  connectRef.current = handleConnect;
+  const host = hosts[0];
+  const hostSession = host ? `${host.clientId}:${host.hostingSince ?? ""}` : null;
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem(AUTO_CONNECT_STORAGE_KEY, String(autoConnect));
+    } catch {
+      // Storage unavailable: the choice just won't survive a restart
+    }
+  }, [autoConnect]);
+
+  React.useEffect(() => {
+    if (!autoConnect || !hostSession || joined || busy || serverActive) return;
+    if (attemptedRef.current === hostSession) return;
+    attemptedRef.current = hostSession;
+    void connectRef.current();
+  }, [autoConnect, hostSession, joined, busy, serverActive]);
+
+  // Our own server is starting: free the Minecraft port the tunnel may hold
+  React.useEffect(() => {
+    if (!serverActive) return;
+    setJoined((current) => {
+      current?.stop();
+      return null;
+    });
+  }, [serverActive]);
 
   return (
     <Paper elevation={2} sx={{ p: 2 }}>
@@ -400,7 +454,22 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
               </Alert>
             ) : joined ? (
               <Box>
-                <Alert severity="success" sx={{ mb: 1 }}>
+                <Alert
+                  severity="success"
+                  sx={{ mb: 1 }}
+                  action={
+                    <Tooltip title={t("p2p.copyAddress")}>
+                      <IconButton
+                        color="inherit"
+                        size="small"
+                        onClick={() => handleCopyAddress(joined.port)}
+                        aria-label={t("p2p.copyAddress")}
+                      >
+                        <ContentCopyIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  }
+                >
                   {t("p2p.connected", { address: `localhost:${joined.port}` })}
                 </Alert>
                 <Button fullWidth variant="outlined" color="warning" onClick={handleDisconnect}>
@@ -427,6 +496,18 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
                   {busy ? t("p2p.connecting") : t("p2p.connect")}
                 </Button>
               </Box>
+            )}
+            {!serverRunning && (
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={autoConnect}
+                    onChange={(e) => setAutoConnect(e.target.checked)}
+                  />
+                }
+                label={<Typography variant="body2">{t("p2p.autoConnect")}</Typography>}
+              />
             )}
           </>
         ) : (

@@ -324,6 +324,9 @@ export const fr: typeof en = {
       close: "Fermer",
     },
     p2p: {
+      copyAddress: "Copier l'adresse pour Minecraft",
+      addressCopied: "Adresse copiée : colle-la dans Minecraft → Multijoueur",
+      autoConnect: "Me connecter automatiquement quand quelqu'un héberge",
       leaveGroup: "Quitter le salon",
       leaveConfirmTitle: "Quitter {{name}} ?",
       leaveConfirmBody: "Tu ne verras plus ce salon. Pour revenir, il te faudra son code d'invitation.",

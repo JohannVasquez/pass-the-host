@@ -317,6 +317,9 @@ export const en = {
       close: "Close",
     },
     p2p: {
+      copyAddress: "Copy address for Minecraft",
+      addressCopied: "Address copied: paste it in Minecraft → Multiplayer",
+      autoConnect: "Connect automatically when someone hosts",
       leaveGroup: "Leave room",
       leaveConfirmTitle: "Leave {{name}}?",
       leaveConfirmBody: "You won't see this room anymore. To come back you'll need its invite code.",
