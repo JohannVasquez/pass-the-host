@@ -18,6 +18,8 @@ const es = {
   download: {
     label: "Descargar",
     labelFor: "Descargar para {os}",
+    store: "Microsoft Store",
+    direct: "Descarga directa (.exe)",
   },
   footer: {
     madeBy: "Hecho por",
@@ -181,6 +183,8 @@ const en: typeof es = {
   download: {
     label: "Download",
     labelFor: "Download for {os}",
+    store: "Microsoft Store",
+    direct: "Direct download (.exe)",
   },
   footer: {
     madeBy: "Made by",

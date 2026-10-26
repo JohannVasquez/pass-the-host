@@ -174,6 +174,7 @@ export default async function PassTheHostPage({
               downloads={downloads}
               labels={t.download}
               className="inline-flex items-center gap-2 rounded-xl bg-[#8BCB6B] px-5 py-3 font-semibold text-[#0F1115] hover:bg-[#A3D98A] transition-colors"
+              secondaryClassName="inline-flex items-center gap-2 rounded-xl border border-white/10 px-5 py-3 font-semibold text-[#EAEAEA] hover:border-white/25 transition-colors"
             >
               <LuDownload aria-hidden className="h-5 w-5" />
             </DownloadButton>
@@ -390,13 +391,16 @@ export default async function PassTheHostPage({
             {t.cta.title}
           </h2>
           <p className="mt-3 text-[#A1A1AA]">{t.cta.text}</p>
-          <DownloadButton
-            downloads={downloads}
-            labels={t.download}
-            className="mt-8 inline-flex items-center gap-2 rounded-xl bg-[#8BCB6B] px-5 py-3 font-semibold text-[#0F1115] hover:bg-[#A3D98A] transition-colors"
-          >
-            <LuDownload aria-hidden className="h-5 w-5" />
-          </DownloadButton>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <DownloadButton
+              downloads={downloads}
+              labels={t.download}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#8BCB6B] px-5 py-3 font-semibold text-[#0F1115] hover:bg-[#A3D98A] transition-colors"
+              secondaryClassName="inline-flex items-center gap-2 rounded-xl border border-white/10 px-5 py-3 font-semibold text-[#EAEAEA] hover:border-white/25 transition-colors"
+            >
+              <LuDownload aria-hidden className="h-5 w-5" />
+            </DownloadButton>
+          </div>
         </div>
       </section>
     </main>
