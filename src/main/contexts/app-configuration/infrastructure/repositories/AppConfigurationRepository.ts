@@ -11,6 +11,8 @@ import {
 } from "@main/contexts/app-configuration/domain/entities";
 import { FileSystemError } from "@shared/domain/errors";
 import {
+  DEFAULT_STORAGE,
+  isUnconfiguredStorage,
   saveStorageProfile,
   withStorageProfiles,
 } from "@main/contexts/app-configuration/domain/utils/storageProfiles";
@@ -41,15 +43,8 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
         const fileContent = JSON.parse(fs.readFileSync(configPath, "utf-8"));
 
         // Handle migration from r2 to s3 - check for s3 first, fallback to r2
-        const s3Config = fileContent.s3 ||
-          fileContent.r2 || {
-            endpoint: "",
-            access_key: "",
-            secret_key: "",
-            bucket_name: "",
-            provider: "Cloudflare",
-            region: "auto",
-          };
+        const saved = fileContent.s3 || fileContent.r2;
+        const s3Config = !saved || isUnconfiguredStorage(saved) ? DEFAULT_STORAGE : saved;
 
         const appSettings = {
           owner_name: null,
@@ -67,14 +62,7 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
       } else {
         // Return default config if file doesn't exist yet
         return {
-          s3: {
-            endpoint: "",
-            access_key: "",
-            secret_key: "",
-            bucket_name: "",
-            provider: "Cloudflare",
-            region: "auto",
-          },
+          s3: { ...DEFAULT_STORAGE },
           server: this.createDefaultServerConfig(),
           app: {
             owner_name: null,
@@ -182,14 +170,7 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
       } else {
         // Initialize default config structure if file doesn't exist
         config = {
-          s3: {
-            endpoint: "",
-            access_key: "",
-            secret_key: "",
-            bucket_name: "",
-            provider: "Cloudflare",
-            region: "auto",
-          },
+          s3: { ...DEFAULT_STORAGE },
           server: this.createDefaultServerConfig(),
           app: {
             owner_name: null,
@@ -229,14 +210,7 @@ export class AppConfigurationRepository implements IAppConfigurationRepository {
       } else {
         // Initialize default config structure if file doesn't exist
         config = {
-          s3: {
-            endpoint: "",
-            access_key: "",
-            secret_key: "",
-            bucket_name: "",
-            provider: "Cloudflare",
-            region: "auto",
-          },
+          s3: { ...DEFAULT_STORAGE },
           server: this.createDefaultServerConfig(),
           app: {
             owner_name: null,

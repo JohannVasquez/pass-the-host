@@ -4,6 +4,29 @@ import type {
   StorageProfile,
 } from "@main/contexts/app-configuration/domain/entities";
 
+/** Storage for a fresh install: Google Drive, the provider people know without explanations. */
+export const DEFAULT_STORAGE: S3Config = {
+  provider: "GoogleDrive",
+  endpoint: "",
+  region: "",
+  access_key: "",
+  secret_key: "",
+  bucket_name: "",
+};
+
+/**
+ * Storage nobody set up: no credentials, Drive token or saved profiles. Older installs wrote a
+ * blank Cloudflare config as a placeholder; those get the default instead. Any save adds a
+ * profile, so a provider the user actually chose is never overridden.
+ */
+export const isUnconfiguredStorage = (config: Partial<S3Config>): boolean =>
+  !config.profiles &&
+  !config.drive_token &&
+  !config.endpoint &&
+  !config.access_key &&
+  !config.secret_key &&
+  !config.bucket_name;
+
 /** The provider-specific part of a config, saved per provider so switching doesn't overwrite it. */
 export function toStorageProfile(config: S3Config): StorageProfile {
   return {
