@@ -1,4 +1,9 @@
 import { channelName, getRealtime } from "@contexts/p2p-tunnel/infrastructure/Realtime";
+import {
+  answerFrom,
+  offerFor,
+  type SignalMessage,
+} from "@contexts/p2p-tunnel/infrastructure/signaling";
 
 // Signaling over Ably (one channel per group), then each TCP connection rides its own WebRTC data channel.
 // The TCP sockets live in the main process; bytes cross over IPC keyed by connId (= data channel label).
@@ -11,11 +16,9 @@ const ICE_GATHER_TIMEOUT_MS = 5_000;
 const ANSWER_TIMEOUT_MS = 20_000;
 const CONNECT_TIMEOUT_MS = 20_000;
 const CONTROL_LABEL = "control";
-
-interface Signal {
-  peerId: string;
-  sdp: string;
-}
+// Any room member can send offers: cap what one member can open on the host
+const MAX_PEERS_PER_MEMBER = 2;
+const MAX_CONNECTIONS_PER_PEER = 16;
 
 const dataChannels = new Map<string, RTCDataChannel>();
 
@@ -104,40 +107,57 @@ const gatherIce = (pc: RTCPeerConnection): Promise<void> =>
 const isClosed = (pc: RTCPeerConnection): boolean =>
   pc.connectionState === "failed" || pc.connectionState === "closed";
 
-/** Host: answer every offer published on the group's channel and pipe its data channels into the local server. */
+/** Host: answer offers addressed to us on the group's channel and pipe their data channels into the local server. */
 export async function startHosting(groupId: string, serverPort: number): Promise<() => void> {
-  const channel = getRealtime().channels.get(channelName(groupId));
-  const peers = new Map<string, { pc: RTCPeerConnection; owned: Set<string> }>();
+  const realtime = getRealtime();
+  const channel = realtime.channels.get(channelName(groupId));
+  // Keyed by sender + peerId: a member can't take over another member's peer
+  const peers = new Map<string, { pc: RTCPeerConnection; owned: Set<string>; from: string }>();
 
-  // ponytail: one host per group channel; a group with two servers running at once would need a serverId in the signal.
-  const onOffer = async (message: { data?: unknown }): Promise<void> => {
-    const { peerId, sdp } = message.data as Signal;
-    if (peers.has(peerId)) return;
-    // Fetched per offer: TURN credentials expire, and hosting can outlive them
-    const { iceServers } = await window.p2pAPI.getIceServers();
-    if (peers.has(peerId)) return;
-    const pc = new RTCPeerConnection({ iceServers });
+  const dropPeer = (key: string, pc: RTCPeerConnection): void => {
+    const peer = peers.get(key);
+    if (peer?.pc !== pc) return;
+    peers.delete(key);
+    closePeer(pc, peer.owned);
+  };
+
+  const onOffer = async (message: SignalMessage): Promise<void> => {
+    const offer = offerFor(message, realtime.auth.clientId);
+    const from = message.clientId;
+    if (!offer || !from) return;
+    const key = `${from}:${offer.peerId}`;
+    const fromCount = [...peers.values()].filter((peer) => peer.from === from).length;
+    if (peers.has(key) || fromCount >= MAX_PEERS_PER_MEMBER) return;
+    // ICE servers are set below; creating the connection first reserves the slot
+    const pc = new RTCPeerConnection();
     const owned = new Set<string>();
-    peers.set(peerId, { pc, owned });
+    peers.set(key, { pc, owned, from });
     pc.ondatachannel = ({ channel: dc }) => {
       if (dc.label === CONTROL_LABEL) return;
+      if (owned.size >= MAX_CONNECTIONS_PER_PEER) return dc.close();
       window.p2pAPI.hostConnect(dc.label, serverPort);
       bridge(dc.label, dc, owned);
     };
     pc.onconnectionstatechange = () => {
-      if (!isClosed(pc)) return;
-      closePeer(pc, owned);
-      peers.delete(peerId);
+      if (isClosed(pc)) dropPeer(key, pc);
     };
     try {
-      await pc.setRemoteDescription({ type: "offer", sdp });
+      // Fetched per offer: TURN credentials expire, and hosting can outlive them
+      pc.setConfiguration(await window.p2pAPI.getIceServers());
+      await pc.setRemoteDescription({ type: "offer", sdp: offer.sdp });
       await pc.setLocalDescription(await pc.createAnswer());
       await gatherIce(pc);
-      await channel.publish("webrtc_answer", { peerId, sdp: pc.localDescription!.sdp });
+      await channel.publish("webrtc_answer", {
+        peerId: offer.peerId,
+        sdp: pc.localDescription!.sdp,
+      });
+      // An offer that never connects would otherwise hold its slot forever
+      setTimeout(() => {
+        if (pc.connectionState === "new" || pc.connectionState === "connecting") dropPeer(key, pc);
+      }, CONNECT_TIMEOUT_MS);
     } catch (error) {
       console.error("P2P: failed to answer offer", error);
-      closePeer(pc, owned);
-      peers.delete(peerId);
+      dropPeer(key, pc);
     }
   };
   await channel.subscribe("webrtc_offer", onOffer);
@@ -156,9 +176,10 @@ export interface JoinedServer {
   stop: () => void;
 }
 
-/** Friend: offer a connection to whoever hosts the group, then expose it on a local TCP port for Minecraft. */
+/** Friend: offer a connection to the group member `host` (their clientId), then expose it on a local TCP port for Minecraft. */
 export async function joinServer(
   groupId: string,
+  host: string,
   preferredPort: number,
   onDisconnected: () => void,
 ): Promise<JoinedServer> {
@@ -176,12 +197,12 @@ export async function joinServer(
 
     let onAnswer: (sdp: string) => void = () => undefined;
     const answer = new Promise<string>((resolve) => (onAnswer = resolve));
-    const listener = (message: { data?: unknown }): void => {
-      const data = message.data as Signal;
-      if (data.peerId === peerId) onAnswer(data.sdp);
+    const listener = (message: SignalMessage): void => {
+      const sdp = answerFrom(message, host, peerId);
+      if (sdp !== null) onAnswer(sdp);
     };
     await channel.subscribe("webrtc_answer", listener);
-    await channel.publish("webrtc_offer", { peerId, sdp: pc.localDescription!.sdp });
+    await channel.publish("webrtc_offer", { peerId, sdp: pc.localDescription!.sdp, to: host });
     const timeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error("p2p_host_not_found")), ANSWER_TIMEOUT_MS),
     );

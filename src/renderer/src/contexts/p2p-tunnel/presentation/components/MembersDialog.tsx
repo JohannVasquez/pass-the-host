@@ -9,12 +9,15 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   List,
   ListItem,
   ListItemAvatar,
   ListItemText,
   Stack,
+  Tooltip,
 } from "@mui/material";
+import PersonRemoveOutlinedIcon from "@mui/icons-material/PersonRemoveOutlined";
 import { useTranslation } from "react-i18next";
 import type { P2PMember } from "@preload/index.d";
 import type { OnlineMember } from "@contexts/p2p-tunnel/infrastructure/NetworkPresence";
@@ -23,8 +26,12 @@ interface MembersDialogProps {
   open: boolean;
   groupId: string;
   groupName: string;
+  /** The creator can remove other members */
+  canRemove: boolean;
   /** null when presence isn't available: online status is then left out */
   online: OnlineMember[] | null;
+  onRemoved: (name: string) => void;
+  onError: (error: unknown) => void;
   onClose: () => void;
 }
 
@@ -32,7 +39,10 @@ export const MembersDialog: React.FC<MembersDialogProps> = ({
   open,
   groupId,
   groupName,
+  canRemove,
   online,
+  onRemoved,
+  onError,
   onClose,
 }) => {
   const { t } = useTranslation();
@@ -45,6 +55,13 @@ export const MembersDialog: React.FC<MembersDialogProps> = ({
     setFailed(false);
     window.p2pAPI.listMembers(groupId).then(setMembers, () => setFailed(true));
   }, [open, groupId]);
+
+  const remove = (member: P2PMember, name: string): void => {
+    window.p2pAPI.removeMember(groupId, member.id).then(() => {
+      setMembers((current) => current?.filter((entry) => entry.id !== member.id) ?? null);
+      onRemoved(name);
+    }, onError);
+  };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
@@ -71,6 +88,18 @@ export const MembersDialog: React.FC<MembersDialogProps> = ({
                         <Chip size="small" color="success" label={t("p2p.hostingChip")} />
                       )}
                       {member.isOwner && <Chip size="small" label={t("p2p.creator")} />}
+                      {canRemove && !member.isOwner && (
+                        <Tooltip title={t("p2p.removeMember")}>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => remove(member, name)}
+                            aria-label={`${t("p2p.removeMember")}: ${name}`}
+                          >
+                            <PersonRemoveOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </Stack>
                   }
                 >
