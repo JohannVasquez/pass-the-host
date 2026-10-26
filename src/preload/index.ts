@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
+import type { TokenRequest } from "ably";
 
 // S3 provider types
 type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other" | "GoogleDrive";
@@ -13,6 +14,27 @@ interface S3ConfigType {
   bucket_name: string;
   drive_token?: string;
 }
+
+interface P2PMember {
+  id: string;
+  name: string | null;
+  isOwner: boolean;
+  isYou: boolean;
+}
+
+interface P2PGroup {
+  id: string;
+  name: string;
+  inviteCode: string;
+  ownerId: string;
+  isOwner: boolean;
+  memberCount: number;
+  createdAt: string;
+}
+
+type TurnConfig =
+  | { type: "cloudflare"; keyId: string; apiToken: string }
+  | { type: "static"; urls: string[]; username: string; credential: string };
 
 const api = {};
 
@@ -255,6 +277,50 @@ const notificationAPI = {
     ipcRenderer.invoke("notification:show", title, body),
 };
 
+const p2pAPI = {
+  listGroups: (): Promise<P2PGroup[]> => ipcRenderer.invoke("p2p:list-groups"),
+  createGroup: (name: string): Promise<P2PGroup> => ipcRenderer.invoke("p2p:create-group", name),
+  joinGroup: (code: string): Promise<P2PGroup> => ipcRenderer.invoke("p2p:join-group", code),
+  deleteGroup: (groupId: string): Promise<void> => ipcRenderer.invoke("p2p:delete-group", groupId),
+  listMembers: (groupId: string): Promise<P2PMember[]> =>
+    ipcRenderer.invoke("p2p:list-members", groupId),
+  setDisplayName: (name: string): Promise<void> => ipcRenderer.invoke("p2p:set-display-name", name),
+  getAblyToken: (): Promise<TokenRequest> => ipcRenderer.invoke("p2p:ably-token"),
+  getTurnConfig: (): Promise<TurnConfig | null> => ipcRenderer.invoke("p2p:get-turn-config"),
+  saveTurnConfig: (config: TurnConfig | null): Promise<void> =>
+    ipcRenderer.invoke("p2p:save-turn-config", config),
+  getIceServers: (): Promise<{ iceServers: RTCIceServer[] }> =>
+    ipcRenderer.invoke("p2p:ice-servers"),
+  clientListen: (port: number): Promise<number> => ipcRenderer.invoke("p2p:client-listen", port),
+  hostConnect: (connId: string, port: number): void =>
+    ipcRenderer.send("p2p:host-connect", connId, port),
+  tcpWrite: (connId: string, data: Uint8Array): void =>
+    ipcRenderer.send("p2p:tcp-write", connId, data),
+  tcpEnd: (connId: string): void => ipcRenderer.send("p2p:tcp-end", connId),
+  tcpPause: (connId: string): void => ipcRenderer.send("p2p:tcp-pause", connId),
+  tcpResume: (connId: string): void => ipcRenderer.send("p2p:tcp-resume", connId),
+  closeAll: (): void => ipcRenderer.send("p2p:close-all"),
+  onTcpOpen: (callback: (connId: string) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, connId: string): void => callback(connId);
+    ipcRenderer.on("p2p:tcp-open", listener);
+    return () => ipcRenderer.removeListener("p2p:tcp-open", listener);
+  },
+  onTcpData: (callback: (connId: string, data: Uint8Array<ArrayBuffer>) => void): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      connId: string,
+      data: Uint8Array<ArrayBuffer>,
+    ): void => callback(connId, data);
+    ipcRenderer.on("p2p:tcp-data", listener);
+    return () => ipcRenderer.removeListener("p2p:tcp-data", listener);
+  },
+  onTcpClose: (callback: (connId: string) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, connId: string): void => callback(connId);
+    ipcRenderer.on("p2p:tcp-close", listener);
+    return () => ipcRenderer.removeListener("p2p:tcp-close", listener);
+  },
+};
+
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
@@ -268,6 +334,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("serverAPI", serverAPI);
     contextBridge.exposeInMainWorld("javaAPI", javaAPI);
     contextBridge.exposeInMainWorld("notificationAPI", notificationAPI);
+    contextBridge.exposeInMainWorld("p2pAPI", p2pAPI);
   } catch (error) {
     console.error(error);
   }
@@ -281,4 +348,5 @@ if (process.contextIsolated) {
   win.serverAPI = serverAPI;
   win.javaAPI = javaAPI;
   win.notificationAPI = notificationAPI;
+  win.p2pAPI = p2pAPI;
 }

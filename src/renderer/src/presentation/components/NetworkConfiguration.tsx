@@ -11,6 +11,8 @@ import {
   TextField,
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
+import LanOutlinedIcon from "@mui/icons-material/LanOutlined";
+import { PanelTitle } from "@renderer/presentation/components/PanelTitle";
 import { NetworkInterface } from "@renderer/domain/entities/ServerConfig";
 
 interface NetworkConfigurationProps {
@@ -41,9 +43,9 @@ export const NetworkConfiguration: React.FC<NetworkConfigurationProps> = ({
 
   return (
     <Paper elevation={2} sx={{ p: 2 }}>
-      <Typography variant="h6" gutterBottom>
+      <PanelTitle icon={<LanOutlinedIcon />} gutterBottom>
         {t("network.title")}
-      </Typography>
+      </PanelTitle>
       <Stack spacing={2}>
         <FormControl fullWidth size="small">
           <InputLabel>{t("network.selectIp")}</InputLabel>

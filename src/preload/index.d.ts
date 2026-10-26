@@ -1,4 +1,5 @@
 import { ElectronAPI } from "@electron-toolkit/preload";
+import type { TokenRequest } from "ably";
 
 // S3-compatible storage types
 type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other" | "GoogleDrive";
@@ -160,6 +161,50 @@ interface NotificationAPI {
   show: (title: string, body: string) => Promise<void>;
 }
 
+interface P2PMember {
+  id: string;
+  name: string | null;
+  isOwner: boolean;
+  isYou: boolean;
+}
+
+interface P2PGroup {
+  id: string;
+  name: string;
+  inviteCode: string;
+  ownerId: string;
+  isOwner: boolean;
+  memberCount: number;
+  createdAt: string;
+}
+
+type TurnConfig =
+  | { type: "cloudflare"; keyId: string; apiToken: string }
+  | { type: "static"; urls: string[]; username: string; credential: string };
+
+interface P2PAPI {
+  listGroups: () => Promise<P2PGroup[]>;
+  createGroup: (name: string) => Promise<P2PGroup>;
+  joinGroup: (code: string) => Promise<P2PGroup>;
+  deleteGroup: (groupId: string) => Promise<void>;
+  listMembers: (groupId: string) => Promise<P2PMember[]>;
+  setDisplayName: (name: string) => Promise<void>;
+  getAblyToken: () => Promise<TokenRequest>;
+  getTurnConfig: () => Promise<TurnConfig | null>;
+  saveTurnConfig: (config: TurnConfig | null) => Promise<void>;
+  getIceServers: () => Promise<{ iceServers: RTCIceServer[] }>;
+  clientListen: (port: number) => Promise<number>;
+  hostConnect: (connId: string, port: number) => void;
+  tcpWrite: (connId: string, data: Uint8Array) => void;
+  tcpEnd: (connId: string) => void;
+  tcpPause: (connId: string) => void;
+  tcpResume: (connId: string) => void;
+  closeAll: () => void;
+  onTcpOpen: (callback: (connId: string) => void) => () => void;
+  onTcpData: (callback: (connId: string, data: Uint8Array<ArrayBuffer>) => void) => () => void;
+  onTcpClose: (callback: (connId: string) => void) => () => void;
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI;
@@ -170,7 +215,8 @@ declare global {
     serverAPI: ServerAPI;
     javaAPI: JavaAPI;
     notificationAPI: NotificationAPI;
+    p2pAPI: P2PAPI;
   }
 }
 
-export {};
+export type { P2PGroup, P2PMember, TurnConfig };

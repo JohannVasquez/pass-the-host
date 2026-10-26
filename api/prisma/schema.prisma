@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  runtime  = "cloudflare"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id          String        @id @default(uuid())
+  name        String?
+  createdAt   DateTime      @default(now())
+  ownedGroups ServerGroup[] @relation("GroupOwner")
+  memberships GroupMember[]
+}
+
+model ServerGroup {
+  id         String        @id @default(uuid())
+  name       String
+  inviteCode String        @unique
+  ownerId    String
+  owner      User          @relation("GroupOwner", fields: [ownerId], references: [id])
+  createdAt  DateTime      @default(now())
+  members    GroupMember[]
+}
+
+model GroupMember {
+  id       String      @id @default(uuid())
+  userId   String
+  groupId  String
+  user     User        @relation(fields: [userId], references: [id])
+  group    ServerGroup @relation(fields: [groupId], references: [id])
+  joinedAt DateTime    @default(now())
+
+  @@unique([userId, groupId])
+}

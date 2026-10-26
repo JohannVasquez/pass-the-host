@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Box, Typography, Paper, Stack, Slider } from "@mui/material";
 import { useTranslation } from "react-i18next";
+import { RamIcon } from "@renderer/presentation/components/RamIcon";
+import { PanelTitle } from "@renderer/presentation/components/PanelTitle";
 import { RamConfig } from "@renderer/domain/entities/ServerConfig";
 
 interface RamConfigurationProps {
@@ -54,9 +56,9 @@ export const RamConfiguration: React.FC<RamConfigurationProps> = ({
 
   return (
     <Paper elevation={2} sx={{ p: 2 }}>
-      <Typography variant="h6" gutterBottom>
+      <PanelTitle icon={<RamIcon />} gutterBottom>
         {t("ram.title")}
-      </Typography>
+      </PanelTitle>
       <Stack spacing={3}>
         <Box>
           <Typography variant="body2" color="text.secondary" gutterBottom>

@@ -23,9 +23,12 @@ import {
   Add as AddIcon,
   FolderOpen as FolderOpenIcon,
   DeleteForever as DeleteForeverIcon,
+  Share as ShareIcon,
   Lock as LockIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
+import DnsOutlinedIcon from "@mui/icons-material/DnsOutlined";
+import { PanelTitle } from "@renderer/presentation/components/PanelTitle";
 import { ServerStatus } from "@renderer/domain/entities/ServerStatus";
 import { Server } from "@renderer/domain/entities/Server";
 
@@ -41,6 +44,8 @@ interface ServerControlPanelProps {
   onEditProperties: () => void;
   onOpenServerFolder: () => void;
   onDeleteServer: () => void;
+  /** Only passed when sharing applies (Google Drive connected): the button is hidden otherwise */
+  onShare?: () => void;
   cloudSyncEnabled?: boolean;
   serverStartTime: Date | null;
   username: string;
@@ -62,6 +67,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   onEditProperties,
   onOpenServerFolder,
   onDeleteServer,
+  onShare,
   cloudSyncEnabled = false,
   serverStartTime,
   username,
@@ -113,9 +119,9 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
 
   return (
     <Paper elevation={2} sx={{ p: 2 }}>
-      <Typography variant="h6" gutterBottom>
+      <PanelTitle icon={<DnsOutlinedIcon />} gutterBottom>
         {t("serverControl.title")}
-      </Typography>
+      </PanelTitle>
 
       {!cloudSyncEnabled && (
         <Alert severity="info" sx={{ mb: 2 }}>
@@ -222,6 +228,17 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
         >
           {t("serverControl.syncToCloud")}
         </Button>
+        {onShare && (
+          <Button
+            variant="outlined"
+            startIcon={<ShareIcon />}
+            onClick={onShare}
+            disabled={!selectedServer}
+            fullWidth
+          >
+            {t("serverControl.share")}
+          </Button>
+        )}
         <Button
           variant="contained"
           color="warning" // Esto le da el color naranja

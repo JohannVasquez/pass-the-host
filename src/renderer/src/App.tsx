@@ -11,7 +11,7 @@ import {
   IconButton,
   Tooltip,
 } from "@mui/material";
-import { BarChart as BarChartIcon } from "@mui/icons-material";
+import { BarChart as BarChartIcon, Settings as SettingsIcon } from "@mui/icons-material";
 import { SnackbarProvider, useSnackbar } from "notistack";
 import { S3Configuration } from "./presentation/components/S3Configuration";
 import { ServerControlPanel } from "./presentation/components/ServerControlPanel";
@@ -20,7 +20,7 @@ import { RamConfiguration } from "./presentation/components/RamConfiguration";
 import { ServerConsole } from "./presentation/components/ServerConsole";
 import { CommandInput } from "./presentation/components/CommandInput";
 import { LanguageSwitcher } from "./presentation/components/LanguageSwitcher";
-import { UsernameInput } from "./presentation/components/UsernameInput";
+import { SettingsModal } from "./presentation/components/SettingsModal";
 import { ReleaseLockModal } from "./presentation/components/ReleaseLockModal";
 import { ServerLockedModal } from "./presentation/components/ServerLockedModal";
 import { DownloadProgressModal } from "./presentation/components/DownloadProgressModal";
@@ -32,6 +32,7 @@ import { DeleteServerModal } from "./presentation/components/DeleteServerModal";
 import { ShareServerModal } from "./presentation/components/ShareServerModal";
 import { EditServerModal } from "./presentation/components/EditServerModal";
 import { UsernameRequiredModal } from "./presentation/components/UsernameRequiredModal";
+import { P2PPanel } from "@contexts/p2p-tunnel/presentation/components/P2PPanel";
 import { ServerStatus, canTransitionServerStatus } from "./domain/entities/ServerStatus";
 import {
   PROVIDER_LABELS,
@@ -56,6 +57,7 @@ import {
 } from "@shared/domain/DomainEvents";
 import { useLockMonitor } from "@server-locking/presentation/hooks/useLockMonitor";
 import "./i18n/config";
+import appIcon from "./assets/app-icon.png";
 
 const darkTheme = createTheme({
   palette: {
@@ -149,6 +151,7 @@ function AppContent(): React.JSX.Element {
   ]);
   const [serverStartTime, setServerStartTime] = React.useState<Date | null>(null);
   const [isStatisticsModalOpen, setIsStatisticsModalOpen] = React.useState<boolean>(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = React.useState<boolean>(false);
   const [serverStatistics, setServerStatistics] = React.useState<ServerStatistics | null>(null);
   const [isCreateServerModalOpen, setIsCreateServerModalOpen] = React.useState<boolean>(false);
   const [isCreatingServer, setIsCreatingServer] = React.useState<boolean>(false);
@@ -1913,6 +1916,7 @@ function AppContent(): React.JSX.Element {
         {/* App Bar with Language Switcher */}
         <AppBar position="static" elevation={1}>
           <Toolbar variant="dense">
+            <Box component="img" src={appIcon} alt="" sx={{ width: 28, height: 28, mr: 1.25 }} />
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               Pass the host!
             </Typography>
@@ -1936,6 +1940,11 @@ function AppContent(): React.JSX.Element {
                   <BarChartIcon />
                 </IconButton>
               </span>
+            </Tooltip>
+            <Tooltip title={t("settings.title")}>
+              <IconButton color="inherit" onClick={() => setIsSettingsModalOpen(true)}>
+                <SettingsIcon />
+              </IconButton>
             </Tooltip>
             <LanguageSwitcher />
           </Toolbar>
@@ -1977,16 +1986,23 @@ function AppContent(): React.JSX.Element {
               onEditProperties={handleEditProperties}
               onOpenServerFolder={handleOpenServerFolder}
               onDeleteServer={handleDeleteServer}
+              onShare={
+                isCloudSyncEnabled && s3Config.provider === "GoogleDrive" && s3Config.drive_token
+                  ? () => setIsShareServerModalOpen(true)
+                  : undefined
+              }
               cloudSyncEnabled={isCloudSyncEnabled}
               serverStartTime={serverStartTime}
               username={username}
               lockedServerInfo={lockedServerInfo}
             />
 
-            <UsernameInput
+
+            <P2PPanel
+              serverRunning={serverStatus === ServerStatus.RUNNING}
+              serverPort={serverPort}
               username={username}
-              onSave={handleSaveUsername}
-              disabled={serverStatus !== ServerStatus.STOPPED}
+              serverName={servers.find((server) => server.id === selectedServer)?.name ?? null}
             />
 
             <S3Configuration
@@ -1995,8 +2011,6 @@ function AppContent(): React.JSX.Element {
               cloudSyncEnabled={isCloudSyncEnabledByUser}
               onToggleCloudSync={handleToggleCloudSync}
               disabled={serverStatus !== ServerStatus.STOPPED}
-              selectedServer={selectedServer}
-              onShareServer={() => setIsShareServerModalOpen(true)}
             />
 
             <NetworkConfiguration
@@ -2158,6 +2172,13 @@ function AppContent(): React.JSX.Element {
         />
 
         <UsernameRequiredModal open={configLoaded && !username} onSave={handleSaveUsername} />
+        <SettingsModal
+          open={isSettingsModalOpen}
+          username={username}
+          onSaveUsername={handleSaveUsername}
+          usernameDisabled={serverStatus !== ServerStatus.STOPPED}
+          onClose={() => setIsSettingsModalOpen(false)}
+        />
 
         <EditServerModal
           open={isEditServerModalOpen}

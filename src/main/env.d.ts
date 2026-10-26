@@ -2,4 +2,5 @@
 interface ImportMetaEnv {
   readonly MAIN_VITE_GDRIVE_CLIENT_ID?: string;
   readonly MAIN_VITE_GDRIVE_CLIENT_SECRET?: string;
+  readonly MAIN_VITE_API_URL?: string;
 }

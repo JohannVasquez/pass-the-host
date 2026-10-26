@@ -38,6 +38,7 @@
     "@mui/icons-material": "^7.3.11",
     "@mui/material": "^7.3.11",
     "@mui/x-data-grid": "^8.29.5",
+    "ably": "2.30.0",
     "electron-log": "^5.4.4",
     "electron-updater": "^6.8.9",
     "eventemitter3": "^5.0.4",
