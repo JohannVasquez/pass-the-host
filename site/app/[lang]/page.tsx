@@ -19,7 +19,7 @@ import { getDictionary } from "../dictionaries";
 import { DownloadButton } from "../DownloadButton";
 import { isLocale } from "../i18n";
 import icon from "../icon.png";
-import { DOWNLOAD_URL, GITHUB_URL, MS_STORE_URL, getDownloads } from "../links";
+import { DOWNLOAD_URL, GITHUB_URL, MEDIA_URL, MS_STORE_URL, getDownloads } from "../links";
 
 const SITE_URL = "https://passthehost.jvdev.cl";
 
@@ -136,6 +136,17 @@ export default async function PassTheHostPage({
         sameAs: [GITHUB_URL, MS_STORE_URL],
       },
       {
+        "@type": "VideoObject",
+        "@id": `${SITE_URL}/${lang}#video`,
+        name: t.meta.title,
+        description: t.video.subtitle,
+        inLanguage: lang,
+        thumbnailUrl: `${MEDIA_URL}/video/pass-the-host-${lang}.jpg`,
+        contentUrl: `${MEDIA_URL}/video/pass-the-host-${lang}.mp4`,
+        uploadDate: "2026-10-26",
+        duration: lang === "es" ? "PT36S" : "PT33S",
+      },
+      {
         "@type": "FAQPage",
         "@id": `${SITE_URL}/${lang}#faq`,
         inLanguage: lang,
@@ -224,6 +235,33 @@ export default async function PassTheHostPage({
             />
           </figure>
         </div>
+      </section>
+
+      {/* Video */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-24">
+        <h2 className="text-3xl sm:text-4xl font-bold text-[#EAEAEA]">
+          {t.video.title}
+        </h2>
+        <p className="mt-3 text-[#A1A1AA] max-w-2xl">{t.video.subtitle}</p>
+        {/* Our own R2 bucket rather than a YouTube embed: no third-party cookies on the landing */}
+        <video
+          className="mt-10 w-full aspect-video rounded-2xl border border-white/10 bg-[#181B23] shadow-2xl shadow-black/50"
+          controls
+          playsInline
+          preload="none"
+          // The captions track is cross-origin, so it needs CORS
+          crossOrigin="anonymous"
+          poster={`${MEDIA_URL}/video/pass-the-host-${lang}.jpg`}
+          aria-label={t.video.label}
+        >
+          <source src={`${MEDIA_URL}/video/pass-the-host-${lang}.mp4`} type="video/mp4" />
+          <track
+            kind="captions"
+            src={`${MEDIA_URL}/video/pass-the-host-${lang}.vtt`}
+            srcLang={lang}
+            label={t.languageName}
+          />
+        </video>
       </section>
 
       {/* How it works */}

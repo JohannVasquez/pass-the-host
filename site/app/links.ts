@@ -2,6 +2,8 @@ export const GITHUB_URL = "https://github.com/JohannVasquez/pass-the-host";
 export const DOWNLOAD_URL = `${GITHUB_URL}/releases/latest`;
 // Store builds are signed (no SmartScreen warning) and update themselves
 export const MS_STORE_URL = "https://apps.microsoft.com/detail/9P12F6CZLBR0";
+// Videos live in the R2 bucket pass-the-host-media (no Vercel bandwidth)
+export const MEDIA_URL = "https://media.jvdev.cl";
 
 export type Downloads = {
   version: string | null;

@@ -40,6 +40,8 @@ export const es = {
       status: "Estado",
       selectServer: "Seleccionar Servidor",
       createNewServer: "Crear Nuevo Servidor",
+      serverLocked: "Servidor en uso",
+      lockedBy: "Lo está usando {{username}}",
       start: "Iniciar Servidor",
       stop: "Detener Servidor",
       releaseLock: "Liberar Lock",

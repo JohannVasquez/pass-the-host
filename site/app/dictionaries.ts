@@ -38,6 +38,11 @@ const es = {
     screenshotAlt:
       "Pantalla principal de Pass the host con el control del servidor y la consola",
   },
+  video: {
+    title: "Míralo en acción",
+    subtitle: "Un amigo cierra el servidor, otro lo abre y todos siguen en el mismo mundo.",
+    label: "Video: cómo funciona Pass the host",
+  },
   how: {
     title: "Cómo funciona",
     subtitle: "Como pasarse el control, pero con el mundo entero.",
@@ -222,6 +227,11 @@ const en: typeof es = {
     downloadCount: "{n} downloads",
     screenshotAlt:
       "Pass the host main screen with the server controls and the console",
+  },
+  video: {
+    title: "See it in action",
+    subtitle: "One friend closes the server, another opens it, and everyone keeps playing the same world.",
+    label: "Video: how Pass the host works",
   },
   how: {
     title: "How it works",
