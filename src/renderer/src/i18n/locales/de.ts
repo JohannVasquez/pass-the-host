@@ -42,6 +42,8 @@ export const de: typeof en = {
       status: "Status",
       selectServer: "Server auswählen",
       createNewServer: "Neuen Server erstellen",
+      serverLocked: "Server wird verwendet",
+      lockedBy: "Wird von {{username}} verwendet",
       start: "Server starten",
       stop: "Server stoppen",
       releaseLock: "Sperre aufheben",

@@ -42,6 +42,8 @@ export const ru: typeof en = {
       status: "Статус",
       selectServer: "Выбрать сервер",
       createNewServer: "Создать новый сервер",
+      serverLocked: "Сервер занят",
+      lockedBy: "Используется: {{username}}",
       start: "Запустить сервер",
       stop: "Остановить сервер",
       releaseLock: "Снять блокировку",

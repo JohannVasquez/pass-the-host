@@ -42,6 +42,8 @@ export const fr: typeof en = {
       status: "État",
       selectServer: "Choisir un serveur",
       createNewServer: "Créer un serveur",
+      serverLocked: "Serveur utilisé",
+      lockedBy: "Utilisé par {{username}}",
       start: "Démarrer le serveur",
       stop: "Arrêter le serveur",
       releaseLock: "Libérer le verrou",

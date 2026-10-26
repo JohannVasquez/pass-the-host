@@ -42,6 +42,8 @@ export const ptBR: typeof en = {
       status: "Status",
       selectServer: "Selecionar servidor",
       createNewServer: "Criar novo servidor",
+      serverLocked: "Servidor em uso",
+      lockedBy: "Sendo usado por {{username}}",
       start: "Iniciar servidor",
       stop: "Parar servidor",
       releaseLock: "Liberar bloqueio",
