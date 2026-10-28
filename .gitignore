@@ -16,3 +16,7 @@ src/renderer/config.json
 
 # Playwright MCP output
 .playwright-mcp
+
+# Launch video sources and agent plans (kept locally)
+brag-output
+docs/superpowers
