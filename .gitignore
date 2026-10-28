@@ -13,3 +13,6 @@ src/renderer/config.json
 .agent
 
 .github/copilot-instructions.md
+
+# Playwright MCP output
+.playwright-mcp

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@0.0.83"]
+    },
+    "electron-test-mcp": {
+      "command": "npx",
+      "args": ["-y", "electron-test-mcp@0.1.0"]
+    }
+  }
+}
