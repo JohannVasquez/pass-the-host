@@ -38,6 +38,8 @@ export const fr: typeof en = {
       driveError: "Impossible de se connecter à Google. Réessaie.",
     },
     serverControl: {
+      checkingCloudTitle: "Vérification de la copie cloud",
+      checkingCloud: "On vérifie que personne d'autre n'utilise ce serveur et que tu as les derniers fichiers...",
       you: "toi",
       since: "depuis {{time}}",
       moreActions: "Plus d'actions",

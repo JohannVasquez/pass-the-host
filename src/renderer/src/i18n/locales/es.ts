@@ -36,6 +36,8 @@ export const es = {
       driveError: "No se pudo conectar con Google. Inténtalo de nuevo.",
     },
     serverControl: {
+      checkingCloudTitle: "Revisando la copia en la nube",
+      checkingCloud: "Comprobando que nadie más esté usando este servidor y que tengas los archivos más recientes...",
       you: "tú",
       since: "desde {{time}}",
       moreActions: "Más acciones",

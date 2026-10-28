@@ -152,6 +152,7 @@ function AppContent(): React.JSX.Element {
   const [isReleaseLockModalOpen, setIsReleaseLockModalOpen] = React.useState<boolean>(false);
   const [isServerLockedModalOpen, setIsServerLockedModalOpen] = React.useState<boolean>(false);
   const [isConfigOpen, setIsConfigOpen] = React.useState(false);
+  const [isCheckingCloud, setIsCheckingCloud] = React.useState(false);
   const [configTab, setConfigTab] = React.useState(0);
   const [lockedServerInfo, setLockedServerInfo] = React.useState<{
     username: string;
@@ -328,8 +329,10 @@ function AppContent(): React.JSX.Element {
             return true;
           },
           waitForServerExit,
-          deleteLock: async (config, serverId) => (await window.serverAPI.deleteLock(config, serverId)).success,
-          deleteLocalLock: async (serverId) => (await window.serverAPI.deleteLocalLock(serverId)).success,
+          deleteLock: async (config, serverId) =>
+            (await window.serverAPI.deleteLock(config, serverId)).success,
+          deleteLocalLock: async (serverId) =>
+            (await window.serverAPI.deleteLocalLock(serverId)).success,
           updateSession: (serverId, username) => window.serverAPI.updateSession(serverId, username),
           uploadServer: (serverId) => new S3Service(s3Config).uploadServer(serverId),
           uploadSession: (config, serverId) => window.serverAPI.uploadSession(config, serverId),
@@ -378,20 +381,28 @@ function AppContent(): React.JSX.Element {
 
       const isIntentionalStop = serverStatusRef.current === ServerStatus.STOPPING;
 
+      // A crash still has to free the lock and upload the world, or friends stay locked out
       if (!isIntentionalStop) {
-        updateServerStatus(ServerStatus.STOPPED, "server process exited", { force: true });
+        updateServerStatus(ServerStatus.STOPPING, "server process exited", { force: true });
+        stopManagedServerUseCase
+          .finalize({ serverId, username: username || "Unknown", s3Config, isCloudSyncEnabled })
+          .catch((error) =>
+            appendLog(
+              `Error finishing shutdown: ${error instanceof Error ? error.message : String(error)}`,
+              "error",
+            ),
+          );
       }
 
       setLogs((prev) => [
         ...prev,
         {
           timestamp: new Date(),
-          message:
-            isIntentionalStop
-              ? "Server process exited, finalizing shutdown..."
-              : code === 0
-                ? "Server process exited"
-                : `Server process stopped unexpectedly${code !== null ? ` (exit code ${code})` : ""}`,
+          message: isIntentionalStop
+            ? "Server process exited, finalizing shutdown..."
+            : code === 0
+              ? "Server process exited"
+              : `Server process stopped unexpectedly${code !== null ? ` (exit code ${code})` : ""}`,
           type: isIntentionalStop || code === 0 ? "info" : "warning",
         },
       ]);
@@ -400,7 +411,15 @@ function AppContent(): React.JSX.Element {
     return () => {
       unsubscribe();
     };
-  }, [selectedServer, updateServerStatus]);
+  }, [
+    selectedServer,
+    updateServerStatus,
+    stopManagedServerUseCase,
+    username,
+    s3Config,
+    isCloudSyncEnabled,
+    appendLog,
+  ]);
 
   // Subscribe to lock monitoring events
   React.useEffect(() => {
@@ -945,7 +964,9 @@ function AppContent(): React.JSX.Element {
       ]);
 
       const localServers = await window.serverAPI.listLocalServers();
-      setServers(localServers.map((server) => ({ ...server, type: server.type as Server["type"] })));
+      setServers(
+        localServers.map((server) => ({ ...server, type: server.type as Server["type"] })),
+      );
       setTotalBucketSize(0);
       setSelectedServerSize(0);
 
@@ -970,7 +991,9 @@ function AppContent(): React.JSX.Element {
     }
   };
 
-  const refreshServerList = async (cloudSyncEnabled: boolean = isCloudSyncEnabled): Promise<void> => {
+  const refreshServerList = async (
+    cloudSyncEnabled: boolean = isCloudSyncEnabled,
+  ): Promise<void> => {
     if (cloudSyncEnabled) {
       await loadServersFromS3();
       return;
@@ -1720,6 +1743,8 @@ function AppContent(): React.JSX.Element {
   // upload an old world over a friend's progress
   const handleEditProperties = async (): Promise<void> => {
     if (selectedServer && isCloudSyncEnabled && serverStatus === ServerStatus.STOPPED) {
+      // Blocks the UI while rclone checks, so nobody starts the server under the dialog
+      setIsCheckingCloud(true);
       try {
         const lock = await window.serverAPI.readLock(s3Config, selectedServer);
         if (lock.exists && lock.username !== username) {
@@ -1730,7 +1755,9 @@ function AppContent(): React.JSX.Element {
           setIsServerLockedModalOpen(true);
           return;
         }
-        if (await window.serverAPI.shouldDownload(s3Config, selectedServer)) {
+        const needsDownload = await window.serverAPI.shouldDownload(s3Config, selectedServer);
+        setIsCheckingCloud(false);
+        if (needsDownload) {
           appendLog("Downloading the latest server files before editing...", "info");
           setIsTransferring(true);
           resetTransferProgress("download");
@@ -1747,6 +1774,8 @@ function AppContent(): React.JSX.Element {
           `Could not check the cloud copy: ${error instanceof Error ? error.message : String(error)}`,
           "warning",
         );
+      } finally {
+        setIsCheckingCloud(false);
       }
     }
     setIsEditServerModalOpen(true);
@@ -2009,14 +2038,20 @@ function AppContent(): React.JSX.Element {
               >
                 <span>
                   {t("storage.total")}{" "}
-                  <Box component="span" sx={{ color: "text.primary", fontFamily: monoFont, ml: 0.5 }}>
+                  <Box
+                    component="span"
+                    sx={{ color: "text.primary", fontFamily: monoFont, ml: 0.5 }}
+                  >
                     {formatBytes(totalBucketSize)}
                   </Box>
                 </span>
                 {selectedServer && selectedServerSize > 0 && (
                   <span>
                     {t("storage.server")}{" "}
-                    <Box component="span" sx={{ color: "text.primary", fontFamily: monoFont, ml: 0.5 }}>
+                    <Box
+                      component="span"
+                      sx={{ color: "text.primary", fontFamily: monoFont, ml: 0.5 }}
+                    >
                       {formatBytes(selectedServerSize)}
                     </Box>
                   </span>
@@ -2217,6 +2252,12 @@ function AppContent(): React.JSX.Element {
         />
 
         {/* Java Download Modal */}
+        <DownloadProgressModal
+          open={isCheckingCloud}
+          title={t("serverControl.checkingCloudTitle")}
+          message={t("serverControl.checkingCloud")}
+        />
+
         <DownloadProgressModal
           open={isJavaDownloading}
           title={t("java.modalTitle")}

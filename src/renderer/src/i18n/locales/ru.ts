@@ -38,6 +38,8 @@ export const ru: typeof en = {
       driveError: "Не удалось подключиться к Google. Попробуйте ещё раз.",
     },
     serverControl: {
+      checkingCloudTitle: "Проверка копии в облаке",
+      checkingCloud: "Проверяем, что сервер никто не использует и у вас последние файлы...",
       you: "вы",
       since: "с {{time}}",
       moreActions: "Другие действия",

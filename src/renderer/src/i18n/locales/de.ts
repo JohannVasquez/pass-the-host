@@ -38,6 +38,8 @@ export const de: typeof en = {
       driveError: "Verbindung zu Google fehlgeschlagen. Bitte versuche es erneut.",
     },
     serverControl: {
+      checkingCloudTitle: "Cloud-Kopie wird geprüft",
+      checkingCloud: "Wir prüfen, dass niemand sonst diesen Server nutzt und du die neuesten Dateien hast...",
       you: "du",
       since: "seit {{time}}",
       moreActions: "Weitere Aktionen",
