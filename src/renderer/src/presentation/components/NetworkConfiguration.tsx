@@ -1,13 +1,11 @@
 import React from "react";
 import {
-  Box,
   FormControl,
   IconButton,
   InputLabel,
   Select,
   MenuItem,
   Typography,
-  Paper,
   Stack,
   TextField,
   Tooltip,
@@ -15,9 +13,8 @@ import {
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { useSnackbar } from "notistack";
 import { useTranslation } from "react-i18next";
-import LanOutlinedIcon from "@mui/icons-material/LanOutlined";
-import { PanelTitle } from "@renderer/presentation/components/PanelTitle";
 import { NetworkInterface } from "@renderer/domain/entities/ServerConfig";
+import { monoFont, surface } from "@renderer/theme";
 
 interface NetworkConfigurationProps {
   availableIps: NetworkInterface[];
@@ -53,69 +50,73 @@ export const NetworkConfiguration: React.FC<NetworkConfigurationProps> = ({
   };
 
   return (
-    <Paper elevation={2} sx={{ p: 2 }}>
-      <PanelTitle icon={<LanOutlinedIcon />} gutterBottom>
-        {t("network.title")}
-      </PanelTitle>
-      <Stack spacing={2}>
-        <FormControl fullWidth size="small">
-          <InputLabel>{t("network.selectIp")}</InputLabel>
-          <Select
-            value={selectedIp || ""}
-            label={t("network.selectIp")}
-            onChange={(e) => onSelectIp(e.target.value)}
-            disabled={disabled}
-          >
-            {availableIps.map((iface) => (
-              <MenuItem key={iface.ip} value={iface.ip}>
-                {iface.name} - {iface.ip}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <TextField
-          fullWidth
-          size="small"
-          type="number"
-          label={t("network.port")}
-          value={serverPort}
-          onChange={handlePortChange}
-          onWheel={(e) => {
-            // Al hacer scroll, quitamos el foco del input
-            (e.target as HTMLInputElement).blur();
-          }}
+    <Stack spacing={2}>
+      <FormControl fullWidth size="small">
+        <InputLabel>{t("network.selectIp")}</InputLabel>
+        <Select
+          value={selectedIp || ""}
+          label={t("network.selectIp")}
+          onChange={(e) => onSelectIp(e.target.value)}
           disabled={disabled}
-          slotProps={{
-            htmlInput: {
-              min: 1,
-              max: 65535,
-            },
-          }}
-        />
+        >
+          {availableIps.map((iface) => (
+            <MenuItem key={iface.ip} value={iface.ip}>
+              {iface.name} - {iface.ip}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
 
-        {selectedIp && (
-          <Stack
-            direction="row"
-            alignItems="center"
-            sx={{ bgcolor: "action.hover", p: 1, pt: 0.5, borderRadius: 1 }}
+      <TextField
+        fullWidth
+        size="small"
+        type="number"
+        label={t("network.port")}
+        value={serverPort}
+        onChange={handlePortChange}
+        onWheel={(e) => {
+          // Al hacer scroll, quitamos el foco del input
+          (e.target as HTMLInputElement).blur();
+        }}
+        disabled={disabled}
+        slotProps={{
+          htmlInput: {
+            min: 1,
+            max: 65535,
+          },
+        }}
+      />
+
+      {selectedIp && (
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1}
+          sx={{
+            minHeight: 40,
+            px: 1.5,
+            border: 1,
+            borderColor: surface.subtleBorder,
+            borderRadius: 1,
+            bgcolor: surface.panel,
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            {t("network.selectedIp")}:
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ flexGrow: 1, fontFamily: monoFont, color: "primary.main" }}
           >
-            <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="caption" color="text.secondary">
-                {t("network.selectedIp")}:
-              </Typography>
-              <Typography variant="body2" fontWeight="medium">
-                {selectedIp}:{serverPort}
-              </Typography>
-            </Box>
-            <Tooltip title={t("network.copyAddress")}>
-              <IconButton onClick={handleCopy} aria-label={t("network.copyAddress")}>
-                <ContentCopyIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Stack>
-        )}
-      </Stack>
-    </Paper>
+            {selectedIp}:{serverPort}
+          </Typography>
+          <Tooltip title={t("network.copyAddress")}>
+            <IconButton size="small" onClick={handleCopy} aria-label={t("network.copyAddress")}>
+              <ContentCopyIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      )}
+    </Stack>
   );
 };

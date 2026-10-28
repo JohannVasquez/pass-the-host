@@ -4,12 +4,8 @@ import {
   Button,
   Typography,
   Stack,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   IconButton,
   Tooltip,
-  Box,
   FormControl,
   FormControlLabel,
   InputLabel,
@@ -22,18 +18,16 @@ import {
   Save as SaveIcon,
   Lock as LockIcon,
   LockOpen as LockOpenIcon,
-  ExpandMore as ExpandMoreIcon,
   Google as GoogleIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
-import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
-import { PanelTitle } from "@renderer/presentation/components/PanelTitle";
 import {
   PROVIDER_LABELS,
   S3Config,
   S3Provider,
   toStorageProfile,
 } from "@renderer/domain/entities/ServerConfig";
+import { monoFont, surface } from "@renderer/theme";
 
 interface S3ConfigurationProps {
   config: S3Config;
@@ -76,7 +70,6 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
   const [localConfig, setLocalConfig] = React.useState<S3Config>(config);
   const [saveStatus, setSaveStatus] = React.useState<"idle" | "success" | "error">("idle");
   const [isLocked, setIsLocked] = React.useState<boolean>(false);
-  const [isExpanded, setIsExpanded] = React.useState<boolean>(true);
   const [driveStatus, setDriveStatus] = React.useState<"idle" | "connecting" | "error">("idle");
   const driveSignInCancelled = React.useRef(false);
   const isDrive = localConfig.provider === "GoogleDrive";
@@ -157,161 +150,164 @@ export const S3Configuration: React.FC<S3ConfigurationProps> = ({
   };
 
   return (
-    <Accordion expanded={isExpanded} onChange={() => setIsExpanded(!isExpanded)} elevation={2}>
-      {/* div, not the default button: it contains the lock IconButton, and HTML forbids nested buttons. */}
-      <AccordionSummary component="div" expandIcon={<ExpandMoreIcon />}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
-          <PanelTitle icon={<CloudOutlinedIcon />} sx={{ flexGrow: 1 }}>
-            {t("s3Configuration.title")}
-          </PanelTitle>
-          <Tooltip
-            title={effectivelyLocked ? t("s3Configuration.unlock") : t("s3Configuration.lock")}
-          >
+    <Stack spacing={2}>
+      <Stack direction="row" spacing={1.5} alignItems="center">
+        <FormControlLabel
+          labelPlacement="start"
+          control={
+            <Switch
+              checked={cloudSyncEnabled}
+              onChange={(_event, checked) => onToggleCloudSync(checked)}
+              disabled={disabled}
+            />
+          }
+          label={t("s3Configuration.enableSync")}
+          sx={{
+            flex: 1,
+            m: 0,
+            height: 40,
+            px: 1.5,
+            justifyContent: "space-between",
+            border: 1,
+            borderColor: surface.subtleBorder,
+            borderRadius: 1,
+            bgcolor: surface.panel,
+          }}
+        />
+        <Tooltip
+          title={effectivelyLocked ? t("s3Configuration.unlock") : t("s3Configuration.lock")}
+        >
+          <span>
             <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsLocked(!isLocked);
-              }}
+              onClick={() => setIsLocked(!isLocked)}
               color={effectivelyLocked ? "error" : "default"}
               disabled={disabled}
+              sx={{ bgcolor: "action.hover", borderRadius: 1 }}
             >
               {effectivelyLocked ? <LockIcon /> : <LockOpenIcon />}
             </IconButton>
-          </Tooltip>
-        </Box>
-      </AccordionSummary>
-      <AccordionDetails>
-        <Stack spacing={2}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={cloudSyncEnabled}
-                onChange={(_event, checked) => onToggleCloudSync(checked)}
-                disabled={disabled}
-              />
-            }
-            label={t("s3Configuration.enableSync")}
-          />
-          <FormControl fullWidth size="small" disabled={storageFieldsDisabled}>
-            <InputLabel id="s3-provider-label">{t("s3Configuration.provider")}</InputLabel>
-            <Select
-              labelId="s3-provider-label"
-              value={localConfig.provider}
-              label={t("s3Configuration.provider")}
-              onChange={handleProviderChange}
-            >
-              {(Object.keys(PROVIDER_LABELS) as S3Provider[]).map((provider) => (
-                <MenuItem key={provider} value={provider}>
-                  {provider === "Other"
-                    ? t("s3Configuration.otherProvider")
-                    : PROVIDER_LABELS[provider]}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          {isDrive ? (
-            <Stack spacing={1}>
-              <Typography
-                variant="body2"
-                color={localConfig.drive_token ? "success.main" : "text.secondary"}
-              >
-                {localConfig.drive_token
-                  ? t("s3Configuration.driveConnected")
-                  : t("s3Configuration.driveNotConnected")}
-              </Typography>
-              <Button
-                variant="outlined"
-                startIcon={<GoogleIcon />}
-                onClick={handleConnectDrive}
-                fullWidth
-                disabled={storageFieldsDisabled || driveStatus === "connecting"}
-              >
-                {driveStatus === "connecting"
-                  ? t("s3Configuration.driveConnecting")
-                  : localConfig.drive_token
-                    ? t("s3Configuration.driveReconnect")
-                    : t("s3Configuration.driveConnect")}
-              </Button>
-              {driveStatus === "connecting" && (
-                <Button variant="text" color="inherit" onClick={handleCancelDrive} fullWidth>
-                  {t("s3Configuration.driveCancel")}
-                </Button>
-              )}
-              {driveStatus === "error" && (
-                <Typography color="error.main" variant="body2">
-                  {t("s3Configuration.driveError")}
-                </Typography>
-              )}
-            </Stack>
-          ) : (
-            <>
-              <TextField
-                label={t("s3Configuration.endpoint")}
-                value={localConfig.endpoint}
-                onChange={(e) => handleChange("endpoint", e.target.value)}
-                fullWidth
-                size="small"
-                disabled={storageFieldsDisabled}
-                placeholder={PROVIDER_ENDPOINTS[localConfig.provider]}
-              />
-              <TextField
-                label={t("s3Configuration.region")}
-                value={localConfig.region}
-                onChange={(e) => handleChange("region", e.target.value)}
-                fullWidth
-                size="small"
-                disabled={storageFieldsDisabled}
-                placeholder={PROVIDER_REGIONS[localConfig.provider]}
-              />
-              <TextField
-                label={t("s3Configuration.access_key")}
-                value={localConfig.access_key}
-                onChange={(e) => handleChange("access_key", e.target.value)}
-                fullWidth
-                size="small"
-                disabled={storageFieldsDisabled}
-              />
-              <TextField
-                label={t("s3Configuration.secret_key")}
-                type="password"
-                value={localConfig.secret_key}
-                onChange={(e) => handleChange("secret_key", e.target.value)}
-                fullWidth
-                size="small"
-                disabled={storageFieldsDisabled}
-              />
-              <TextField
-                label={t("s3Configuration.bucket_name")}
-                value={localConfig.bucket_name}
-                onChange={(e) => handleChange("bucket_name", e.target.value)}
-                fullWidth
-                size="small"
-                disabled={storageFieldsDisabled}
-              />
-            </>
-          )}
-          <Button
-            variant="contained"
-            startIcon={<SaveIcon />}
-            onClick={handleSave}
-            fullWidth
-            disabled={storageFieldsDisabled}
+          </span>
+        </Tooltip>
+      </Stack>
+      <FormControl fullWidth size="small" disabled={storageFieldsDisabled}>
+        <InputLabel id="s3-provider-label">{t("s3Configuration.provider")}</InputLabel>
+        <Select
+          labelId="s3-provider-label"
+          value={localConfig.provider}
+          label={t("s3Configuration.provider")}
+          onChange={handleProviderChange}
+        >
+          {(Object.keys(PROVIDER_LABELS) as S3Provider[]).map((provider) => (
+            <MenuItem key={provider} value={provider}>
+              {provider === "Other"
+                ? t("s3Configuration.otherProvider")
+                : PROVIDER_LABELS[provider]}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      {isDrive ? (
+        <Stack spacing={1}>
+          <Typography
+            variant="body2"
+            color={localConfig.drive_token ? "success.main" : "text.secondary"}
           >
-            {t("s3Configuration.save")}
+            {localConfig.drive_token
+              ? t("s3Configuration.driveConnected")
+              : t("s3Configuration.driveNotConnected")}
+          </Typography>
+          <Button
+            variant="outlined"
+            startIcon={<GoogleIcon />}
+            onClick={handleConnectDrive}
+            fullWidth
+            disabled={storageFieldsDisabled || driveStatus === "connecting"}
+          >
+            {driveStatus === "connecting"
+              ? t("s3Configuration.driveConnecting")
+              : localConfig.drive_token
+                ? t("s3Configuration.driveReconnect")
+                : t("s3Configuration.driveConnect")}
           </Button>
-          {saveStatus === "success" && (
-            <Typography color="success.main" variant="body2">
-              {t("s3Configuration.saveSuccess")}
-            </Typography>
+          {driveStatus === "connecting" && (
+            <Button variant="text" color="inherit" onClick={handleCancelDrive} fullWidth>
+              {t("s3Configuration.driveCancel")}
+            </Button>
           )}
-          {saveStatus === "error" && (
+          {driveStatus === "error" && (
             <Typography color="error.main" variant="body2">
-              {t("s3Configuration.saveError")}
+              {t("s3Configuration.driveError")}
             </Typography>
           )}
         </Stack>
-      </AccordionDetails>
-    </Accordion>
+      ) : (
+        <>
+          <TextField
+            label={t("s3Configuration.endpoint")}
+            value={localConfig.endpoint}
+            onChange={(e) => handleChange("endpoint", e.target.value)}
+            fullWidth
+            size="small"
+            disabled={storageFieldsDisabled}
+            slotProps={{ htmlInput: { sx: { fontFamily: monoFont } } }}
+            placeholder={PROVIDER_ENDPOINTS[localConfig.provider]}
+          />
+          <TextField
+            label={t("s3Configuration.region")}
+            value={localConfig.region}
+            onChange={(e) => handleChange("region", e.target.value)}
+            fullWidth
+            size="small"
+            disabled={storageFieldsDisabled}
+            slotProps={{ htmlInput: { sx: { fontFamily: monoFont } } }}
+            placeholder={PROVIDER_REGIONS[localConfig.provider]}
+          />
+          <TextField
+            label={t("s3Configuration.access_key")}
+            value={localConfig.access_key}
+            onChange={(e) => handleChange("access_key", e.target.value)}
+            fullWidth
+            size="small"
+            disabled={storageFieldsDisabled}
+          />
+          <TextField
+            label={t("s3Configuration.secret_key")}
+            type="password"
+            value={localConfig.secret_key}
+            onChange={(e) => handleChange("secret_key", e.target.value)}
+            fullWidth
+            size="small"
+            disabled={storageFieldsDisabled}
+          />
+          <TextField
+            label={t("s3Configuration.bucket_name")}
+            value={localConfig.bucket_name}
+            onChange={(e) => handleChange("bucket_name", e.target.value)}
+            fullWidth
+            size="small"
+            disabled={storageFieldsDisabled}
+          />
+        </>
+      )}
+      <Button
+        variant="contained"
+        startIcon={<SaveIcon />}
+        onClick={handleSave}
+        fullWidth
+        disabled={storageFieldsDisabled}
+      >
+        {t("s3Configuration.save")}
+      </Button>
+      {saveStatus === "success" && (
+        <Typography color="success.main" variant="body2">
+          {t("s3Configuration.saveSuccess")}
+        </Typography>
+      )}
+      {saveStatus === "error" && (
+        <Typography color="error.main" variant="body2">
+          {t("s3Configuration.saveError")}
+        </Typography>
+      )}
+    </Stack>
   );
 };
