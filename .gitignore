@@ -20,3 +20,6 @@ src/renderer/config.json
 # Launch video sources and agent plans (kept locally)
 brag-output
 docs/superpowers
+
+# Kombai design canvases (kept locally)
+.kombai/
