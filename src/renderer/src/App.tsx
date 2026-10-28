@@ -234,22 +234,8 @@ function AppContent(): React.JSX.Element {
   const waitForServerExit = React.useCallback((serverId: string): Promise<boolean> => {
     return new Promise((resolve) => {
       let settled = false;
-      let timeoutId: number | undefined;
 
-      const unsubscribe = window.serverAPI.onProcessExit((payload) => {
-        if (payload.serverId !== serverId || settled) {
-          return;
-        }
-
-        settled = true;
-        unsubscribe();
-        if (timeoutId) {
-          window.clearTimeout(timeoutId);
-        }
-        resolve(true);
-      });
-
-      timeoutId = window.setTimeout(() => {
+      const timeoutId = window.setTimeout(() => {
         if (settled) {
           return;
         }
@@ -258,6 +244,17 @@ function AppContent(): React.JSX.Element {
         unsubscribe();
         resolve(false);
       }, 15000);
+
+      const unsubscribe = window.serverAPI.onProcessExit((payload) => {
+        if (payload.serverId !== serverId || settled) {
+          return;
+        }
+
+        settled = true;
+        unsubscribe();
+        window.clearTimeout(timeoutId);
+        resolve(true);
+      });
     });
   }, []);
 
