@@ -9,8 +9,21 @@ import {
   GlobalStyles,
   IconButton,
   Tooltip,
+  Stack,
+  Button,
+  Drawer,
+  Tabs,
+  Tab,
+  Alert,
 } from "@mui/material";
-import { BarChart as BarChartIcon, Settings as SettingsIcon } from "@mui/icons-material";
+import {
+  BarChart as BarChartIcon,
+  Settings as SettingsIcon,
+  Tune as TuneIcon,
+  ChevronRight as ChevronRightIcon,
+  Close as CloseIcon,
+  LockOutlined as LockIcon,
+} from "@mui/icons-material";
 import { SnackbarProvider, useSnackbar } from "notistack";
 import { S3Configuration } from "./presentation/components/S3Configuration";
 import { ServerControlPanel } from "./presentation/components/ServerControlPanel";
@@ -57,7 +70,7 @@ import {
 import { useLockMonitor } from "@server-locking/presentation/hooks/useLockMonitor";
 import "./i18n/config";
 import appIcon from "./assets/app-icon.png";
-import { theme } from "./theme";
+import { theme, monoFont, surface } from "./theme";
 
 // Type for server statistics data
 interface ServerStatistics {
@@ -120,6 +133,8 @@ function AppContent(): React.JSX.Element {
   const [username, setUsername] = React.useState<string>("");
   const [isReleaseLockModalOpen, setIsReleaseLockModalOpen] = React.useState<boolean>(false);
   const [isServerLockedModalOpen, setIsServerLockedModalOpen] = React.useState<boolean>(false);
+  const [isConfigOpen, setIsConfigOpen] = React.useState(false);
+  const [configTab, setConfigTab] = React.useState(0);
   const [lockedServerInfo, setLockedServerInfo] = React.useState<{
     username: string;
     startedAt: string;
@@ -1963,27 +1978,40 @@ function AppContent(): React.JSX.Element {
           bgcolor: "background.default",
         }}
       >
-        {/* App Bar with Language Switcher */}
-        <AppBar position="static" elevation={1}>
-          <Toolbar variant="dense">
+        <AppBar position="static">
+          <Toolbar variant="dense" sx={{ minHeight: 48 }}>
             <Box component="img" src={appIcon} alt="" sx={{ width: 28, height: 28, mr: 1.25 }} />
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            <Typography component="div" sx={{ flexGrow: 1, fontSize: 15, fontWeight: 600 }}>
               Pass the host!
             </Typography>
             {isCloudSyncEnabled && totalBucketSize > 0 && (
-              <Typography variant="body2" sx={{ mr: 2, display: "flex", alignItems: "center" }}>
-                {t("storage.total")}: {formatBytes(totalBucketSize)}
+              <Stack
+                direction="row"
+                spacing={1.5}
+                alignItems="center"
+                divider={<Box sx={{ width: "1px", height: 12, bgcolor: surface.border }} />}
+                sx={{ mr: 1.5, fontSize: 12, color: "text.secondary" }}
+              >
+                <span>
+                  {t("storage.total")}{" "}
+                  <Box component="span" sx={{ color: "text.primary", fontFamily: monoFont, ml: 0.5 }}>
+                    {formatBytes(totalBucketSize)}
+                  </Box>
+                </span>
                 {selectedServer && selectedServerSize > 0 && (
-                  <span style={{ marginLeft: "8px" }}>
-                    | {t("storage.server")}: {formatBytes(selectedServerSize)}
+                  <span>
+                    {t("storage.server")}{" "}
+                    <Box component="span" sx={{ color: "text.primary", fontFamily: monoFont, ml: 0.5 }}>
+                      {formatBytes(selectedServerSize)}
+                    </Box>
                   </span>
                 )}
-              </Typography>
+              </Stack>
             )}
             <Tooltip title={t("serverControl.viewStatistics")}>
               <span>
                 <IconButton
-                  color="inherit"
+                  sx={{ color: "#b4bac6" }}
                   onClick={handleViewStatistics}
                   disabled={!selectedServer}
                 >
@@ -1992,7 +2020,7 @@ function AppContent(): React.JSX.Element {
               </span>
             </Tooltip>
             <Tooltip title={t("settings.title")}>
-              <IconButton color="inherit" onClick={() => setIsSettingsModalOpen(true)}>
+              <IconButton sx={{ color: "#b4bac6" }} onClick={() => setIsSettingsModalOpen(true)}>
                 <SettingsIcon />
               </IconButton>
             </Tooltip>
@@ -2000,28 +2028,16 @@ function AppContent(): React.JSX.Element {
           </Toolbar>
         </AppBar>
 
-        {/* Main Content */}
-        <Box
-          sx={{
-            display: "flex",
-            flex: 1,
-            overflow: "hidden",
-          }}
-        >
-          {/* Panel Izquierdo - Configuraciones */}
+        <Box sx={{ display: "flex", flex: 1, gap: 2, p: 2, minHeight: 0 }}>
           <Box
+            component="aside"
             sx={{
-              width: { xs: "100%", md: 400 },
-              minWidth: 350,
-              maxWidth: 450,
-              p: 2,
+              width: 352,
+              flexShrink: 0,
               overflow: "auto",
-              borderRight: 1,
-              borderColor: "divider",
               display: "flex",
               flexDirection: "column",
-              gap: 2,
-              flexShrink: 0,
+              gap: 1.5,
             }}
           >
             <ServerControlPanel
@@ -2047,7 +2063,6 @@ function AppContent(): React.JSX.Element {
               lockedServerInfo={lockedServerInfo}
             />
 
-
             <P2PPanel
               serverRunning={serverStatus === ServerStatus.RUNNING}
               serverActive={serverStatus !== ServerStatus.STOPPED}
@@ -2056,64 +2071,110 @@ function AppContent(): React.JSX.Element {
               serverName={selectedServerName}
             />
 
-            <S3Configuration
-              config={s3Config}
-              onSave={handleSaveS3Config}
-              cloudSyncEnabled={isCloudSyncEnabledByUser}
-              onToggleCloudSync={handleToggleCloudSync}
-              disabled={serverStatus !== ServerStatus.STOPPED}
-            />
-
-            <NetworkConfiguration
-              availableIps={availableIps}
-              selectedIp={selectedIp}
-              serverPort={serverPort}
-              onSelectIp={setSelectedIp}
-              onPortChange={handlePortChange}
-              disabled={serverStatus !== ServerStatus.STOPPED}
-            />
-
-            <RamConfiguration
-              ramConfig={ramConfig}
-              onChange={handleRamConfigChange}
-              disabled={serverStatus !== ServerStatus.STOPPED}
-            />
+            <Button
+              onClick={() => setIsConfigOpen(true)}
+              startIcon={<TuneIcon sx={{ color: "text.secondary" }} />}
+              endIcon={<ChevronRightIcon sx={{ color: "text.secondary" }} />}
+              color="inherit"
+              sx={{
+                mt: "auto",
+                flexShrink: 0,
+                height: 40,
+                px: 1.5,
+                justifyContent: "flex-start",
+                fontWeight: 500,
+                bgcolor: surface.input,
+                border: 1,
+                borderColor: surface.border,
+                "& .MuiButton-endIcon": { ml: 1 },
+              }}
+            >
+              {t("configuration.title")}
+              <Box
+                component="span"
+                sx={{ ml: "auto", fontSize: 12, fontWeight: 400, color: "text.secondary" }}
+              >
+                {isCloudSyncEnabledByUser
+                  ? t("configuration.summary")
+                  : t("configuration.cloudSyncOff")}
+              </Box>
+            </Button>
           </Box>
 
-          {/* Panel Derecho - Consola y Comandos */}
           <Box
+            component="main"
             sx={{
               flex: 1,
+              minWidth: 0,
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
-              minWidth: 0,
+              borderRadius: 2,
+              bgcolor: surface.console,
+              border: 1,
+              borderColor: "divider",
             }}
           >
-            <Box
-              sx={{
-                flex: 1,
-                p: 2,
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              <ServerConsole logs={logs} />
-            </Box>
-
-            <Box
-              sx={{
-                p: 2,
-                borderTop: 1,
-                borderColor: "divider",
-                flexShrink: 0,
-              }}
-            >
-              <CommandInput onExecuteCommand={handleExecuteCommand} />
-            </Box>
+            <ServerConsole logs={logs} />
+            <CommandInput onExecuteCommand={handleExecuteCommand} />
           </Box>
         </Box>
+
+        <Drawer anchor="right" open={isConfigOpen} onClose={() => setIsConfigOpen(false)}>
+          <Box sx={{ width: 480, display: "flex", flexDirection: "column", height: "100%" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2.5, pt: 2 }}>
+              <TuneIcon sx={{ color: "text.secondary" }} />
+              <Typography sx={{ flexGrow: 1, fontSize: 17, fontWeight: 600 }}>
+                {t("configuration.title")}
+              </Typography>
+              <IconButton onClick={() => setIsConfigOpen(false)} aria-label={t("common.close")}>
+                <CloseIcon />
+              </IconButton>
+            </Box>
+            <Tabs
+              value={configTab}
+              onChange={(_, tab) => setConfigTab(tab)}
+              sx={{ px: 2.5, borderBottom: 1, borderColor: "divider" }}
+            >
+              <Tab label={t("s3Configuration.title")} />
+              <Tab label={t("network.title")} />
+              <Tab label={t("ram.title")} />
+            </Tabs>
+            <Box sx={{ flex: 1, overflow: "auto", p: 2.5 }}>
+              {serverStatus !== ServerStatus.STOPPED && (
+                <Alert severity="info" icon={<LockIcon />} sx={{ mb: 2 }}>
+                  {t("configuration.stopToEdit")}
+                </Alert>
+              )}
+              {configTab === 0 && (
+                <S3Configuration
+                  config={s3Config}
+                  onSave={handleSaveS3Config}
+                  cloudSyncEnabled={isCloudSyncEnabledByUser}
+                  onToggleCloudSync={handleToggleCloudSync}
+                  disabled={serverStatus !== ServerStatus.STOPPED}
+                />
+              )}
+              {configTab === 1 && (
+                <NetworkConfiguration
+                  availableIps={availableIps}
+                  selectedIp={selectedIp}
+                  serverPort={serverPort}
+                  onSelectIp={setSelectedIp}
+                  onPortChange={handlePortChange}
+                  disabled={serverStatus !== ServerStatus.STOPPED}
+                />
+              )}
+              {configTab === 2 && (
+                <RamConfiguration
+                  ramConfig={ramConfig}
+                  onChange={handleRamConfigChange}
+                  disabled={serverStatus !== ServerStatus.STOPPED}
+                />
+              )}
+            </Box>
+          </Box>
+        </Drawer>
 
         {/* Release Lock Modal */}
         <ReleaseLockModal

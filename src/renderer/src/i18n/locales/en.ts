@@ -36,6 +36,10 @@ export const en = {
       driveError: "Could not connect to Google. Please try again.",
     },
     serverControl: {
+      you: "you",
+      since: "since {{time}}",
+      moreActions: "More actions",
+      noServers: "No servers yet",
       title: "Server Control",
       status: "Status",
       selectServer: "Select Server",
@@ -116,7 +120,14 @@ export const en = {
       installed: "Rclone installed successfully",
       failed: "Failed to install rclone",
     },
+    configuration: {
+      title: "Configuration",
+      summary: "Cloud · Network · RAM",
+      cloudSyncOff: "Cloud sync off",
+      stopToEdit: "Stop the server to edit the configuration.",
+    },
     common: {
+      close: "Close",
       preparing: "Preparing...",
       doNotClose: "Please wait, do not close the application",
     },

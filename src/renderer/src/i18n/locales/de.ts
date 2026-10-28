@@ -38,6 +38,10 @@ export const de: typeof en = {
       driveError: "Verbindung zu Google fehlgeschlagen. Bitte versuche es erneut.",
     },
     serverControl: {
+      you: "du",
+      since: "seit {{time}}",
+      moreActions: "Weitere Aktionen",
+      noServers: "Noch keine Server",
       title: "Serversteuerung",
       status: "Status",
       selectServer: "Server auswählen",
@@ -119,7 +123,14 @@ export const de: typeof en = {
       installed: "Rclone wurde installiert",
       failed: "rclone konnte nicht installiert werden",
     },
+    configuration: {
+      title: "Konfiguration",
+      summary: "Cloud · Netzwerk · RAM",
+      cloudSyncOff: "Cloud-Sync aus",
+      stopToEdit: "Stoppe den Server, um die Konfiguration zu bearbeiten.",
+    },
     common: {
+      close: "Schließen",
       preparing: "Wird vorbereitet...",
       doNotClose: "Bitte warten und die Anwendung nicht schließen",
     },

@@ -38,6 +38,10 @@ export const ru: typeof en = {
       driveError: "Не удалось подключиться к Google. Попробуйте ещё раз.",
     },
     serverControl: {
+      you: "вы",
+      since: "с {{time}}",
+      moreActions: "Другие действия",
+      noServers: "Серверов пока нет",
       title: "Управление сервером",
       status: "Статус",
       selectServer: "Выбрать сервер",
@@ -118,7 +122,14 @@ export const ru: typeof en = {
       installed: "Rclone успешно установлен",
       failed: "Не удалось установить rclone",
     },
+    configuration: {
+      title: "Настройки",
+      summary: "Облако · Сеть · RAM",
+      cloudSyncOff: "Синхронизация выключена",
+      stopToEdit: "Остановите сервер, чтобы изменить настройки.",
+    },
     common: {
+      close: "Закрыть",
       preparing: "Подготовка...",
       doNotClose: "Подождите, не закрывайте приложение",
     },

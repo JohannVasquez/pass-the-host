@@ -38,6 +38,10 @@ export const ptBR: typeof en = {
       driveError: "Não foi possível conectar ao Google. Tente novamente.",
     },
     serverControl: {
+      you: "você",
+      since: "desde {{time}}",
+      moreActions: "Mais ações",
+      noServers: "Nenhum servidor ainda",
       title: "Controle do servidor",
       status: "Status",
       selectServer: "Selecionar servidor",
@@ -120,7 +124,14 @@ export const ptBR: typeof en = {
       installed: "Rclone instalado com sucesso",
       failed: "Falha ao instalar o rclone",
     },
+    configuration: {
+      title: "Configuração",
+      summary: "Nuvem · Rede · RAM",
+      cloudSyncOff: "Sincronização desativada",
+      stopToEdit: "Pare o servidor para editar a configuração.",
+    },
     common: {
+      close: "Fechar",
       preparing: "Preparando...",
       doNotClose: "Aguarde, não feche o aplicativo",
     },
