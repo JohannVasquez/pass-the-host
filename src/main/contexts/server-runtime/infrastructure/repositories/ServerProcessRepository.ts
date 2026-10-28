@@ -162,10 +162,19 @@ export class ServerProcessRepository implements IServerProcessRepository {
     }
 
     try {
-      let content = fs.readFileSync(jvmArgsPath, "utf-8");
-      content = content.replace(/-Xms\d+[mMgG]/g, `-Xms${minRam}G`);
-      content = content.replace(/-Xmx\d+[mMgG]/g, `-Xmx${maxRam}G`);
-      fs.writeFileSync(jvmArgsPath, content, "utf-8");
+      // The installer ships "-Xmx" only as a comment, so drop any active -Xms/-Xmx
+      // (keeping comments and other flags) and append ours
+      const lines = fs
+        .readFileSync(jvmArgsPath, "utf-8")
+        .split(/\r?\n/)
+        .flatMap((line) => {
+          if (line.trim().startsWith("#")) return [line];
+          const rest = line.replace(/(^|\s)-Xm[sx]\S*/g, "").trim();
+          return rest || !line.trim() ? [rest] : [];
+        });
+      while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+      lines.push(`-Xms${minRam}G`, `-Xmx${maxRam}G`, "");
+      fs.writeFileSync(jvmArgsPath, lines.join("\n"), "utf-8");
       return true;
     } catch (error) {
       // Unexpected error reading/writing file
