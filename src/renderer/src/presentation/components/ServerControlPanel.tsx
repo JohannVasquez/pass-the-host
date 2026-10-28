@@ -332,6 +332,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
                 fontSize: 13,
                 fontWeight: 500,
                 color: STATUS_COLORS[status],
+                textTransform: "capitalize",
               }}
             >
               <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "currentColor" }} />
