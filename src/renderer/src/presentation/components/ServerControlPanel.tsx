@@ -74,7 +74,7 @@ interface ServerControlPanelProps {
 }
 
 const formatTime = (date: Date): string =>
-  date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
 export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   status,
@@ -371,6 +371,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
                 borderTop: 1,
                 borderColor: surface.border,
                 display: "flex",
+                flexWrap: "wrap",
                 alignItems: "center",
                 gap: 1,
                 fontSize: 13,
@@ -383,7 +384,10 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
               <Box component="span" sx={{ fontWeight: 500 }}>
                 {lockOwner.name}
               </Box>
-              <Box component="span" sx={{ color: "text.secondary", fontFamily: monoFont }}>
+              <Box
+                component="span"
+                sx={{ color: "text.secondary", fontFamily: monoFont, whiteSpace: "nowrap" }}
+              >
                 {t("serverControl.since", { time: lockOwner.since })}
               </Box>
               {lockedByOther && (
@@ -394,7 +398,12 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
                   startIcon={<LockOpenIcon />}
                   onClick={onReleaseLock}
                   disabled={!cloudSyncEnabled}
-                  sx={{ ml: "auto", borderColor: surface.border }}
+                  sx={{
+                    ml: "auto",
+                    flexShrink: 0,
+                    whiteSpace: "nowrap",
+                    borderColor: surface.border,
+                  }}
                 >
                   {t("serverControl.releaseLock")}
                 </Button>

@@ -1966,7 +1966,7 @@ function AppContent(): React.JSX.Element {
 
   return (
     <ThemeProvider theme={theme}>
-      <CssBaseline />
+      <CssBaseline enableColorScheme />
       <GlobalStyles
         styles={{
           body: {
@@ -2049,7 +2049,8 @@ function AppContent(): React.JSX.Element {
             sx={{
               width: 352,
               flexShrink: 0,
-              overflow: "auto",
+              overflowY: "auto",
+              overflowX: "hidden",
               display: "flex",
               flexDirection: "column",
               gap: 1.5,
