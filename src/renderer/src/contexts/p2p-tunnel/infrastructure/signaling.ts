@@ -25,3 +25,31 @@ export const answerFrom = (message: SignalMessage, host: string, peerId: string)
   message.clientId === host && isSignal(message.data) && message.data.peerId === peerId
     ? message.data.sdp
     : null;
+
+/** Friend -> host diagnostics. No SDP, ICE or IPs ever go in one. */
+export const DIAG_CODES = [
+  "joined",
+  "port_changed",
+  "tunnel_failed",
+  "tunnel_closed",
+  "channel_failed",
+] as const;
+export type DiagCode = (typeof DIAG_CODES)[number];
+export const DIAG_DETAIL_MAX = 200;
+
+export interface Diag {
+  from: string;
+  code: DiagCode;
+  detail?: string;
+}
+
+/** A diagnostic addressed to this host (`self` = our clientId) with a known code, or null. */
+export function diagFrom(message: SignalMessage, self: string): Diag | null {
+  const data = message.data as { to?: unknown; code?: unknown; detail?: unknown } | null;
+  if (typeof message.clientId !== "string" || data === null || typeof data !== "object")
+    return null;
+  if (data.to !== self || !DIAG_CODES.includes(data.code as DiagCode)) return null;
+  const detail =
+    typeof data.detail === "string" ? data.detail.slice(0, DIAG_DETAIL_MAX) : undefined;
+  return { from: message.clientId, code: data.code as DiagCode, detail };
+}

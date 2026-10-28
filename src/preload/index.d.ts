@@ -2,7 +2,8 @@ import { ElectronAPI } from "@electron-toolkit/preload";
 import type { TokenRequest } from "ably";
 
 // S3-compatible storage types
-type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other" | "GoogleDrive";
+type S3Provider =
+  "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other" | "GoogleDrive";
 
 interface S3ConfigType {
   provider?: S3Provider;
@@ -97,8 +98,14 @@ interface ServerAPI {
   importWorld: (serverId: string) => Promise<"done" | "canceled" | "invalid">;
   resetWorld: (serverId: string, levelNames: string[]) => Promise<"done">;
   readWhitelist: (serverId: string) => Promise<Array<{ uuid: string; name: string }>>;
-  writeWhitelist: (serverId: string, entries: Array<{ uuid: string; name: string }>) => Promise<boolean>;
-  lookupPlayer: (name: string, onlineMode: boolean) => Promise<{ uuid: string; name: string } | null>;
+  writeWhitelist: (
+    serverId: string,
+    entries: Array<{ uuid: string; name: string }>,
+  ) => Promise<boolean>;
+  lookupPlayer: (
+    name: string,
+    onlineMode: boolean,
+  ) => Promise<{ uuid: string; name: string } | null>;
   getLocalServerPath: (serverId: string) => Promise<string>;
   spawnServerProcess: (
     serverId: string,
@@ -149,7 +156,12 @@ interface ServerAPI {
   ) => Promise<{ success: boolean; error?: string }>;
   deleteLocally: (serverId: string) => Promise<{ success: boolean; error?: string }>;
   listLocalServers: () => Promise<
-    Array<{ id: string; name: string; version: string; type: "vanilla" | "forge" | "neoforge" | "unknown" }>
+    Array<{
+      id: string;
+      name: string;
+      version: string;
+      type: "vanilla" | "forge" | "neoforge" | "unknown";
+    }>
   >;
 }
 
@@ -211,6 +223,7 @@ interface P2PAPI {
   closeAll: () => void;
   onTcpOpen: (callback: (connId: string) => void) => () => void;
   onTcpData: (callback: (connId: string, data: Uint8Array<ArrayBuffer>) => void) => () => void;
+  onTcpError: (callback: (connId: string, message: string) => void) => () => void;
   onTcpClose: (callback: (connId: string) => void) => () => void;
 }
 
