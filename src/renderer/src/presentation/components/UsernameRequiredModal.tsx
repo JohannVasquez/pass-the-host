@@ -6,12 +6,12 @@ import {
   DialogActions,
   Button,
   TextField,
-  Box,
   Typography,
   CircularProgress,
 } from "@mui/material";
 import { Badge as BadgeIcon } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
+import { surface } from "@renderer/theme";
 
 interface UsernameRequiredModalProps {
   open: boolean;
@@ -35,11 +35,18 @@ export const UsernameRequiredModal: React.FC<UsernameRequiredModalProps> = ({ op
 
   return (
     <Dialog open={open} maxWidth="xs" fullWidth disableEscapeKeyDown>
-      <DialogTitle>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <BadgeIcon color="primary" />
-          {t("usernameRequiredModal.title")}
-        </Box>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          fontSize: 16,
+          fontWeight: 600,
+          py: 1.5,
+        }}
+      >
+        <BadgeIcon sx={{ color: "text.secondary" }} />
+        {t("usernameRequiredModal.title")}
       </DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -62,7 +69,7 @@ export const UsernameRequiredModal: React.FC<UsernameRequiredModalProps> = ({ op
           }}
         />
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      <DialogActions sx={{ px: 2.5, py: 1.5, gap: 1, borderTop: `1px solid ${surface.border}` }}>
         <Button variant="contained" onClick={handleSave} disabled={!value.trim() || isSaving}>
           {isSaving ? (
             <CircularProgress size={20} color="inherit" />

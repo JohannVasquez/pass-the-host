@@ -1,13 +1,15 @@
 import React from "react";
 import {
   Dialog,
+  DialogTitle,
   DialogContent,
   Box,
   Typography,
-  CircularProgress,
   LinearProgress,
+  CircularProgress,
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
+import { monoFont } from "@renderer/theme";
 
 interface DownloadProgressModalProps {
   open: boolean;
@@ -25,62 +27,48 @@ export const DownloadProgressModal: React.FC<DownloadProgressModalProps> = ({
   const { t } = useTranslation();
 
   return (
-    <Dialog
-      open={open}
-      disableEscapeKeyDown
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: {
-          backgroundColor: "background.paper",
-        },
-      }}
-    >
+    <Dialog open={open} disableEscapeKeyDown maxWidth="xs" fullWidth>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          fontSize: 16,
+          fontWeight: 600,
+          py: 1.5,
+        }}
+      >
+        {title}
+      </DialogTitle>
       <DialogContent>
         <Box
           sx={{
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
-            py: 4,
-            gap: 3,
+            py: 2,
+            gap: 2,
+            textAlign: "center",
           }}
         >
-          {/* Spinner */}
-          <CircularProgress size={60} thickness={4} />
+          <CircularProgress size={40} thickness={4} />
 
-          {/* Title */}
-          <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-            {title}
-          </Typography>
-
-          {/* Progress Message */}
-          <Typography
-            variant="body1"
-            color="text.secondary"
-            sx={{
-              textAlign: "center",
-              minHeight: "24px",
-            }}
-          >
+          <Typography sx={{ fontFamily: monoFont, fontSize: 14, minHeight: 21 }}>
             {message || t("common.preparing")}
           </Typography>
 
-          {/* Progress Bar */}
-          <Box sx={{ width: "100%", mt: 2 }}>
-            <LinearProgress />
+          <Box sx={{ width: "100%" }}>
+            <LinearProgress
+              sx={{
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: "#262c38",
+                "& .MuiLinearProgress-bar": { borderRadius: 3 },
+              }}
+            />
           </Box>
 
-          {/* Warning */}
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{
-              textAlign: "center",
-              mt: 1,
-            }}
-          >
+          <Typography variant="caption" color="text.secondary">
             {warning || t("common.doNotClose")}
           </Typography>
         </Box>
