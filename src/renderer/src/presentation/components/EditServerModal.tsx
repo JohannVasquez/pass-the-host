@@ -18,6 +18,9 @@ import {
   Avatar,
   Checkbox,
   FormControlLabel,
+  List,
+  ListItemButton,
+  ListItemText,
 } from "@mui/material";
 import {
   Tune as TuneIcon,
@@ -27,6 +30,7 @@ import {
   Autorenew as AutorenewIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
+import { surface } from "@renderer/theme";
 
 type Field =
   | { key: string; type: "select"; options: string[] }
@@ -269,6 +273,8 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
   const [regenerate, setRegenerate] = React.useState(false);
   const [worldBusy, setWorldBusy] = React.useState(false);
   const [confirmAction, setConfirmAction] = React.useState<"import" | "reset" | null>(null);
+  const [activeSection, setActiveSection] = React.useState("general");
+  const scrollRef = React.useRef<HTMLDivElement>(null);
   const [notice, setNotice] = React.useState<{
     severity: "success" | "warning";
     text: string;
@@ -396,6 +402,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
             justifyContent: "space-between",
             gap: 1,
             cursor: "pointer",
+            bgcolor: surface.panel,
             borderColor: value === "true" ? "primary.main" : "divider",
             transition: "border-color 150ms ease",
           }}
@@ -463,6 +470,21 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
   const sections = [...SECTIONS, { id: "other", fields: otherFields }].filter(
     (s) => s.fields.length > 0,
   );
+
+  const handleScroll = (): void => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const nodes = Array.from(container.querySelectorAll<HTMLElement>("[data-section]"));
+    const current = nodes.filter((n) => n.offsetTop <= container.scrollTop + 48);
+    setActiveSection(current.length > 0 ? current[current.length - 1].dataset.section! : "general");
+  };
+
+  const scrollToSection = (id: string): void => {
+    setActiveSection(id);
+    scrollRef.current
+      ?.querySelector(`[data-section="${id}"]`)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const renderWorldTools = (): React.ReactNode => {
     const disabled = isRunning || worldBusy || isSaving;
@@ -535,8 +557,8 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     const toggles = fields.filter((f) => f.type === "boolean");
     const inputs = fields.filter((f) => f.type !== "boolean");
     return (
-      <Box key={id}>
-        <Typography variant="overline" color="text.secondary">
+      <Box key={id} data-section={id}>
+        <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600 }}>
           {t(`editServer.sections.${id}`)}
         </Typography>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 0.5 }}>
@@ -579,43 +601,81 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
       maxWidth="md"
       fullWidth
       scroll="paper"
+      slotProps={{ paper: { sx: { height: "80vh" } } }}
     >
       <DialogTitle>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <TuneIcon color="primary" />
-          {t("editServer.title")}
-          <Typography component="span" color="text.secondary" sx={{ ml: 0.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <TuneIcon color="primary" fontSize="small" />
+          <Box component="span" sx={{ fontWeight: 600 }}>
+            {t("editServer.title")}
+          </Box>
+          <Typography component="span" variant="body2" color="text.secondary">
             {serverName ?? serverId}
           </Typography>
         </Box>
       </DialogTitle>
-      <DialogContent dividers>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        {isRunning && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            {t("editServer.restartHint")}
-          </Alert>
-        )}
-        {!original && !error ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-            <CircularProgress />
-          </Box>
-        ) : fileMissing ? (
-          <Alert severity="warning">{t("editServer.noFile")}</Alert>
-        ) : (
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {sections.map((s, i) => (
-              <React.Fragment key={s.id}>
-                {i > 0 && <Divider />}
-                {renderSection(s.id, s.fields)}
-              </React.Fragment>
+      <DialogContent dividers sx={{ p: 0, display: "flex", overflow: "hidden" }}>
+        {original && !fileMissing && (
+          <List
+            dense
+            sx={{
+              width: 160,
+              flexShrink: 0,
+              p: 1.5,
+              borderRight: 1,
+              borderColor: "divider",
+              bgcolor: surface.panel,
+              display: { xs: "none", sm: "block" },
+            }}
+          >
+            {sections.map((s) => (
+              <ListItemButton
+                key={s.id}
+                selected={activeSection === s.id}
+                onClick={() => scrollToSection(s.id)}
+                sx={{ borderRadius: 1, mb: 0.5 }}
+              >
+                <ListItemText
+                  primary={t(`editServer.sections.${s.id}`)}
+                  slotProps={{ primary: { variant: "body2", fontWeight: 500 } }}
+                />
+              </ListItemButton>
             ))}
-          </Box>
+          </List>
         )}
+        <Box
+          ref={scrollRef}
+          onScroll={handleScroll}
+          sx={{ flex: 1, minWidth: 0, overflowY: "auto", p: 3, position: "relative" }}
+        >
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          {isRunning && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              {t("editServer.restartHint")}
+            </Alert>
+          )}
+          {!original && !error ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+              <CircularProgress />
+            </Box>
+          ) : fileMissing ? (
+            <Alert severity="warning">{t("editServer.noFile")}</Alert>
+          ) : (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {sections.map((s, i) => (
+                <React.Fragment key={s.id}>
+                  {i > 0 && <Divider />}
+                  {renderSection(s.id, s.fields)}
+                </React.Fragment>
+              ))}
+              <Box sx={{ minHeight: 240 }} />
+            </Box>
+          )}
+        </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2 }}>
         <Button onClick={onClose} color="inherit" disabled={isSaving || worldBusy}>

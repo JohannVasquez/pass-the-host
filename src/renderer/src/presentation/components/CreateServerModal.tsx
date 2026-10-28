@@ -20,6 +20,7 @@ import {
   Typography,
   LinearProgress,
 } from "@mui/material";
+import AddBoxIcon from "@mui/icons-material/AddBox";
 import { useTranslation } from "react-i18next";
 
 interface CreateServerModalProps {
@@ -212,7 +213,10 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{t("createServer.title")}</DialogTitle>
+      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5, fontWeight: 600 }}>
+        <AddBoxIcon color="primary" fontSize="small" />
+        {t("createServer.title")}
+      </DialogTitle>
       <DialogContent>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}>
           {/* Server Name */}
@@ -269,8 +273,9 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
           <Alert severity="info">{t("createServer.info")}</Alert>
         </Box>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose}>{t("createServer.cancel")}</Button>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={handleClose} color="inherit">
+          {t("createServer.cancel")}</Button>
         <Button
           onClick={handleConfirm}
           variant="contained"
