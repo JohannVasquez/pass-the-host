@@ -226,8 +226,11 @@ function setupAutoUpdater(container: Container): void {
 }
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1100,
+    height: 720,
+    minWidth: 900,
+    minHeight: 600,
+    backgroundColor: "#0f1115",
     show: false,
     autoHideMenuBar: true,
     icon: icon,
