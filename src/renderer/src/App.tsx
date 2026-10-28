@@ -24,7 +24,8 @@ import {
   Close as CloseIcon,
   LockOutlined as LockIcon,
 } from "@mui/icons-material";
-import { SnackbarProvider, useSnackbar } from "notistack";
+import { SnackbarProvider, useSnackbar, MaterialDesignContent } from "notistack";
+import { styled } from "@mui/material/styles";
 import { S3Configuration } from "./presentation/components/S3Configuration";
 import { ServerControlPanel } from "./presentation/components/ServerControlPanel";
 import { NetworkConfiguration } from "./presentation/components/NetworkConfiguration";
@@ -86,6 +87,22 @@ interface ServerStatistics {
   }>;
 }
 
+// Neutral toast with the severity carried by the icon color
+const Toast = styled(MaterialDesignContent)(({ theme }) => ({
+  "&.notistack-MuiContent": {
+    backgroundColor: "#212733",
+    border: "1px solid #343b49",
+    borderRadius: 8,
+    color: theme.palette.text.primary,
+    fontSize: 13,
+    boxShadow: "0 8px 24px rgba(0,0,0,.4)",
+  },
+  "&.notistack-MuiContent-success svg": { color: theme.palette.success.main },
+  "&.notistack-MuiContent-error svg": { color: theme.palette.error.light },
+  "&.notistack-MuiContent-warning svg": { color: theme.palette.warning.main },
+  "&.notistack-MuiContent-info svg": { color: theme.palette.primary.main },
+}));
+
 function App(): React.JSX.Element {
   return (
     <ThemeProvider theme={theme}>
@@ -93,6 +110,7 @@ function App(): React.JSX.Element {
         maxSnack={3}
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
         autoHideDuration={5000}
+        Components={{ success: Toast, error: Toast, warning: Toast, info: Toast, default: Toast }}
       >
         <AppContent />
       </SnackbarProvider>
