@@ -191,11 +191,9 @@ export const fr: typeof en = {
     createServer: {
       title: "Créer un serveur",
       serverName: "Nom du serveur",
-      nameHelp: "Lettres, chiffres, tirets et underscores uniquement (3 caractères min.)",
+      nameHelp: "3 caractères minimum",
       nameRequired: "Le nom du serveur est obligatoire",
       nameTooShort: "Le nom du serveur doit faire au moins 3 caractères",
-      invalidName:
-        "Nom invalide. Seuls les lettres, chiffres, tirets et underscores sont autorisés",
       serverType: "Type de serveur",
       vanilla: "Vanilla",
       forge: "Forge",

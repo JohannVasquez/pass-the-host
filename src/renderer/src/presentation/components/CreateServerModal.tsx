@@ -173,12 +173,8 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
   const handleServerNameChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
     const value = event.target.value;
 
-    // Validate: no special characters, no spaces
-    const validNameRegex = /^[a-zA-Z0-9_-]*$/;
-
-    if (!validNameRegex.test(value)) {
-      setNameError(t("createServer.invalidName"));
-    } else if (value.length > 0 && value.length < 3) {
+    // Any characters: the folder / cloud id is derived from it with toServerId
+    if (value.trim().length > 0 && value.trim().length < 3) {
       setNameError(t("createServer.nameTooShort"));
     } else {
       setNameError("");
@@ -193,7 +189,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
       return;
     }
 
-    if (serverName.length < 3) {
+    if (serverName.trim().length < 3) {
       setNameError(t("createServer.nameTooShort"));
       return;
     }
@@ -202,7 +198,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
       return;
     }
 
-    onConfirm(serverName, version, serverType);
+    onConfirm(serverName.trim(), version, serverType);
     handleClose();
   };
 
@@ -228,6 +224,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
             helperText={nameError || t("createServer.nameHelp")}
             fullWidth
             autoFocus
+            slotProps={{ htmlInput: { maxLength: 50 } }}
           />
 
           {/* Server Type */}

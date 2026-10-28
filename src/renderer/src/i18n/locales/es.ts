@@ -192,10 +192,9 @@ export const es = {
     createServer: {
       title: "Crear Nuevo Servidor",
       serverName: "Nombre del Servidor",
-      nameHelp: "Solo letras, números, guiones y guiones bajos (mín. 3 caracteres)",
+      nameHelp: "Mínimo 3 caracteres",
       nameRequired: "El nombre del servidor es requerido",
       nameTooShort: "El nombre del servidor debe tener al menos 3 caracteres",
-      invalidName: "Nombre inválido. Solo se permiten letras, números, guiones y guiones bajos",
       serverType: "Tipo de Servidor",
       vanilla: "Vanilla",
       forge: "Forge",

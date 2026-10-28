@@ -1,5 +1,7 @@
 export interface MinecraftServerConfig {
   serverName: string;
+  /** Name shown in the app; serverName is the folder / cloud id derived from it. */
+  displayName?: string;
   version: string;
   serverType: "vanilla" | "forge" | "neoforge";
   overwrite?: boolean;

@@ -192,10 +192,9 @@ export const de: typeof en = {
     createServer: {
       title: "Neuen Server erstellen",
       serverName: "Servername",
-      nameHelp: "Nur Buchstaben, Zahlen, Binde- und Unterstriche (mind. 3 Zeichen)",
+      nameHelp: "Mindestens 3 Zeichen",
       nameRequired: "Ein Servername ist erforderlich",
       nameTooShort: "Der Servername muss mindestens 3 Zeichen lang sein",
-      invalidName: "Ungültiger Name. Erlaubt sind nur Buchstaben, Zahlen, Binde- und Unterstriche",
       serverType: "Servertyp",
       vanilla: "Vanilla",
       forge: "Forge",

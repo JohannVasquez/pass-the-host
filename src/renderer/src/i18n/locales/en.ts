@@ -188,10 +188,9 @@ export const en = {
     createServer: {
       title: "Create New Server",
       serverName: "Server Name",
-      nameHelp: "Only letters, numbers, hyphens and underscores (min. 3 characters)",
+      nameHelp: "At least 3 characters",
       nameRequired: "Server name is required",
       nameTooShort: "Server name must be at least 3 characters",
-      invalidName: "Invalid name. Only letters, numbers, hyphens and underscores are allowed",
       serverType: "Server Type",
       vanilla: "Vanilla",
       forge: "Forge",

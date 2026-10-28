@@ -132,6 +132,7 @@ interface ServerAPI {
     version: string,
     serverType: "vanilla" | "forge" | "neoforge",
     overwrite?: boolean,
+    displayName?: string,
   ) => Promise<{
     success: boolean;
     error?: string;

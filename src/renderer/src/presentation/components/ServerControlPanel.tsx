@@ -13,6 +13,7 @@ import {
   MenuItem,
   IconButton,
   Tooltip,
+  FormHelperText,
 } from "@mui/material";
 import {
   PlayArrow as PlayIcon,
@@ -30,7 +31,16 @@ import { useTranslation } from "react-i18next";
 import DnsOutlinedIcon from "@mui/icons-material/DnsOutlined";
 import { PanelTitle } from "@renderer/presentation/components/PanelTitle";
 import { ServerStatus } from "@renderer/domain/entities/ServerStatus";
-import { Server } from "@renderer/domain/entities/Server";
+import { Server, ServerType } from "@renderer/domain/entities/Server";
+
+const TYPE_LABELS: Record<ServerType, string> = {
+  [ServerType.VANILLA]: "Vanilla",
+  [ServerType.FORGE]: "Forge",
+  [ServerType.NEOFORGE]: "NeoForge",
+  [ServerType.PAPER]: "Paper",
+  [ServerType.FABRIC]: "Fabric",
+  [ServerType.UNKNOWN]: "",
+};
 
 interface ServerControlPanelProps {
   status: ServerStatus;
@@ -75,6 +85,13 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
 }): React.JSX.Element => {
   const { t } = useTranslation();
   const isRunning = status === ServerStatus.RUNNING;
+  const current = servers.find((server) => server.id === selectedServer);
+  const details = current
+    ? [
+        current.type === ServerType.UNKNOWN ? null : TYPE_LABELS[current.type],
+        current.version === "unknown" ? null : current.version,
+      ].filter(Boolean)
+    : [];
   const isTransitioning = status === ServerStatus.STARTING || status === ServerStatus.STOPPING;
   const [uptime, setUptime] = React.useState<string>("00:00:00");
   const isLocked = lockedServerInfo?.username && lockedServerInfo?.username !== "";
@@ -151,7 +168,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
         </Alert>
       )}
 
-      <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, mb: 2 }}>
         <FormControl fullWidth size="small">
           <InputLabel>{t("serverControl.selectServer")}</InputLabel>
           <Select
@@ -162,10 +179,11 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           >
             {servers.map((server) => (
               <MenuItem key={server.id} value={server.id}>
-                {server.name} - {server.type.toUpperCase()} ({server.version})
+                {server.name}
               </MenuItem>
             ))}
           </Select>
+          {details.length > 0 && <FormHelperText>{details.join(" · ")}</FormHelperText>}
         </FormControl>
         <Tooltip title={t("serverControl.createNewServer")}>
           <IconButton

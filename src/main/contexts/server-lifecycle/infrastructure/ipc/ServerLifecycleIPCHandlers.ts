@@ -22,6 +22,7 @@ export class ServerLifecycleIPCHandlers {
           version: string,
           serverType: "vanilla" | "forge" | "neoforge",
           overwrite?: boolean,
+          displayName?: string,
         ) => {
           const useCase = this.container.get<CreateMinecraftServerUseCase>(
             TYPES.CreateMinecraftServerUseCase,
@@ -29,7 +30,10 @@ export class ServerLifecycleIPCHandlers {
           const progressCallback = (message: string): void => {
             event.sender.send("server:create-progress", message);
           };
-          return useCase.execute({ serverName, version, serverType, overwrite }, progressCallback);
+          return useCase.execute(
+            { serverName, displayName, version, serverType, overwrite },
+            progressCallback,
+          );
         },
       ),
     );

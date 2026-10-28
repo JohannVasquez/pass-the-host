@@ -192,10 +192,9 @@ export const ptBR: typeof en = {
     createServer: {
       title: "Criar novo servidor",
       serverName: "Nome do servidor",
-      nameHelp: "Apenas letras, números, hífens e sublinhados (mín. 3 caracteres)",
+      nameHelp: "Mínimo de 3 caracteres",
       nameRequired: "O nome do servidor é obrigatório",
       nameTooShort: "O nome do servidor deve ter pelo menos 3 caracteres",
-      invalidName: "Nome inválido. Use apenas letras, números, hífens e sublinhados",
       serverType: "Tipo de servidor",
       vanilla: "Vanilla",
       forge: "Forge",

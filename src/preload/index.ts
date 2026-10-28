@@ -225,6 +225,7 @@ const serverAPI = {
     version: string,
     serverType: "vanilla" | "forge" | "neoforge",
     overwrite?: boolean,
+    displayName?: string,
   ): Promise<{
     success: boolean;
     error?: string;
@@ -236,6 +237,7 @@ const serverAPI = {
       version,
       serverType,
       overwrite,
+      displayName,
     ),
   onCreateProgress: (callback: (message: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, message: string): void =>

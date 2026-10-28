@@ -190,10 +190,9 @@ export const ru: typeof en = {
     createServer: {
       title: "Создать новый сервер",
       serverName: "Имя сервера",
-      nameHelp: "Только буквы, цифры, дефисы и подчёркивания (мин. 3 символа)",
+      nameHelp: "Минимум 3 символа",
       nameRequired: "Укажите имя сервера",
       nameTooShort: "Имя сервера должно быть не короче 3 символов",
-      invalidName: "Недопустимое имя. Разрешены только буквы, цифры, дефисы и подчёркивания",
       serverType: "Тип сервера",
       vanilla: "Vanilla",
       forge: "Forge",

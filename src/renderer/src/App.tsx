@@ -41,7 +41,7 @@ import {
   NetworkInterface,
 } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
-import { Server } from "./domain/entities/Server";
+import { Server, toServerId } from "./domain/entities/Server";
 import {
   StartManagedServerUseCase,
   StopManagedServerUseCase,
@@ -101,6 +101,8 @@ function AppContent(): React.JSX.Element {
   const [serverStatus, setServerStatus] = React.useState<ServerStatus>(ServerStatus.STOPPED);
   const [servers, setServers] = React.useState<Server[]>([]);
   const [selectedServer, setSelectedServer] = React.useState<string | null>(null);
+  const selectedServerName =
+    servers.find((server) => server.id === selectedServer)?.name ?? selectedServer;
   const [isCloudSyncEnabledByUser, setIsCloudSyncEnabledByUser] = React.useState<boolean>(false);
   const [isS3Configured, setIsS3Configured] = React.useState<boolean>(false);
   const [isRcloneReady, setIsRcloneReady] = React.useState<boolean>(false);
@@ -1311,6 +1313,8 @@ function AppContent(): React.JSX.Element {
     serverType: "vanilla" | "forge" | "neoforge",
     overwrite: boolean = false,
   ): Promise<void> => {
+    // serverName is what the user typed; the folder and cloud key use its kebab-case id
+    const serverId = toServerId(serverName);
     setIsCreatingServer(true);
     setCreateServerProgress("");
 
@@ -1352,10 +1356,11 @@ function AppContent(): React.JSX.Element {
       }
 
       const result = await window.serverAPI.createMinecraftServer(
-        serverName,
+        serverId,
         version,
         serverType,
         overwrite,
+        serverName,
       );
 
       // Check if server already exists
@@ -1395,7 +1400,7 @@ function AppContent(): React.JSX.Element {
           setTransferTotal("0");
 
           const s3Service = new S3Service(s3Config);
-          const uploadSuccess = await s3Service.uploadServer(serverName);
+          const uploadSuccess = await s3Service.uploadServer(serverId);
 
           setIsTransferring(false);
 
@@ -1424,7 +1429,7 @@ function AppContent(): React.JSX.Element {
         await refreshServerList();
 
         // Select the newly created server
-        setSelectedServer(serverName);
+        setSelectedServer(serverId);
       } else {
         setLogs((prev) => [
           ...prev,
@@ -2003,7 +2008,7 @@ function AppContent(): React.JSX.Element {
               serverActive={serverStatus !== ServerStatus.STOPPED}
               serverPort={serverPort}
               username={username}
-              serverName={servers.find((server) => server.id === selectedServer)?.name ?? null}
+              serverName={selectedServerName}
             />
 
             <S3Configuration
@@ -2068,7 +2073,7 @@ function AppContent(): React.JSX.Element {
         {/* Release Lock Modal */}
         <ReleaseLockModal
           open={isReleaseLockModalOpen}
-          serverName={selectedServer}
+          serverName={selectedServerName}
           onClose={(): void => setIsReleaseLockModalOpen(false)}
           onConfirm={handleConfirmReleaseLock}
         />
@@ -2076,7 +2081,7 @@ function AppContent(): React.JSX.Element {
         {/* Server Locked Modal */}
         <ServerLockedModal
           open={isServerLockedModalOpen}
-          serverName={selectedServer}
+          serverName={selectedServerName}
           username={lockedServerInfo.username}
           startedAt={lockedServerInfo.startedAt}
           onClose={(): void => setIsServerLockedModalOpen(false)}
@@ -2109,7 +2114,7 @@ function AppContent(): React.JSX.Element {
         <ServerStatisticsModal
           open={isStatisticsModalOpen}
           onClose={() => setIsStatisticsModalOpen(false)}
-          serverName={selectedServer}
+          serverName={selectedServerName}
           statistics={serverStatistics}
         />
 
@@ -2133,7 +2138,9 @@ function AppContent(): React.JSX.Element {
           onDelete={async () => {
             if (pendingServerCreation) {
               // Delete the existing server
-              const deleteResult = await window.serverAPI.deleteLocally(pendingServerCreation.name);
+              const deleteResult = await window.serverAPI.deleteLocally(
+                toServerId(pendingServerCreation.name),
+              );
               if (deleteResult.success) {
                 setLogs((prev) => [
                   ...prev,
@@ -2166,7 +2173,7 @@ function AppContent(): React.JSX.Element {
         {/* Delete Server Modal */}
         <DeleteServerModal
           open={isDeleteServerModalOpen}
-          serverName={selectedServer}
+          serverName={selectedServerName}
           cloudSyncEnabled={isCloudSyncEnabled}
           onClose={() => setIsDeleteServerModalOpen(false)}
           onConfirm={handleConfirmDeleteServer}

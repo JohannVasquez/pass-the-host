@@ -14,6 +14,7 @@ import {
 } from "@main/contexts/server-lifecycle/domain/entities";
 
 interface StoredServerInfo {
+  name?: string;
   version?: string;
   type?: "vanilla" | "forge" | "neoforge" | "unknown";
 }
@@ -72,7 +73,12 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
       onProgress?.("server.properties created");
 
       // Create server_info.json with version and type information
-      this.createServerInfo(serverPath, config.version, config.serverType);
+      this.createServerInfo(
+        serverPath,
+        config.displayName ?? config.serverName,
+        config.version,
+        config.serverType,
+      );
       onProgress?.("Server info saved");
 
       onProgress?.("Server created successfully!");
@@ -145,7 +151,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
 
           return {
             id: serverId,
-            name: serverId,
+            name: storedInfo.name || serverId,
             version: storedInfo.version || "unknown",
             type: storedInfo.type || "unknown",
           };
@@ -562,11 +568,13 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
 
   private createServerInfo(
     serverPath: string,
+    name: string,
     version: string,
     serverType: "vanilla" | "forge" | "neoforge",
   ): void {
     const serverInfoPath = path.join(serverPath, "server_info.json");
     const serverInfo = {
+      name,
       version: version,
       type: serverType,
       createdAt: new Date().toISOString(),

@@ -16,7 +16,9 @@ import type { S3Config } from "@renderer/domain/entities/ServerConfig";
 
 interface ShareServerModalProps {
   open: boolean;
+  /** Folder / cloud id of the server to share */
   serverName: string | null;
+  displayName?: string | null;
   s3Config: S3Config;
   onClose: () => void;
 }
@@ -24,6 +26,7 @@ interface ShareServerModalProps {
 export const ShareServerModal: React.FC<ShareServerModalProps> = ({
   open,
   serverName,
+  displayName,
   s3Config,
   onClose,
 }) => {
@@ -61,7 +64,7 @@ export const ShareServerModal: React.FC<ShareServerModalProps> = ({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{t("shareServer.title", { serverName })}</DialogTitle>
+      <DialogTitle>{t("shareServer.title", { serverName: displayName ?? serverName })}</DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           {t("shareServer.description")}
