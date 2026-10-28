@@ -1,7 +1,8 @@
 import React from "react";
-import { Box, TextField, Paper, Typography, IconButton } from "@mui/material";
+import { Box, TextField, Typography, IconButton } from "@mui/material";
 import { Edit as EditIcon, Check as CheckIcon } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
+import { surface } from "@renderer/theme";
 
 interface UsernameInputProps {
   username: string;
@@ -39,41 +40,58 @@ export const UsernameInput: React.FC<UsernameInputProps> = ({
   };
 
   return (
-    <Paper elevation={2} sx={{ p: 2 }}>
-      <Typography variant="h6" gutterBottom>
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1.5,
+        minHeight: 48,
+        px: 2,
+        borderRadius: 1,
+        border: 1,
+        borderColor: surface.border,
+        bgcolor: surface.panel,
+      }}
+    >
+      <Typography variant="caption" color="text.secondary">
         {t("username.title")}
       </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        {isEditing ? (
-          <>
-            <TextField
-              fullWidth
-              size="small"
-              value={tempUsername}
-              onChange={(e) => setTempUsername(e.target.value)}
-              onKeyDown={handleKeyPress}
-              placeholder={t("username.placeholder")}
-              disabled={disabled}
-              autoFocus
-            />
-            <IconButton onClick={handleSave} disabled={disabled || tempUsername.trim() === ""}>
-              <CheckIcon />
-            </IconButton>
-          </>
-        ) : (
-          <>
-            <Box sx={{ flex: 1, bgcolor: "action.hover", p: 1.5, borderRadius: 1 }}>
-              <Typography variant="body1" fontWeight="medium">
-                {username || t("username.notSet")}
-              </Typography>
-            </Box>
-            <IconButton onClick={() => setIsEditing(true)} disabled={disabled}>
-              <EditIcon />
-            </IconButton>
-          </>
-        )}
-      </Box>
-    </Paper>
+      {isEditing ? (
+        <>
+          <TextField
+            fullWidth
+            size="small"
+            value={tempUsername}
+            onChange={(e) => setTempUsername(e.target.value)}
+            onKeyDown={handleKeyPress}
+            placeholder={t("username.placeholder")}
+            disabled={disabled}
+            autoFocus
+          />
+          <IconButton
+            color="primary"
+            size="small"
+            onClick={handleSave}
+            disabled={disabled || tempUsername.trim() === ""}
+          >
+            <CheckIcon fontSize="small" />
+          </IconButton>
+        </>
+      ) : (
+        <>
+          <Typography variant="body2" fontWeight={500} sx={{ flex: 1 }}>
+            {username || t("username.notSet")}
+          </Typography>
+          <IconButton
+            size="small"
+            sx={{ color: "#b4bac6" }}
+            onClick={() => setIsEditing(true)}
+            disabled={disabled}
+          >
+            <EditIcon fontSize="small" />
+          </IconButton>
+        </>
+      )}
+    </Box>
   );
 };
-
