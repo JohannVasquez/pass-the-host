@@ -304,8 +304,12 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
 
       let javaVersion: number;
 
+      // Minecraft 26.1 and later (year-based versions) -> Java 25
+      if (major >= 26) {
+        javaVersion = 25;
+      }
       // Minecraft 1.19 and later -> Java 21
-      if (major > 1 || (major === 1 && minor >= 19)) {
+      else if (major > 1 || (major === 1 && minor >= 19)) {
         javaVersion = 21;
       }
       // Minecraft 1.17 - 1.18.x -> Java 17
@@ -381,9 +385,13 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
   private async getNeoForgeVersion(minecraftVersion: string): Promise<string | null> {
     const metadataUrl =
       "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml";
-    // NeoForge versions look like "<mcMinor>.<mcPatch>.<build>" (e.g. Minecraft 1.21.1 -> 21.1.x)
+    // NeoForge versions look like "<mcMinor>.<mcPatch>.<build>" (e.g. Minecraft 1.21.1 -> 21.1.x),
+    // and since Minecraft 26.1 they keep the full version (e.g. Minecraft 26.1 -> 26.1.0.x)
     const versionParts = minecraftVersion.split(".");
-    const versionPrefix = `${versionParts[1] || "0"}.${versionParts[2] || "0"}`;
+    const versionPrefix =
+      versionParts[0] === "1"
+        ? `${versionParts[1] || "0"}.${versionParts[2] || "0"}`
+        : `${versionParts[0]}.${versionParts[1] || "0"}.${versionParts[2] || "0"}`;
 
     return new Promise((resolve, reject) => {
       https

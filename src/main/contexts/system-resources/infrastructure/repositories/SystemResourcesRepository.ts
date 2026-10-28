@@ -58,6 +58,11 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
       const major = parseInt(versionParts[0]);
       const minor = parseInt(versionParts[1]);
 
+      // Minecraft 26.1 and later (year-based versions) -> Java 25
+      if (major >= 26) {
+        return { minVersion: 25 };
+      }
+
       // Minecraft 1.19 and later -> Java 21
       if (major > 1 || (major === 1 && minor >= 19)) {
         return { minVersion: 21 };

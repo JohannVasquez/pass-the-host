@@ -31,6 +31,11 @@ interface CreateServerModalProps {
 }
 
 const minecraftVersions = [
+  "26.3",
+  "26.2",
+  "26.1.2",
+  "26.1.1",
+  "26.1",
   "1.21.11",
   "1.21.10",
   "1.21.9",
