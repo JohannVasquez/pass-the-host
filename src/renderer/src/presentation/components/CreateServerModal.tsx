@@ -208,7 +208,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
 
   const handleClose = (): void => {
     setServerName("");
-    setVersion("1.21.4");
+    setVersion(minecraftVersions[0]);
     setServerType("vanilla");
     setNameError("");
     onClose();
