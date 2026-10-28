@@ -224,6 +224,23 @@ export const es = {
       restartHint: "El servidor está en marcha. Los cambios se aplicarán al reiniciarlo.",
       noFile: "Este servidor aún no tiene server.properties. Inícialo una vez para generarlo.",
       lockedHint: "Se configura en la sección de Red",
+      world: {
+        import: "Importar mundo",
+        export: "Exportar mundo",
+        reset: "Regenerar mundo",
+        continue: "Continuar",
+        confirm_import:
+          "Elige un .zip o el archivo level.dat de la carpeta del mundo (por ejemplo, uno de .minecraft/saves). Reemplazará el mundo actual y no se puede deshacer: expórtalo antes si quieres conservarlo.",
+        confirm_reset:
+          "Se borrará el mundo actual y el servidor generará uno nuevo la próxima vez que lo inicies. No se puede deshacer: expórtalo antes si quieres conservarlo.",
+        exported: "Mundo exportado. Se abrió la carpeta donde quedó el .zip.",
+        "no-world": "Aún no hay mundo. Inicia el servidor una vez para generarlo.",
+        invalid: "No se encontró ningún mundo de Minecraft (level.dat) en lo que elegiste.",
+        regenerateOnSave: "Regenerar el mundo al guardar (borra el mundo actual)",
+        genHint:
+          "La semilla, el tipo de mundo y las estructuras solo se aplican cuando se genera un mundo nuevo.",
+        stopFirst: "Detén el servidor para importar, exportar o regenerar el mundo.",
+      },
       whitelist: {
         title: "Jugadores en la lista blanca ({{count}})",
         placeholder: "Nombre del jugador",

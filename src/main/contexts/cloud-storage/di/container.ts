@@ -40,6 +40,7 @@ import {
   ReadWhitelistUseCase,
   WriteWhitelistUseCase,
   LookupPlayerUseCase,
+  ManageWorldUseCase,
   GetBucketSizeUseCase,
   GetServerSizeUseCase,
   AuthorizeGoogleDriveUseCase,
@@ -238,6 +239,12 @@ export function configureCloudStorageContext(container: Container): void {
 
   container.bind<LookupPlayerUseCase>(LookupPlayerUseCase).toDynamicValue(() => {
     return new LookupPlayerUseCase(
+      container.get<IServerPropertiesRepository>(TYPES.ServerPropertiesRepository),
+    );
+  });
+
+  container.bind<ManageWorldUseCase>(ManageWorldUseCase).toDynamicValue(() => {
+    return new ManageWorldUseCase(
       container.get<IServerPropertiesRepository>(TYPES.ServerPropertiesRepository),
     );
   });

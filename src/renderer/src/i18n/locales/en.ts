@@ -219,6 +219,22 @@ export const en = {
       restartHint: "The server is running. Changes will apply after a restart.",
       noFile: "This server has no server.properties yet. Start it once to generate it.",
       lockedHint: "Configured in the Network section",
+      world: {
+        import: "Import world",
+        export: "Export world",
+        reset: "Regenerate world",
+        continue: "Continue",
+        confirm_import:
+          "Pick a .zip or the level.dat file inside a world folder (for example one from .minecraft/saves). It replaces the current world and can't be undone: export it first if you want to keep it.",
+        confirm_reset:
+          "The current world will be deleted and the server will generate a new one the next time you start it. This can't be undone: export it first if you want to keep it.",
+        exported: "World exported. The folder with the .zip has been opened.",
+        "no-world": "There's no world yet. Start the server once to generate it.",
+        invalid: "No Minecraft world (level.dat) was found in what you picked.",
+        regenerateOnSave: "Regenerate the world on save (deletes the current world)",
+        genHint: "The seed, world type and structures only apply when a new world is generated.",
+        stopFirst: "Stop the server to import, export or regenerate the world.",
+      },
       whitelist: {
         title: "Whitelisted players ({{count}})",
         placeholder: "Player name",

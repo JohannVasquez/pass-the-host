@@ -6,6 +6,7 @@ import {
   ISessionRepository,
   IServerPropertiesRepository,
   WhitelistEntry,
+  WorldActionResult,
 } from "@main/contexts/cloud-storage/domain/repositories";
 import {
   S3Config,
@@ -191,6 +192,19 @@ export class LookupPlayerUseCase {
   constructor(private serverPropertiesRepository: IServerPropertiesRepository) {}
   async execute(name: string, onlineMode: boolean): Promise<WhitelistEntry | null> {
     return await this.serverPropertiesRepository.lookupPlayer(name, onlineMode);
+  }
+}
+@injectable()
+export class ManageWorldUseCase {
+  constructor(private serverPropertiesRepository: IServerPropertiesRepository) {}
+  exportWorld(serverId: string): Promise<WorldActionResult> {
+    return this.serverPropertiesRepository.exportWorld(serverId);
+  }
+  importWorld(serverId: string): Promise<WorldActionResult> {
+    return this.serverPropertiesRepository.importWorld(serverId);
+  }
+  resetWorld(serverId: string, levelNames: string[]): Promise<WorldActionResult> {
+    return this.serverPropertiesRepository.resetWorld(serverId, levelNames);
   }
 }
 @injectable()

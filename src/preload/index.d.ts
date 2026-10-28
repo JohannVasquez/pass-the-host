@@ -92,6 +92,10 @@ interface ServerAPI {
   writePort: (serverId: string, port: number) => Promise<boolean>;
   readProperties: (serverId: string) => Promise<Record<string, string>>;
   writeProperties: (serverId: string, properties: Record<string, string>) => Promise<boolean>;
+  /** "canceled" when the dialog is closed, "no-world" before the first start, "invalid" when no level.dat is found */
+  exportWorld: (serverId: string) => Promise<"done" | "canceled" | "no-world">;
+  importWorld: (serverId: string) => Promise<"done" | "canceled" | "invalid">;
+  resetWorld: (serverId: string, levelNames: string[]) => Promise<"done">;
   readWhitelist: (serverId: string) => Promise<Array<{ uuid: string; name: string }>>;
   writeWhitelist: (serverId: string, entries: Array<{ uuid: string; name: string }>) => Promise<boolean>;
   lookupPlayer: (name: string, onlineMode: boolean) => Promise<{ uuid: string; name: string } | null>;

@@ -224,6 +224,23 @@ export const de: typeof en = {
       noFile:
         "Dieser Server hat noch keine server.properties. Starte ihn einmal, um sie zu erzeugen.",
       lockedHint: "Wird im Bereich Netzwerk eingestellt",
+      world: {
+        import: "Welt importieren",
+        export: "Welt exportieren",
+        reset: "Welt neu generieren",
+        continue: "Weiter",
+        confirm_import:
+          "Wähle eine .zip-Datei oder die level.dat in einem Weltordner (zum Beispiel aus .minecraft/saves). Sie ersetzt die aktuelle Welt und kann nicht rückgängig gemacht werden: Exportiere sie vorher, wenn du sie behalten willst.",
+        confirm_reset:
+          "Die aktuelle Welt wird gelöscht und der Server generiert beim nächsten Start eine neue. Das kann nicht rückgängig gemacht werden: Exportiere sie vorher, wenn du sie behalten willst.",
+        exported: "Welt exportiert. Der Ordner mit der .zip-Datei wurde geöffnet.",
+        "no-world": "Es gibt noch keine Welt. Starte den Server einmal, um sie zu generieren.",
+        invalid: "In deiner Auswahl wurde keine Minecraft-Welt (level.dat) gefunden.",
+        regenerateOnSave: "Welt beim Speichern neu generieren (löscht die aktuelle Welt)",
+        genHint: "Seed, Welttyp und Strukturen gelten nur, wenn eine neue Welt generiert wird.",
+        stopFirst:
+          "Stoppe den Server, um die Welt zu importieren, zu exportieren oder neu zu generieren.",
+      },
       whitelist: {
         title: "Spieler auf der Whitelist ({{count}})",
         placeholder: "Spielername",

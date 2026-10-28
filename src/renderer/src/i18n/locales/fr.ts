@@ -224,6 +224,23 @@ export const fr: typeof en = {
       noFile:
         "Ce serveur n'a pas encore de server.properties. Démarre-le une fois pour le générer.",
       lockedHint: "Se configure dans la section Réseau",
+      world: {
+        import: "Importer un monde",
+        export: "Exporter le monde",
+        reset: "Régénérer le monde",
+        continue: "Continuer",
+        confirm_import:
+          "Choisis un .zip ou le fichier level.dat d'un dossier de monde (par exemple dans .minecraft/saves). Il remplacera le monde actuel et c'est irréversible : exporte-le d'abord si tu veux le garder.",
+        confirm_reset:
+          "Le monde actuel sera supprimé et le serveur en générera un nouveau au prochain démarrage. C'est irréversible : exporte-le d'abord si tu veux le garder.",
+        exported: "Monde exporté. Le dossier contenant le .zip a été ouvert.",
+        "no-world": "Il n'y a pas encore de monde. Démarre le serveur une fois pour le générer.",
+        invalid: "Aucun monde Minecraft (level.dat) n'a été trouvé dans ta sélection.",
+        regenerateOnSave: "Régénérer le monde à l'enregistrement (supprime le monde actuel)",
+        genHint:
+          "La graine, le type de monde et les structures ne s'appliquent qu'à la génération d'un nouveau monde.",
+        stopFirst: "Arrête le serveur pour importer, exporter ou régénérer le monde.",
+      },
       whitelist: {
         title: "Joueurs sur liste blanche ({{count}})",
         placeholder: "Nom du joueur",

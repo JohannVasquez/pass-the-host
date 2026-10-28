@@ -16,8 +16,16 @@ import {
   Divider,
   Chip,
   Avatar,
+  Checkbox,
+  FormControlLabel,
 } from "@mui/material";
-import { Tune as TuneIcon, PersonAdd as PersonAddIcon } from "@mui/icons-material";
+import {
+  Tune as TuneIcon,
+  PersonAdd as PersonAddIcon,
+  FileUpload as FileUploadIcon,
+  FileDownload as FileDownloadIcon,
+  Autorenew as AutorenewIcon,
+} from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 
 type Field =
@@ -121,6 +129,11 @@ const DEFAULTS: Record<string, string> = {
 };
 
 const NUMBER_PATTERN = /^-?\d+$/;
+
+// Only read when a world is generated, so changing them offers to regenerate it
+const WORLD_GEN_KEYS = ["level-name", "level-seed", "level-type", "generate-structures"];
+
+type WorldAction = "import" | "export" | "reset";
 
 interface WhitelistEntry {
   uuid: string;
@@ -229,14 +242,18 @@ const WhitelistEditor: React.FC<{
 interface EditServerModalProps {
   open: boolean;
   serverId: string | null;
+  serverName?: string | null;
+  /** Anything but stopped: world files are in use */
   isRunning: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  /** Files on disk changed (the message goes to the console) */
+  onSaved: (message: string) => void;
 }
 
 export const EditServerModal: React.FC<EditServerModalProps> = ({
   open,
   serverId,
+  serverName,
   isRunning,
   onClose,
   onSaved,
@@ -249,11 +266,20 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
   const [fileMissing, setFileMissing] = React.useState(false);
   const [whitelist, setWhitelist] = React.useState<WhitelistEntry[]>([]);
   const [originalWhitelist, setOriginalWhitelist] = React.useState<WhitelistEntry[]>([]);
+  const [regenerate, setRegenerate] = React.useState(false);
+  const [worldBusy, setWorldBusy] = React.useState(false);
+  const [confirmAction, setConfirmAction] = React.useState<"import" | "reset" | null>(null);
+  const [notice, setNotice] = React.useState<{
+    severity: "success" | "warning";
+    text: string;
+  } | null>(null);
 
   React.useEffect(() => {
     if (!open || !serverId) return;
     setOriginal(null);
     setError(null);
+    setRegenerate(false);
+    setNotice(null);
     Promise.all([
       window.serverAPI.readProperties(serverId),
       window.serverAPI.readWhitelist(serverId),
@@ -274,6 +300,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
   );
   const whitelistChanged = JSON.stringify(whitelist) !== JSON.stringify(originalWhitelist);
   const hasChanges = Object.keys(changed).length > 0 || whitelistChanged;
+  const worldGenChanged = WORLD_GEN_KEYS.some((key) => key in changed);
   const invalidNumber = SECTIONS.some((s) =>
     s.fields.some(
       (f) => f.type === "number" && f.key in changed && !NUMBER_PATTERN.test(changed[f.key]),
@@ -297,12 +324,54 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
           await window.serverAPI.sendCommand(serverId, "whitelist reload").catch(() => false);
         }
       }
-      onSaved();
+      const resetWorld = regenerate && worldGenChanged && !isRunning;
+      if (resetWorld) {
+        // The old name too: a renamed world would otherwise stay behind in its folder
+        await window.serverAPI.resetWorld(serverId, [
+          original?.["level-name"] ?? "world",
+          values["level-name"],
+        ]);
+      }
+      onSaved(resetWorld ? "server.properties updated, world reset" : "server.properties updated");
       onClose();
     } catch (e) {
       setError(String((e as Error)?.message ?? e));
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const runWorldAction = async (action: WorldAction): Promise<void> => {
+    if (!serverId) return;
+    setConfirmAction(null);
+    setNotice(null);
+    setWorldBusy(true);
+    try {
+      const result =
+        action === "export"
+          ? await window.serverAPI.exportWorld(serverId)
+          : action === "import"
+            ? await window.serverAPI.importWorld(serverId)
+            : await window.serverAPI.resetWorld(serverId, [original?.["level-name"] ?? "world"]);
+      if (result === "canceled") return;
+      if (result !== "done") {
+        setNotice({ severity: "warning", text: t(`editServer.world.${result}`) });
+        return;
+      }
+      if (action === "export") {
+        setNotice({ severity: "success", text: t("editServer.world.exported") });
+        return;
+      }
+      onSaved(
+        action === "import"
+          ? "World imported"
+          : "World reset, a new one is generated on the next start",
+      );
+      onClose();
+    } catch (e) {
+      setError(String((e as Error)?.message ?? e));
+    } finally {
+      setWorldBusy(false);
     }
   };
 
@@ -395,6 +464,73 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     (s) => s.fields.length > 0,
   );
 
+  const renderWorldTools = (): React.ReactNode => {
+    const disabled = isRunning || worldBusy || isSaving;
+    return (
+      <>
+        {worldGenChanged && (
+          <Alert severity="info" icon={false}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  checked={regenerate}
+                  disabled={isRunning}
+                  onChange={(e) => setRegenerate(e.target.checked)}
+                />
+              }
+              label={t("editServer.world.regenerateOnSave")}
+            />
+            <Typography variant="caption" component="div" color="text.secondary">
+              {t("editServer.world.genHint")}
+            </Typography>
+          </Alert>
+        )}
+        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<FileUploadIcon />}
+            disabled={disabled}
+            onClick={() => setConfirmAction("import")}
+          >
+            {t("editServer.world.import")}
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<FileDownloadIcon />}
+            disabled={disabled}
+            onClick={() => runWorldAction("export")}
+          >
+            {t("editServer.world.export")}
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            color="error"
+            startIcon={<AutorenewIcon />}
+            disabled={disabled}
+            onClick={() => setConfirmAction("reset")}
+          >
+            {t("editServer.world.reset")}
+          </Button>
+          {worldBusy && <CircularProgress size={20} />}
+          {isRunning && (
+            <Typography variant="caption" color="text.secondary">
+              {t("editServer.world.stopFirst")}
+            </Typography>
+          )}
+        </Box>
+        {notice && (
+          <Alert severity={notice.severity} onClose={() => setNotice(null)}>
+            {notice.text}
+          </Alert>
+        )}
+      </>
+    );
+  };
+
   const renderSection = (id: string, fields: Field[]): React.ReactNode => {
     const toggles = fields.filter((f) => f.type === "boolean");
     const inputs = fields.filter((f) => f.type !== "boolean");
@@ -416,6 +552,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
               {inputs.map(renderField)}
             </Box>
           )}
+          {id === "world" && renderWorldTools()}
           {toggles.length > 0 && (
             <Box
               sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}
@@ -438,7 +575,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
   return (
     <Dialog
       open={open}
-      onClose={isSaving ? undefined : onClose}
+      onClose={isSaving || worldBusy ? undefined : onClose}
       maxWidth="md"
       fullWidth
       scroll="paper"
@@ -448,7 +585,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
           <TuneIcon color="primary" />
           {t("editServer.title")}
           <Typography component="span" color="text.secondary" sx={{ ml: 0.5 }}>
-            {serverId}
+            {serverName ?? serverId}
           </Typography>
         </Box>
       </DialogTitle>
@@ -481,17 +618,37 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
         )}
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={onClose} color="inherit" disabled={isSaving}>
+        <Button onClick={onClose} color="inherit" disabled={isSaving || worldBusy}>
           {t("editServer.cancel")}
         </Button>
         <Button
           onClick={handleSave}
           variant="contained"
-          disabled={!hasChanges || invalidNumber || isSaving}
+          disabled={!hasChanges || invalidNumber || isSaving || worldBusy}
         >
           {isSaving ? <CircularProgress size={20} color="inherit" /> : t("editServer.save")}
         </Button>
       </DialogActions>
+      <Dialog open={confirmAction !== null} onClose={() => setConfirmAction(null)} maxWidth="xs">
+        <DialogTitle>{confirmAction && t(`editServer.world.${confirmAction}`)}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            {confirmAction && t(`editServer.world.confirm_${confirmAction}`)}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmAction(null)} color="inherit">
+            {t("editServer.cancel")}
+          </Button>
+          <Button
+            variant="contained"
+            color={confirmAction === "reset" ? "error" : "primary"}
+            onClick={() => confirmAction && runWorldAction(confirmAction)}
+          >
+            {t("editServer.world.continue")}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 };

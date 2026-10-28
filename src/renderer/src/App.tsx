@@ -1692,8 +1692,59 @@ function AppContent(): React.JSX.Element {
     }
   };
 
-  const handleEditProperties = (): void => {
+  // Edits are made on the local copy, so it must be the latest one: otherwise saving would
+  // upload an old world over a friend's progress
+  const handleEditProperties = async (): Promise<void> => {
+    if (selectedServer && isCloudSyncEnabled && serverStatus === ServerStatus.STOPPED) {
+      try {
+        const lock = await window.serverAPI.readLock(s3Config, selectedServer);
+        if (lock.exists && lock.username !== username) {
+          setLockedServerInfo({
+            username: lock.username || "Unknown",
+            startedAt: lock.startedAt || new Date().toISOString(),
+          });
+          setIsServerLockedModalOpen(true);
+          return;
+        }
+        if (await window.serverAPI.shouldDownload(s3Config, selectedServer)) {
+          appendLog("Downloading the latest server files before editing...", "info");
+          setIsTransferring(true);
+          resetTransferProgress("download");
+          try {
+            if (!(await new S3Service(s3Config).downloadServer(selectedServer))) {
+              appendLog("Could not download the latest server files", "warning");
+            }
+          } finally {
+            setIsTransferring(false);
+          }
+        }
+      } catch (error) {
+        appendLog(
+          `Could not check the cloud copy: ${error instanceof Error ? error.message : String(error)}`,
+          "warning",
+        );
+      }
+    }
     setIsEditServerModalOpen(true);
+  };
+
+  // Uploads right away so the next start, here or on a friend's PC, doesn't bring the old files back
+  const handleServerFilesEdited = async (message: string): Promise<void> => {
+    appendLog(message, "success");
+    if (!selectedServer || !isCloudSyncEnabled || serverStatus !== ServerStatus.STOPPED) return;
+    setIsTransferring(true);
+    resetTransferProgress("upload");
+    try {
+      const uploaded = await new S3Service(s3Config).uploadServer(selectedServer);
+      appendLog(
+        uploaded
+          ? "Server files synchronized successfully"
+          : `Failed to sync server files to ${PROVIDER_LABELS[s3Config.provider]}`,
+        uploaded ? "info" : "error",
+      );
+    } finally {
+      setIsTransferring(false);
+    }
   };
 
   const handleOpenServerFolder = async (): Promise<void> => {
@@ -2191,14 +2242,16 @@ function AppContent(): React.JSX.Element {
         <EditServerModal
           open={isEditServerModalOpen}
           serverId={selectedServer}
-          isRunning={serverStatus === ServerStatus.RUNNING}
+          serverName={selectedServerName}
+          isRunning={serverStatus !== ServerStatus.STOPPED}
           onClose={() => setIsEditServerModalOpen(false)}
-          onSaved={() => appendLog("server.properties updated", "success")}
+          onSaved={handleServerFilesEdited}
         />
 
         <ShareServerModal
           open={isShareServerModalOpen}
           serverName={selectedServer}
+          displayName={selectedServerName}
           s3Config={s3Config}
           onClose={() => setIsShareServerModalOpen(false)}
         />

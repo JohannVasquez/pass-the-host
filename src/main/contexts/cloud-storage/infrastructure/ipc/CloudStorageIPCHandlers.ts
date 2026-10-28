@@ -25,6 +25,7 @@ import {
   ReadWhitelistUseCase,
   WriteWhitelistUseCase,
   LookupPlayerUseCase,
+  ManageWorldUseCase,
   GetBucketSizeUseCase,
   GetServerSizeUseCase,
   AuthorizeGoogleDriveUseCase,
@@ -60,6 +61,7 @@ export class CloudStorageIPCHandlers {
     private readWhitelistUseCase: ReadWhitelistUseCase,
     private writeWhitelistUseCase: WriteWhitelistUseCase,
     private lookupPlayerUseCase: LookupPlayerUseCase,
+    private manageWorldUseCase: ManageWorldUseCase,
     private getBucketSizeUseCase: GetBucketSizeUseCase,
     private getServerSizeUseCase: GetServerSizeUseCase,
     private authorizeGoogleDriveUseCase: AuthorizeGoogleDriveUseCase,
@@ -303,6 +305,27 @@ export class CloudStorageIPCHandlers {
           return this.writeServerPropertiesUseCase.execute(serverId, properties);
         },
       ),
+    );
+
+    ipcMain.handle(
+      "server:export-world",
+      this.handleIPC("exportWorld", async (_event, serverId: string) => {
+        return this.manageWorldUseCase.exportWorld(serverId);
+      }),
+    );
+
+    ipcMain.handle(
+      "server:import-world",
+      this.handleIPC("importWorld", async (_event, serverId: string) => {
+        return this.manageWorldUseCase.importWorld(serverId);
+      }),
+    );
+
+    ipcMain.handle(
+      "server:reset-world",
+      this.handleIPC("resetWorld", async (_event, serverId: string, levelNames: string[]) => {
+        return this.manageWorldUseCase.resetWorld(serverId, levelNames);
+      }),
     );
 
     ipcMain.handle(

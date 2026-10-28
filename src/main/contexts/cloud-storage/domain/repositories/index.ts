@@ -249,7 +249,24 @@ export interface IServerPropertiesRepository {
    * Resolve a player's UUID (Mojang in online mode, offline UUID otherwise); null if not found
    */
   lookupPlayer(name: string, onlineMode: boolean): Promise<WhitelistEntry | null>;
+
+  /**
+   * Zip the current world (picked with a save dialog) and reveal it
+   */
+  exportWorld(serverId: string): Promise<WorldActionResult>;
+
+  /**
+   * Replace the current world with a .zip or a folder's level.dat picked with an open dialog
+   */
+  importWorld(serverId: string): Promise<WorldActionResult>;
+
+  /**
+   * Delete these worlds so the server generates a fresh one on its next start
+   */
+  resetWorld(serverId: string, levelNames: string[]): Promise<WorldActionResult>;
 }
+
+export type WorldActionResult = "done" | "canceled" | "no-world" | "invalid";
 
 export interface WhitelistEntry {
   uuid: string;
