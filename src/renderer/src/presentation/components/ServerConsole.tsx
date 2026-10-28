@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Paper, Typography, List, ListItem, ListItemText } from "@mui/material";
 import { useTranslation } from "react-i18next";
+import { monoFont } from "@renderer/theme";
 import { LogEntry } from "@renderer/domain/entities/LogEntry";
 
 interface ServerConsoleProps {
@@ -44,7 +45,7 @@ export const ServerConsole: React.FC<ServerConsoleProps> = ({ logs }): React.JSX
           overflow: "auto",
           bgcolor: "#1e1e1e",
           p: 2,
-          fontFamily: "monospace",
+          fontFamily: monoFont,
         }}
       >
         <List dense disablePadding>

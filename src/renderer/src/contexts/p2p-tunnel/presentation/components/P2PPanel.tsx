@@ -34,6 +34,7 @@ import { PanelTitle } from "@renderer/presentation/components/PanelTitle";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import { useSnackbar } from "notistack";
 import { useTranslation } from "react-i18next";
+import { monoFont } from "@renderer/theme";
 import type { P2PGroup } from "@preload/index.d";
 import {
   joinServer,
@@ -448,7 +449,7 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
               <Stack direction="row" alignItems="center" spacing={1}>
                 <Typography
                   variant="h6"
-                  sx={{ fontFamily: "monospace", letterSpacing: 1, flexGrow: 1 }}
+                  sx={{ fontFamily: monoFont, letterSpacing: 1, flexGrow: 1 }}
                 >
                   {formatCode(selectedGroup.inviteCode)}
                 </Typography>
@@ -489,7 +490,7 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
                   <Stack direction="row" alignItems="center" spacing={1}>
                     <Typography
                       variant="h6"
-                      sx={{ fontFamily: "monospace", letterSpacing: 1, flexGrow: 1 }}
+                      sx={{ fontFamily: monoFont, letterSpacing: 1, flexGrow: 1 }}
                     >
                       localhost:{joined.port}
                     </Typography>
@@ -568,7 +569,7 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
               value={codeInput}
               onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
               onKeyDown={(e) => e.key === "Enter" && codeInput.trim() && void handleJoinGroup()}
-              slotProps={{ htmlInput: { maxLength: 20, style: { fontFamily: "monospace" } } }}
+              slotProps={{ htmlInput: { maxLength: 20, style: { fontFamily: monoFont } } }}
               disabled={busy}
             />
             <Button onClick={handleJoinGroup} disabled={busy || !codeInput.trim()}>

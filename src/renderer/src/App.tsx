@@ -3,7 +3,6 @@ import {
   Box,
   CssBaseline,
   ThemeProvider,
-  createTheme,
   AppBar,
   Toolbar,
   Typography,
@@ -58,12 +57,7 @@ import {
 import { useLockMonitor } from "@server-locking/presentation/hooks/useLockMonitor";
 import "./i18n/config";
 import appIcon from "./assets/app-icon.png";
-
-const darkTheme = createTheme({
-  palette: {
-    mode: "dark",
-  },
-});
+import { theme } from "./theme";
 
 // Type for server statistics data
 interface ServerStatistics {
@@ -81,7 +75,7 @@ interface ServerStatistics {
 
 function App(): React.JSX.Element {
   return (
-    <ThemeProvider theme={darkTheme}>
+    <ThemeProvider theme={theme}>
       <SnackbarProvider
         maxSnack={3}
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
@@ -1941,7 +1935,7 @@ function AppContent(): React.JSX.Element {
   };
 
   return (
-    <ThemeProvider theme={darkTheme}>
+    <ThemeProvider theme={theme}>
       <CssBaseline />
       <GlobalStyles
         styles={{

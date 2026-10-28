@@ -28,6 +28,7 @@ import {
   Lock as LockIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
+import { monoFont } from "@renderer/theme";
 import DnsOutlinedIcon from "@mui/icons-material/DnsOutlined";
 import { PanelTitle } from "@renderer/presentation/components/PanelTitle";
 import { ServerStatus } from "@renderer/domain/entities/ServerStatus";
@@ -208,7 +209,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
             sx={{ textTransform: "capitalize" }}
           />
           {isRunning && (
-            <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "monospace" }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontFamily: monoFont }}>
               {uptime}
             </Typography>
           )}
