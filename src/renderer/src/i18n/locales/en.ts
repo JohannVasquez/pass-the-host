@@ -406,7 +406,8 @@ export const en = {
       connect: "Connect",
       connecting: "Connecting…",
       disconnect: "Disconnect",
-      connected: "Connected. In Minecraft, add the server {{address}}",
+      connected: "Connected",
+      serverAddress: "Server address",
       hosting: "Friends in this room can join your server.",
       disconnected: "Lost the connection to the host.",
       turn: {

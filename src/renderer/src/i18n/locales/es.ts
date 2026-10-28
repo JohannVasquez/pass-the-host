@@ -412,7 +412,8 @@ export const es = {
       connect: "Conectarse",
       connecting: "Conectando…",
       disconnect: "Desconectar",
-      connected: "Conectado. En Minecraft agrega el servidor {{address}}",
+      connected: "Conectado",
+      serverAddress: "Dirección del servidor",
       hosting: "Tus amigos de la sala pueden unirse a tu servidor.",
       disconnected: "Se perdió la conexión con el host.",
       turn: {

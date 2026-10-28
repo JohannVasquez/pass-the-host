@@ -411,7 +411,8 @@ export const ptBR: typeof en = {
       connect: "Conectar",
       connecting: "Conectando…",
       disconnect: "Desconectar",
-      connected: "Conectado. No Minecraft, adicione o servidor {{address}}",
+      connected: "Conectado",
+      serverAddress: "Endereço do servidor",
       hosting: "Seus amigos da sala podem entrar no seu servidor.",
       disconnected: "A conexão com o host foi perdida.",
       turn: {

@@ -479,24 +479,30 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
               </Alert>
             ) : joined ? (
               <Box>
-                <Alert
-                  severity="success"
-                  sx={{ mb: 1 }}
-                  action={
+                <Alert severity="success" sx={{ mb: 1 }}>
+                  {t("p2p.connected")}
+                </Alert>
+                <Box sx={{ bgcolor: "action.hover", p: 1, pl: 1.5, borderRadius: 1, mb: 1 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    {t("p2p.serverAddress")}
+                  </Typography>
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Typography
+                      variant="h6"
+                      sx={{ fontFamily: "monospace", letterSpacing: 1, flexGrow: 1 }}
+                    >
+                      localhost:{joined.port}
+                    </Typography>
                     <Tooltip title={t("p2p.copyAddress")}>
                       <IconButton
-                        color="inherit"
-                        size="small"
                         onClick={() => handleCopyAddress(joined.port)}
                         aria-label={t("p2p.copyAddress")}
                       >
                         <ContentCopyIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                  }
-                >
-                  {t("p2p.connected", { address: `localhost:${joined.port}` })}
-                </Alert>
+                  </Stack>
+                </Box>
                 <Button fullWidth variant="outlined" color="warning" onClick={handleDisconnect}>
                   {t("p2p.disconnect")}
                 </Button>

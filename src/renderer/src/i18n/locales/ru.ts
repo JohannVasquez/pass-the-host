@@ -409,7 +409,8 @@ export const ru: typeof en = {
       connect: "Подключиться",
       connecting: "Подключение…",
       disconnect: "Отключиться",
-      connected: "Подключено. В Minecraft добавьте сервер {{address}}",
+      connected: "Подключено",
+      serverAddress: "Адрес сервера",
       hosting: "Друзья из этой комнаты могут зайти на ваш сервер.",
       disconnected: "Соединение с хостом потеряно.",
       turn: {

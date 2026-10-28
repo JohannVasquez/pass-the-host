@@ -413,7 +413,8 @@ export const fr: typeof en = {
       connect: "Se connecter",
       connecting: "Connexion…",
       disconnect: "Déconnecter",
-      connected: "Connecté. Dans Minecraft, ajoute le serveur {{address}}",
+      connected: "Connecté",
+      serverAddress: "Adresse du serveur",
       hosting: "Les amis de ce salon peuvent rejoindre ton serveur.",
       disconnected: "Connexion à l'hôte perdue.",
       turn: {

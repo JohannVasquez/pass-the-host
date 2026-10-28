@@ -412,7 +412,8 @@ export const de: typeof en = {
       connect: "Verbinden",
       connecting: "Verbinde…",
       disconnect: "Trennen",
-      connected: "Verbunden. Füge in Minecraft den Server {{address}} hinzu",
+      connected: "Verbunden",
+      serverAddress: "Serveradresse",
       hosting: "Freunde in diesem Raum können deinem Server beitreten.",
       disconnected: "Verbindung zum Host verloren.",
       turn: {
