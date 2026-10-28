@@ -41,7 +41,7 @@ export class S3ServerRepository implements IS3ServerRepository {
 
       const servers = await Promise.all(
         [...ownServerIds, ...sharedServerIds].map(async (serverName) => {
-          const { version, type } = await this.detectServerVersionAndType(
+          const { version, type, name } = await this.detectServerVersionAndType(
             rclonePath,
             config,
             serverName,
@@ -49,7 +49,7 @@ export class S3ServerRepository implements IS3ServerRepository {
 
           return {
             id: serverName,
-            name: serverName,
+            name: name ?? serverName,
             version: version,
             type: type,
           };
@@ -324,7 +324,7 @@ export class S3ServerRepository implements IS3ServerRepository {
     rclonePath: string,
     config: S3Config,
     serverId: string,
-  ): Promise<{ version: string; type: string }> {
+  ): Promise<{ version: string; type: string; name?: string }> {
     const serverPath = this.rcloneRepository.getServerRemotePath(config, serverId);
     const remoteFile = (relativePath: string): string =>
       this.rcloneRepository.getServerRemoteFilePath(config, serverId, relativePath);
@@ -336,7 +336,7 @@ export class S3ServerRepository implements IS3ServerRepository {
         const { stdout: infoStdout } = await execAsync(infoCommand);
         const serverInfo = JSON.parse(infoStdout.trim());
         if (serverInfo.version && serverInfo.type) {
-          return { version: serverInfo.version, type: serverInfo.type };
+          return { version: serverInfo.version, type: serverInfo.type, name: serverInfo.name };
         }
       } catch {
         // server_info.json doesn't exist or couldn't be parsed, continue with detection

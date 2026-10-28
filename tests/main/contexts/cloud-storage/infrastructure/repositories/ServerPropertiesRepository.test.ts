@@ -5,9 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ServerPropertiesRepository } from "@main/contexts/cloud-storage/infrastructure/repositories/ServerPropertiesRepository";
 
 let userDataPath = "";
+const dialog = vi.hoisted(() => ({ showOpenDialog: vi.fn(), showSaveDialog: vi.fn() }));
 
 vi.mock("electron", () => ({
   app: { getPath: vi.fn(() => userDataPath) },
+  dialog,
+  shell: { showItemInFolder: vi.fn() },
+  BrowserWindow: { getFocusedWindow: () => ({}), getAllWindows: () => [] },
 }));
 
 describe("ServerPropertiesRepository", () => {
@@ -78,5 +82,83 @@ describe("ServerPropertiesRepository whitelist", () => {
     await expect(new ServerPropertiesRepository().lookupPlayer("bad name!", false)).resolves.toBe(
       null,
     );
+  });
+});
+
+describe("ServerPropertiesRepository world", () => {
+  let serverPath = "";
+  const makeWorld = (name: string, marker = name): void => {
+    fs.mkdirSync(path.join(serverPath, name, "region"), { recursive: true });
+    fs.writeFileSync(path.join(serverPath, name, "level.dat"), marker);
+  };
+  const pendingUpload = (): boolean =>
+    JSON.parse(fs.readFileSync(path.join(serverPath, ".cloud-sync-state.json"), "utf-8"))
+      .localChangesPendingUpload;
+
+  beforeEach(() => {
+    userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), "ptp-world-"));
+    serverPath = path.join(userDataPath, "servers", "s1");
+    fs.mkdirSync(path.join(serverPath, "mods"), { recursive: true });
+    fs.writeFileSync(path.join(serverPath, "server.properties"), "level-name=world\n");
+  });
+
+  it("resets every dimension folder and never leaves the server folder", async () => {
+    makeWorld("world");
+    makeWorld("world_nether");
+    makeWorld("old");
+    fs.writeFileSync(path.join(userDataPath, "servers", "level.dat"), "outside");
+
+    await new ServerPropertiesRepository().resetWorld("s1", ["world", "old", "", ".", ".."]);
+
+    expect(fs.readdirSync(serverPath).sort()).toEqual([
+      ".cloud-sync-state.json",
+      "mods",
+      "server.properties",
+    ]);
+    expect(fs.existsSync(path.join(userDataPath, "servers", "level.dat"))).toBe(true);
+    expect(pendingUpload()).toBe(true);
+  });
+
+  it("round-trips a world through export and import", async () => {
+    makeWorld("world", "original");
+    makeWorld("world_nether", "nether");
+    const zipPath = path.join(userDataPath, "export.zip");
+    dialog.showSaveDialog.mockResolvedValue({ canceled: false, filePath: zipPath });
+    const repo = new ServerPropertiesRepository();
+
+    await expect(repo.exportWorld("s1")).resolves.toBe("done");
+
+    await repo.resetWorld("s1", ["world"]);
+    dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [zipPath] });
+    await expect(repo.importWorld("s1")).resolves.toBe("done");
+    // The overworld, not Paper's world_nether that sits next to it in the zip
+    expect(fs.readFileSync(path.join(serverPath, "world", "level.dat"), "utf-8")).toBe("original");
+  });
+
+  it("imports a singleplayer folder through its level.dat, without its session.lock", async () => {
+    const save = path.join(userDataPath, "saves", "Mi Mundo");
+    fs.mkdirSync(save, { recursive: true });
+    fs.writeFileSync(path.join(save, "level.dat"), "sp");
+    fs.writeFileSync(path.join(save, "session.lock"), "");
+    makeWorld("world", "old");
+    dialog.showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: [path.join(save, "level.dat")],
+    });
+
+    await expect(new ServerPropertiesRepository().importWorld("s1")).resolves.toBe("done");
+    expect(fs.readFileSync(path.join(serverPath, "world", "level.dat"), "utf-8")).toBe("sp");
+    expect(fs.existsSync(path.join(serverPath, "world", "session.lock"))).toBe(false);
+  });
+
+  it("reports a missing world and files that aren't one", async () => {
+    const repo = new ServerPropertiesRepository();
+    await expect(repo.exportWorld("s1")).resolves.toBe("no-world");
+
+    dialog.showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: [path.join(serverPath, "server.properties")],
+    });
+    await expect(repo.importWorld("s1")).resolves.toBe("invalid");
   });
 });

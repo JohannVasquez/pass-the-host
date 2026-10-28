@@ -56,6 +56,11 @@ export class StopManagedServerUseCase {
       );
     }
 
+    await this.finalize(request);
+  }
+
+  /** Releases the locks, closes the session and uploads the world; also used after a crash. */
+  async finalize(request: StopManagedServerRequest): Promise<void> {
     try {
       if (request.isCloudSyncEnabled) {
         this.presenter.startTransfer(
@@ -84,7 +89,10 @@ export class StopManagedServerUseCase {
 
     this.presenter.updateTransfer("Removing remote lock...", "Preparing cloud sync...");
     this.presenter.log("Deleting lock from cloud storage...", "info");
-    const deleteLockSuccess = await this.dependencies.deleteLock(request.s3Config, request.serverId);
+    const deleteLockSuccess = await this.dependencies.deleteLock(
+      request.s3Config,
+      request.serverId,
+    );
 
     if (deleteLockSuccess) {
       this.presenter.log("Lock deleted from cloud storage", "info");

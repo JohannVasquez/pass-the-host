@@ -14,6 +14,7 @@ import {
 } from "@main/contexts/server-lifecycle/domain/entities";
 
 interface StoredServerInfo {
+  name?: string;
   version?: string;
   type?: "vanilla" | "forge" | "neoforge" | "unknown";
 }
@@ -72,7 +73,12 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
       onProgress?.("server.properties created");
 
       // Create server_info.json with version and type information
-      this.createServerInfo(serverPath, config.version, config.serverType);
+      this.createServerInfo(
+        serverPath,
+        config.displayName ?? config.serverName,
+        config.version,
+        config.serverType,
+      );
       onProgress?.("Server info saved");
 
       onProgress?.("Server created successfully!");
@@ -145,7 +151,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
 
           return {
             id: serverId,
-            name: serverId,
+            name: storedInfo.name || serverId,
             version: storedInfo.version || "unknown",
             type: storedInfo.type || "unknown",
           };
@@ -304,8 +310,12 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
 
       let javaVersion: number;
 
+      // Minecraft 26.1 and later (year-based versions) -> Java 25
+      if (major >= 26) {
+        javaVersion = 25;
+      }
       // Minecraft 1.19 and later -> Java 21
-      if (major > 1 || (major === 1 && minor >= 19)) {
+      else if (major > 1 || (major === 1 && minor >= 19)) {
         javaVersion = 21;
       }
       // Minecraft 1.17 - 1.18.x -> Java 17
@@ -381,9 +391,13 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
   private async getNeoForgeVersion(minecraftVersion: string): Promise<string | null> {
     const metadataUrl =
       "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml";
-    // NeoForge versions look like "<mcMinor>.<mcPatch>.<build>" (e.g. Minecraft 1.21.1 -> 21.1.x)
+    // NeoForge versions look like "<mcMinor>.<mcPatch>.<build>" (e.g. Minecraft 1.21.1 -> 21.1.x),
+    // and since Minecraft 26.1 they keep the full version (e.g. Minecraft 26.1 -> 26.1.0.x)
     const versionParts = minecraftVersion.split(".");
-    const versionPrefix = `${versionParts[1] || "0"}.${versionParts[2] || "0"}`;
+    const versionPrefix =
+      versionParts[0] === "1"
+        ? `${versionParts[1] || "0"}.${versionParts[2] || "0"}`
+        : `${versionParts[0]}.${versionParts[1] || "0"}.${versionParts[2] || "0"}`;
 
     return new Promise((resolve, reject) => {
       https
@@ -554,11 +568,13 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
 
   private createServerInfo(
     serverPath: string,
+    name: string,
     version: string,
     serverType: "vanilla" | "forge" | "neoforge",
   ): void {
     const serverInfoPath = path.join(serverPath, "server_info.json");
     const serverInfo = {
+      name,
       version: version,
       type: serverType,
       createdAt: new Date().toISOString(),

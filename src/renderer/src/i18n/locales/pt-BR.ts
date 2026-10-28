@@ -38,6 +38,12 @@ export const ptBR: typeof en = {
       driveError: "Não foi possível conectar ao Google. Tente novamente.",
     },
     serverControl: {
+      checkingCloudTitle: "Verificando a cópia na nuvem",
+      checkingCloud: "Confirmando que ninguém mais está usando este servidor e que você tem os arquivos mais recentes...",
+      you: "você",
+      since: "desde {{time}}",
+      moreActions: "Mais ações",
+      noServers: "Nenhum servidor ainda",
       title: "Controle do servidor",
       status: "Status",
       selectServer: "Selecionar servidor",
@@ -120,7 +126,14 @@ export const ptBR: typeof en = {
       installed: "Rclone instalado com sucesso",
       failed: "Falha ao instalar o rclone",
     },
+    configuration: {
+      title: "Configuração",
+      summary: "Nuvem · Rede · RAM",
+      cloudSyncOff: "Sincronização desativada",
+      stopToEdit: "Pare o servidor para editar a configuração.",
+    },
     common: {
+      close: "Fechar",
       preparing: "Preparando...",
       doNotClose: "Aguarde, não feche o aplicativo",
     },
@@ -192,10 +205,9 @@ export const ptBR: typeof en = {
     createServer: {
       title: "Criar novo servidor",
       serverName: "Nome do servidor",
-      nameHelp: "Apenas letras, números, hífens e sublinhados (mín. 3 caracteres)",
+      nameHelp: "Mínimo de 3 caracteres",
       nameRequired: "O nome do servidor é obrigatório",
       nameTooShort: "O nome do servidor deve ter pelo menos 3 caracteres",
-      invalidName: "Nome inválido. Use apenas letras, números, hífens e sublinhados",
       serverType: "Tipo de servidor",
       vanilla: "Vanilla",
       forge: "Forge",
@@ -224,6 +236,23 @@ export const ptBR: typeof en = {
       restartHint: "O servidor está em execução. As alterações valem após reiniciá-lo.",
       noFile: "Este servidor ainda não tem server.properties. Inicie-o uma vez para gerá-lo.",
       lockedHint: "Configurado na seção Rede",
+      world: {
+        import: "Importar mundo",
+        export: "Exportar mundo",
+        reset: "Regenerar mundo",
+        continue: "Continuar",
+        confirm_import:
+          "Escolha um .zip ou o arquivo level.dat de uma pasta de mundo (por exemplo, uma de .minecraft/saves). Ele vai substituir o mundo atual e não dá para desfazer: exporte-o antes se quiser mantê-lo.",
+        confirm_reset:
+          "O mundo atual será apagado e o servidor vai gerar um novo na próxima vez que você iniciá-lo. Não dá para desfazer: exporte-o antes se quiser mantê-lo.",
+        exported: "Mundo exportado. A pasta com o .zip foi aberta.",
+        "no-world": "Ainda não há mundo. Inicie o servidor uma vez para gerá-lo.",
+        invalid: "Nenhum mundo do Minecraft (level.dat) foi encontrado no que você escolheu.",
+        regenerateOnSave: "Regenerar o mundo ao salvar (apaga o mundo atual)",
+        genHint:
+          "A semente, o tipo de mundo e as estruturas só se aplicam quando um mundo novo é gerado.",
+        stopFirst: "Pare o servidor para importar, exportar ou regenerar o mundo.",
+      },
       whitelist: {
         title: "Jogadores na lista de permissões ({{count}})",
         placeholder: "Nome do jogador",
@@ -323,6 +352,7 @@ export const ptBR: typeof en = {
       close: "Fechar",
     },
     p2p: {
+      roomActions: "Ações da sala",
       copyAddress: "Copiar endereço para o Minecraft",
       addressCopied: "Endereço copiado: cole no Minecraft → Multijogador",
       autoConnect: "Conectar automaticamente quando alguém hospedar",
@@ -395,7 +425,8 @@ export const ptBR: typeof en = {
       connect: "Conectar",
       connecting: "Conectando…",
       disconnect: "Desconectar",
-      connected: "Conectado. No Minecraft, adicione o servidor {{address}}",
+      connected: "Conectado",
+      serverAddress: "Endereço do servidor",
       hosting: "Seus amigos da sala podem entrar no seu servidor.",
       disconnected: "A conexão com o host foi perdida.",
       turn: {

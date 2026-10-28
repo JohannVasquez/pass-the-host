@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Box, Typography, Paper, Stack, Slider } from "@mui/material";
+import { Box, Typography, Stack, Slider } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { RamIcon } from "@renderer/presentation/components/RamIcon";
-import { PanelTitle } from "@renderer/presentation/components/PanelTitle";
+import { monoFont } from "@renderer/theme";
 import { RamConfig } from "@renderer/domain/entities/ServerConfig";
 
 interface RamConfigurationProps {
@@ -55,44 +54,45 @@ export const RamConfiguration: React.FC<RamConfigurationProps> = ({
   };
 
   return (
-    <Paper elevation={2} sx={{ p: 2 }}>
-      <PanelTitle icon={<RamIcon />} gutterBottom>
-        {t("ram.title")}
-      </PanelTitle>
-      <Stack spacing={3}>
-        <Box>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            {t("ram.min")}: {ramConfig.min} GB
+    <Stack spacing={3}>
+      <Box>
+        <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
+          <Typography variant="body2">{t("ram.min")}</Typography>
+          <Typography variant="body2" sx={{ fontFamily: monoFont, color: "primary.main" }}>
+            {ramConfig.min} GB
           </Typography>
-          <Slider
-            value={ramConfig.min}
-            onChange={handleMinChange}
-            min={1}
-            max={ramConfig.max}
-            step={1}
-            marks
-            valueLabelDisplay="auto"
-            valueLabelFormat={(value) => `${value} GB`}
-            disabled={disabled}
-          />
-        </Box>
-        <Box>
-          <Typography variant="body2" color="text.secondary" gutterBottom>
-            {t("ram.max")}: {ramConfig.max} GB
+        </Stack>
+        <Slider
+          value={ramConfig.min}
+          onChange={handleMinChange}
+          min={1}
+          max={ramConfig.max}
+          step={1}
+          marks
+          valueLabelDisplay="auto"
+          valueLabelFormat={(value) => `${value} GB`}
+          disabled={disabled}
+        />
+      </Box>
+      <Box>
+        <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
+          <Typography variant="body2">{t("ram.max")}</Typography>
+          <Typography variant="body2" sx={{ fontFamily: monoFont, color: "primary.main" }}>
+            {ramConfig.max} GB
           </Typography>
-          <Slider
-            value={ramConfig.max}
-            onChange={handleMaxChange}
-            min={ramConfig.min}
-            max={maxSystemMemory}
-            step={1}
-            marks
-            valueLabelDisplay="auto"
-            valueLabelFormat={(value) => `${value} GB`}
-            disabled={disabled}
-          />
-        </Box>
-      </Stack>
-    </Paper>
+        </Stack>
+        <Slider
+          value={ramConfig.max}
+          onChange={handleMaxChange}
+          min={ramConfig.min}
+          max={maxSystemMemory}
+          step={1}
+          marks
+          valueLabelDisplay="auto"
+          valueLabelFormat={(value) => `${value} GB`}
+          disabled={disabled}
+        />
+      </Box>
+    </Stack>
   );
 };

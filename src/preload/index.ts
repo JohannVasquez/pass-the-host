@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 import type { TokenRequest } from "ably";
 
+type WorldActionResult = "done" | "canceled" | "no-world" | "invalid";
+
 // S3 provider types
 type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other" | "GoogleDrive";
 
@@ -168,6 +170,12 @@ const serverAPI = {
     ipcRenderer.invoke("server:read-properties", serverId),
   writeProperties: (serverId: string, properties: Record<string, string>): Promise<boolean> =>
     ipcRenderer.invoke("server:write-properties", serverId, properties),
+  exportWorld: (serverId: string): Promise<WorldActionResult> =>
+    ipcRenderer.invoke("server:export-world", serverId),
+  importWorld: (serverId: string): Promise<WorldActionResult> =>
+    ipcRenderer.invoke("server:import-world", serverId),
+  resetWorld: (serverId: string, levelNames: string[]): Promise<WorldActionResult> =>
+    ipcRenderer.invoke("server:reset-world", serverId, levelNames),
   readWhitelist: (serverId: string): Promise<Array<{ uuid: string; name: string }>> =>
     ipcRenderer.invoke("server:read-whitelist", serverId),
   writeWhitelist: (
@@ -225,6 +233,7 @@ const serverAPI = {
     version: string,
     serverType: "vanilla" | "forge" | "neoforge",
     overwrite?: boolean,
+    displayName?: string,
   ): Promise<{
     success: boolean;
     error?: string;
@@ -236,6 +245,7 @@ const serverAPI = {
       version,
       serverType,
       overwrite,
+      displayName,
     ),
   onCreateProgress: (callback: (message: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, message: string): void =>

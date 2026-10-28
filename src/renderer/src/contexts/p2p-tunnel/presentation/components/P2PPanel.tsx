@@ -10,9 +10,9 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  FormControl,
   IconButton,
-  InputLabel,
+  ListItemIcon,
+  Menu,
   MenuItem,
   Paper,
   Select,
@@ -28,12 +28,14 @@ import AutorenewIcon from "@mui/icons-material/Autorenew";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import LogoutIcon from "@mui/icons-material/Logout";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import { PanelTitle } from "@renderer/presentation/components/PanelTitle";
 import PeopleOutlineIcon from "@mui/icons-material/PeopleOutline";
 import { useSnackbar } from "notistack";
 import { useTranslation } from "react-i18next";
+import { monoFont, surface } from "@renderer/theme";
 import type { P2PGroup } from "@preload/index.d";
 import {
   joinServer,
@@ -93,6 +95,40 @@ const errorCode = (error: unknown): string =>
 /** ABCDEFGHJKLM → ABCD-EFGH-JKLM */
 const formatCode = (code: string): string => code.match(/.{1,4}/g)?.join("-") ?? code;
 
+const CopyField: React.FC<{
+  label: string;
+  value: string;
+  copyLabel: string;
+  onCopy: () => void;
+}> = ({ label, value, copyLabel, onCopy }) => (
+  <Stack
+    direction="row"
+    alignItems="center"
+    spacing={1.5}
+    sx={{
+      minHeight: 44,
+      pl: 1.5,
+      pr: 0.75,
+      borderRadius: 1,
+      bgcolor: surface.base,
+      border: 1,
+      borderColor: surface.border,
+    }}
+  >
+    <Typography variant="caption" color="text.secondary">
+      {label}
+    </Typography>
+    <Typography noWrap sx={{ fontFamily: monoFont, color: "primary.main", flexGrow: 1 }}>
+      {value}
+    </Typography>
+    <Tooltip title={copyLabel}>
+      <IconButton size="small" onClick={onCopy} aria-label={copyLabel}>
+        <ContentCopyIcon fontSize="small" />
+      </IconButton>
+    </Tooltip>
+  </Stack>
+);
+
 export const P2PPanel: React.FC<P2PPanelProps> = ({
   serverRunning,
   serverActive,
@@ -114,6 +150,7 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
   const [confirm, setConfirm] = React.useState<"delete" | "leave" | null>(null);
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [infoOpen, setInfoOpen] = React.useState(false);
+  const [menuAnchor, setMenuAnchor] = React.useState<HTMLElement | null>(null);
   // null until presence works (e.g. the Ably key may lack the presence capability)
   const [online, setOnline] = React.useState<OnlineMember[] | null>(null);
   // Bumped whenever the Ably connection is replaced, so channel users re-attach
@@ -216,6 +253,16 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
       setOnline(null);
     };
   }, [groupId, realtimeEpoch]);
+
+  // Someone joined since the room list was fetched: refetch so the member count catches up
+  const refreshedForCount = React.useRef(0);
+  React.useEffect(() => {
+    const count = online?.length ?? 0;
+    if (selectedGroup && count > selectedGroup.memberCount && count > refreshedForCount.current) {
+      refreshedForCount.current = count;
+      refreshGroups().catch(showError);
+    }
+  }, [online, selectedGroup, refreshGroups, showError]);
 
   // Runs after the effect above, so it also enters presence for a new network
   React.useEffect(() => {
@@ -373,7 +420,7 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
   }, [serverActive]);
 
   return (
-    <Paper elevation={2} sx={{ p: 2 }}>
+    <Paper sx={{ p: 2, bgcolor: surface.panel }}>
       <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 1 }}>
         <PanelTitle icon={<GroupsOutlinedIcon />}>{t("p2p.title")}</PanelTitle>
         <Tooltip title={t("p2p.info.button")}>
@@ -391,21 +438,22 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
         {selectedGroup ? (
           <>
             <Stack direction="row" spacing={1} alignItems="center">
-              <FormControl fullWidth size="small">
-                <InputLabel>{t("p2p.group")}</InputLabel>
-                <Select
-                  value={groupId}
-                  label={t("p2p.group")}
-                  onChange={(e) => setGroupId(e.target.value)}
-                  disabled={busy || hosting || joined !== null}
-                >
-                  {groups.map((group) => (
-                    <MenuItem key={group.id} value={group.id}>
-                      {group.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <GroupsOutlinedIcon sx={{ color: "primary.main" }} />
+              <Select
+                variant="standard"
+                disableUnderline
+                value={groupId}
+                onChange={(e) => setGroupId(e.target.value)}
+                disabled={busy || hosting || joined !== null}
+                inputProps={{ "aria-label": t("p2p.group") }}
+                sx={{ fontWeight: 600, fontSize: 15, minWidth: 0, maxWidth: 160 }}
+              >
+                {groups.map((group) => (
+                  <MenuItem key={group.id} value={group.id}>
+                    {group.name}
+                  </MenuItem>
+                ))}
+              </Select>
               <Tooltip title={t("p2p.viewMembers")}>
                 <Button
                   size="small"
@@ -416,62 +464,73 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
                   }}
                   startIcon={<PeopleOutlineIcon />}
                   aria-label={t("p2p.viewMembers")}
-                  sx={{ minWidth: 0, flexShrink: 0 }}
+                  sx={{
+                    minWidth: 0,
+                    flexShrink: 0,
+                    px: 1,
+                    bgcolor: "action.hover",
+                    fontFamily: monoFont,
+                    fontSize: 12,
+                  }}
                 >
                   {online
                     ? `${online.length}/${selectedGroup.memberCount}`
                     : selectedGroup.memberCount}
                 </Button>
               </Tooltip>
-              <Tooltip title={t(selectedGroup.isOwner ? "p2p.deleteGroup" : "p2p.leaveGroup")}>
-                <span>
-                  <IconButton
-                    color="error"
-                    onClick={() => setConfirm(selectedGroup.isOwner ? "delete" : "leave")}
-                    disabled={busy || hosting || joined !== null}
-                    aria-label={t(selectedGroup.isOwner ? "p2p.deleteGroup" : "p2p.leaveGroup")}
+              <Box sx={{ flexGrow: 1 }} />
+              <IconButton
+                size="small"
+                onClick={(e) => setMenuAnchor(e.currentTarget)}
+                aria-label={t("p2p.roomActions")}
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+              <Menu
+                anchorEl={menuAnchor}
+                open={menuAnchor !== null}
+                onClose={() => setMenuAnchor(null)}
+              >
+                {selectedGroup.isOwner && (
+                  <MenuItem
+                    disabled={busy}
+                    onClick={() => {
+                      setMenuAnchor(null);
+                      void handleRotateCode();
+                    }}
                   >
+                    <ListItemIcon>
+                      <AutorenewIcon fontSize="small" />
+                    </ListItemIcon>
+                    {t("p2p.rotateCode")}
+                  </MenuItem>
+                )}
+                <MenuItem
+                  disabled={busy || hosting || joined !== null}
+                  onClick={() => {
+                    setMenuAnchor(null);
+                    setConfirm(selectedGroup.isOwner ? "delete" : "leave");
+                  }}
+                  sx={{ color: "error.main" }}
+                >
+                  <ListItemIcon sx={{ color: "inherit" }}>
                     {selectedGroup.isOwner ? (
                       <DeleteOutlineIcon fontSize="small" />
                     ) : (
                       <LogoutIcon fontSize="small" />
                     )}
-                  </IconButton>
-                </span>
-              </Tooltip>
+                  </ListItemIcon>
+                  {t(selectedGroup.isOwner ? "p2p.deleteGroup" : "p2p.leaveGroup")}
+                </MenuItem>
+              </Menu>
             </Stack>
 
-            <Box sx={{ bgcolor: "action.hover", p: 1, pl: 1.5, borderRadius: 1 }}>
-              <Typography variant="caption" color="text.secondary">
-                {t("p2p.inviteCode")}
-              </Typography>
-              <Stack direction="row" alignItems="center" spacing={1}>
-                <Typography
-                  variant="h6"
-                  sx={{ fontFamily: "monospace", letterSpacing: 1, flexGrow: 1 }}
-                >
-                  {formatCode(selectedGroup.inviteCode)}
-                </Typography>
-                <Tooltip title={t("p2p.copyInvite")}>
-                  <IconButton onClick={handleCopyCode} aria-label={t("p2p.copyInvite")}>
-                    <ContentCopyIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-                {selectedGroup.isOwner && (
-                  <Tooltip title={t("p2p.rotateCode")}>
-                    <span>
-                      <IconButton
-                        onClick={handleRotateCode}
-                        disabled={busy}
-                        aria-label={t("p2p.rotateCode")}
-                      >
-                        <AutorenewIcon fontSize="small" />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                )}
-              </Stack>
-            </Box>
+            <CopyField
+              label={t("p2p.inviteCode")}
+              value={formatCode(selectedGroup.inviteCode)}
+              copyLabel={t("p2p.copyInvite")}
+              onCopy={handleCopyCode}
+            />
 
             {serverRunning ? (
               <Alert severity={hosting ? "success" : "info"}>
@@ -479,24 +538,17 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
               </Alert>
             ) : joined ? (
               <Box>
-                <Alert
-                  severity="success"
-                  sx={{ mb: 1 }}
-                  action={
-                    <Tooltip title={t("p2p.copyAddress")}>
-                      <IconButton
-                        color="inherit"
-                        size="small"
-                        onClick={() => handleCopyAddress(joined.port)}
-                        aria-label={t("p2p.copyAddress")}
-                      >
-                        <ContentCopyIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  }
-                >
-                  {t("p2p.connected", { address: `localhost:${joined.port}` })}
+                <Alert severity="success" sx={{ mb: 1, py: 0.5 }}>
+                  {t("p2p.connected")}
                 </Alert>
+                <Box sx={{ mb: 1 }}>
+                  <CopyField
+                    label={t("p2p.serverAddress")}
+                    value={`localhost:${joined.port}`}
+                    copyLabel={t("p2p.copyAddress")}
+                    onCopy={() => handleCopyAddress(joined.port)}
+                  />
+                </Box>
                 <Button fullWidth variant="outlined" color="warning" onClick={handleDisconnect}>
                   {t("p2p.disconnect")}
                 </Button>
@@ -562,7 +614,7 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
               value={codeInput}
               onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
               onKeyDown={(e) => e.key === "Enter" && codeInput.trim() && void handleJoinGroup()}
-              slotProps={{ htmlInput: { maxLength: 20, style: { fontFamily: "monospace" } } }}
+              slotProps={{ htmlInput: { maxLength: 20, style: { fontFamily: monoFont } } }}
               disabled={busy}
             />
             <Button onClick={handleJoinGroup} disabled={busy || !codeInput.trim()}>

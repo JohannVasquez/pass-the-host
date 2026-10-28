@@ -6,11 +6,12 @@ import {
   IconButton,
   Box,
   Typography,
-  Divider,
+  Stack,
 } from "@mui/material";
-import { Close as CloseIcon } from "@mui/icons-material";
+import { Close as CloseIcon, BarChart as ChartIcon } from "@mui/icons-material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { useTranslation } from "react-i18next";
+import { monoFont, surface } from "@renderer/theme";
 
 interface SessionEntry {
   username: string;
@@ -87,6 +88,7 @@ export const ServerStatisticsModal: React.FC<ServerStatisticsModalProps> = ({
       flex: 1.5,
       minWidth: 200,
       valueFormatter: (value) => formatDate(value),
+      cellClassName: "mono",
     },
     {
       field: "endTime",
@@ -94,6 +96,7 @@ export const ServerStatisticsModal: React.FC<ServerStatisticsModalProps> = ({
       flex: 1.5,
       minWidth: 200,
       valueFormatter: (value) => (value ? formatDate(value) : t("statistics.inProgress")),
+      cellClassName: (params) => (params.value ? "mono" : "in-progress"),
     },
     {
       field: "duration",
@@ -101,6 +104,7 @@ export const ServerStatisticsModal: React.FC<ServerStatisticsModalProps> = ({
       flex: 1.5,
       minWidth: 200,
       valueFormatter: (value) => formatDuration(value),
+      cellClassName: "mono",
     },
   ];
 
@@ -116,71 +120,75 @@ export const ServerStatisticsModal: React.FC<ServerStatisticsModalProps> = ({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>
-        <Box display="flex" alignItems="center" justifyContent="space-between">
-          <Typography variant="h6">
-            {t("statistics.title")} - {serverName}
-          </Typography>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
+      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5, fontSize: 16, fontWeight: 600 }}>
+        <ChartIcon sx={{ color: "#b4bac6" }} />
+        <Box component="span" sx={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {t("statistics.title")}
+          <Box component="span" sx={{ color: "text.secondary", fontWeight: 400, ml: 1 }}>
+            - {serverName}
+          </Box>
         </Box>
+        <IconButton onClick={onClose} size="small" sx={{ mr: -1, color: "text.secondary" }}>
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
       <DialogContent>
         {statistics ? (
-          <>
-            {/* Summary Section */}
-            <Box sx={{ mb: 3, p: 2, bgcolor: "action.hover", borderRadius: 1 }}>
-              <Typography variant="h6" gutterBottom>
-                {t("statistics.summary")}
-              </Typography>
-              <Box sx={{ display: "flex", gap: 4, mt: 2 }}>
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    {t("statistics.totalPlaytime")}
-                  </Typography>
-                  <Typography variant="h5" fontFamily="monospace">
-                    {formatDuration(statistics.totalPlaytime)}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    {t("statistics.totalSessions")}
-                  </Typography>
-                  <Typography variant="h5">{statistics.sessionCount}</Typography>
-                </Box>
+          <Stack spacing={2} sx={{ pt: 0.5 }}>
+            <Box sx={{ display: "flex", gap: 5 }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  {t("statistics.totalPlaytime")}
+                </Typography>
+                <Typography sx={{ fontFamily: monoFont, fontSize: 16, mt: 0.5 }}>
+                  {formatDuration(statistics.totalPlaytime)}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  {t("statistics.totalSessions")}
+                </Typography>
+                <Typography sx={{ fontFamily: monoFont, fontSize: 16, mt: 0.5 }}>
+                  {statistics.sessionCount}
+                </Typography>
               </Box>
             </Box>
 
-            <Divider sx={{ mb: 2 }} />
-
-            {/* Sessions Table */}
-            <Typography variant="h6" gutterBottom>
-              {t("statistics.sessionHistory")}
-            </Typography>
-            <Box sx={{ height: 400, width: "100%" }}>
-              <DataGrid
-                rows={rows}
-                columns={columns}
-                initialState={{
-                  pagination: {
-                    paginationModel: { pageSize: 5, page: 0 },
-                  },
-                  // Newest first; startTime is an ISO string, so it sorts chronologically
-                  sorting: {
-                    sortModel: [{ field: "startTime", sort: "desc" }],
-                  },
-                }}
-                pageSizeOptions={[5, 10, 25]}
-                disableRowSelectionOnClick
-                sx={{
-                  "& .MuiDataGrid-cell": {
-                    fontSize: "0.875rem",
-                  },
-                }}
-              />
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                {t("statistics.sessionHistory")}
+              </Typography>
+              <Box sx={{ height: 400, width: "100%" }}>
+                <DataGrid
+                  rows={rows}
+                  columns={columns}
+                  initialState={{
+                    pagination: {
+                      paginationModel: { pageSize: 5, page: 0 },
+                    },
+                    // Newest first; startTime is an ISO string, so it sorts chronologically
+                    sorting: {
+                      sortModel: [{ field: "startTime", sort: "desc" }],
+                    },
+                  }}
+                  pageSizeOptions={[5, 10, 25]}
+                  disableRowSelectionOnClick
+                  sx={{
+                    border: 1,
+                    borderColor: surface.border,
+                    borderRadius: 1,
+                    bgcolor: "transparent",
+                    "& .MuiDataGrid-columnHeaders": { bgcolor: surface.panel },
+                    "& .MuiDataGrid-columnHeader": { bgcolor: surface.panel, color: "text.secondary" },
+                    "& .MuiDataGrid-cell": { fontSize: "0.8125rem", borderColor: surface.subtleBorder },
+                    "& .MuiDataGrid-columnSeparator": { display: "none" },
+                    "& .mono": { fontFamily: monoFont, fontSize: 12 },
+                    "& .in-progress": { color: "success.main" },
+                  }}
+                />
+              </Box>
             </Box>
-          </>
+          </Stack>
         ) : (
           <Typography variant="body1" color="text.secondary">
             {t("statistics.noData")}

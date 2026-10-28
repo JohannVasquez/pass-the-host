@@ -3,16 +3,29 @@ import {
   Box,
   CssBaseline,
   ThemeProvider,
-  createTheme,
   AppBar,
   Toolbar,
   Typography,
   GlobalStyles,
   IconButton,
   Tooltip,
+  Stack,
+  Button,
+  Drawer,
+  Tabs,
+  Tab,
+  Alert,
 } from "@mui/material";
-import { BarChart as BarChartIcon, Settings as SettingsIcon } from "@mui/icons-material";
-import { SnackbarProvider, useSnackbar } from "notistack";
+import {
+  BarChart as BarChartIcon,
+  Settings as SettingsIcon,
+  Tune as TuneIcon,
+  ChevronRight as ChevronRightIcon,
+  Close as CloseIcon,
+  LockOutlined as LockIcon,
+} from "@mui/icons-material";
+import { SnackbarProvider, useSnackbar, MaterialDesignContent } from "notistack";
+import { styled } from "@mui/material/styles";
 import { S3Configuration } from "./presentation/components/S3Configuration";
 import { ServerControlPanel } from "./presentation/components/ServerControlPanel";
 import { NetworkConfiguration } from "./presentation/components/NetworkConfiguration";
@@ -41,7 +54,7 @@ import {
   NetworkInterface,
 } from "./domain/entities/ServerConfig";
 import { LogEntry } from "./domain/entities/LogEntry";
-import { Server } from "./domain/entities/Server";
+import { Server, toServerId } from "./domain/entities/Server";
 import {
   StartManagedServerUseCase,
   StopManagedServerUseCase,
@@ -58,12 +71,7 @@ import {
 import { useLockMonitor } from "@server-locking/presentation/hooks/useLockMonitor";
 import "./i18n/config";
 import appIcon from "./assets/app-icon.png";
-
-const darkTheme = createTheme({
-  palette: {
-    mode: "dark",
-  },
-});
+import { theme, monoFont, surface } from "./theme";
 
 // Type for server statistics data
 interface ServerStatistics {
@@ -79,13 +87,30 @@ interface ServerStatistics {
   }>;
 }
 
+// Neutral toast with the severity carried by the icon color
+const Toast = styled(MaterialDesignContent)(({ theme }) => ({
+  "&.notistack-MuiContent": {
+    backgroundColor: "#212733",
+    border: "1px solid #343b49",
+    borderRadius: 8,
+    color: theme.palette.text.primary,
+    fontSize: 13,
+    boxShadow: "0 8px 24px rgba(0,0,0,.4)",
+  },
+  "&.notistack-MuiContent-success svg": { color: theme.palette.success.main },
+  "&.notistack-MuiContent-error svg": { color: theme.palette.error.light },
+  "&.notistack-MuiContent-warning svg": { color: theme.palette.warning.main },
+  "&.notistack-MuiContent-info svg": { color: theme.palette.primary.main },
+}));
+
 function App(): React.JSX.Element {
   return (
-    <ThemeProvider theme={darkTheme}>
+    <ThemeProvider theme={theme}>
       <SnackbarProvider
         maxSnack={3}
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
         autoHideDuration={5000}
+        Components={{ success: Toast, error: Toast, warning: Toast, info: Toast, default: Toast }}
       >
         <AppContent />
       </SnackbarProvider>
@@ -101,6 +126,8 @@ function AppContent(): React.JSX.Element {
   const [serverStatus, setServerStatus] = React.useState<ServerStatus>(ServerStatus.STOPPED);
   const [servers, setServers] = React.useState<Server[]>([]);
   const [selectedServer, setSelectedServer] = React.useState<string | null>(null);
+  const selectedServerName =
+    servers.find((server) => server.id === selectedServer)?.name ?? selectedServer;
   const [isCloudSyncEnabledByUser, setIsCloudSyncEnabledByUser] = React.useState<boolean>(false);
   const [isS3Configured, setIsS3Configured] = React.useState<boolean>(false);
   const [isRcloneReady, setIsRcloneReady] = React.useState<boolean>(false);
@@ -124,6 +151,9 @@ function AppContent(): React.JSX.Element {
   const [username, setUsername] = React.useState<string>("");
   const [isReleaseLockModalOpen, setIsReleaseLockModalOpen] = React.useState<boolean>(false);
   const [isServerLockedModalOpen, setIsServerLockedModalOpen] = React.useState<boolean>(false);
+  const [isConfigOpen, setIsConfigOpen] = React.useState(false);
+  const [isCheckingCloud, setIsCheckingCloud] = React.useState(false);
+  const [configTab, setConfigTab] = React.useState(0);
   const [lockedServerInfo, setLockedServerInfo] = React.useState<{
     username: string;
     startedAt: string;
@@ -205,22 +235,8 @@ function AppContent(): React.JSX.Element {
   const waitForServerExit = React.useCallback((serverId: string): Promise<boolean> => {
     return new Promise((resolve) => {
       let settled = false;
-      let timeoutId: number | undefined;
 
-      const unsubscribe = window.serverAPI.onProcessExit((payload) => {
-        if (payload.serverId !== serverId || settled) {
-          return;
-        }
-
-        settled = true;
-        unsubscribe();
-        if (timeoutId) {
-          window.clearTimeout(timeoutId);
-        }
-        resolve(true);
-      });
-
-      timeoutId = window.setTimeout(() => {
+      const timeoutId = window.setTimeout(() => {
         if (settled) {
           return;
         }
@@ -229,6 +245,17 @@ function AppContent(): React.JSX.Element {
         unsubscribe();
         resolve(false);
       }, 15000);
+
+      const unsubscribe = window.serverAPI.onProcessExit((payload) => {
+        if (payload.serverId !== serverId || settled) {
+          return;
+        }
+
+        settled = true;
+        unsubscribe();
+        window.clearTimeout(timeoutId);
+        resolve(true);
+      });
     });
   }, []);
 
@@ -302,8 +329,10 @@ function AppContent(): React.JSX.Element {
             return true;
           },
           waitForServerExit,
-          deleteLock: async (config, serverId) => (await window.serverAPI.deleteLock(config, serverId)).success,
-          deleteLocalLock: async (serverId) => (await window.serverAPI.deleteLocalLock(serverId)).success,
+          deleteLock: async (config, serverId) =>
+            (await window.serverAPI.deleteLock(config, serverId)).success,
+          deleteLocalLock: async (serverId) =>
+            (await window.serverAPI.deleteLocalLock(serverId)).success,
           updateSession: (serverId, username) => window.serverAPI.updateSession(serverId, username),
           uploadServer: (serverId) => new S3Service(s3Config).uploadServer(serverId),
           uploadSession: (config, serverId) => window.serverAPI.uploadSession(config, serverId),
@@ -352,20 +381,28 @@ function AppContent(): React.JSX.Element {
 
       const isIntentionalStop = serverStatusRef.current === ServerStatus.STOPPING;
 
+      // A crash still has to free the lock and upload the world, or friends stay locked out
       if (!isIntentionalStop) {
-        updateServerStatus(ServerStatus.STOPPED, "server process exited", { force: true });
+        updateServerStatus(ServerStatus.STOPPING, "server process exited", { force: true });
+        stopManagedServerUseCase
+          .finalize({ serverId, username: username || "Unknown", s3Config, isCloudSyncEnabled })
+          .catch((error) =>
+            appendLog(
+              `Error finishing shutdown: ${error instanceof Error ? error.message : String(error)}`,
+              "error",
+            ),
+          );
       }
 
       setLogs((prev) => [
         ...prev,
         {
           timestamp: new Date(),
-          message:
-            isIntentionalStop
-              ? "Server process exited, finalizing shutdown..."
-              : code === 0
-                ? "Server process exited"
-                : `Server process stopped unexpectedly${code !== null ? ` (exit code ${code})` : ""}`,
+          message: isIntentionalStop
+            ? "Server process exited, finalizing shutdown..."
+            : code === 0
+              ? "Server process exited"
+              : `Server process stopped unexpectedly${code !== null ? ` (exit code ${code})` : ""}`,
           type: isIntentionalStop || code === 0 ? "info" : "warning",
         },
       ]);
@@ -374,7 +411,15 @@ function AppContent(): React.JSX.Element {
     return () => {
       unsubscribe();
     };
-  }, [selectedServer, updateServerStatus]);
+  }, [
+    selectedServer,
+    updateServerStatus,
+    stopManagedServerUseCase,
+    username,
+    s3Config,
+    isCloudSyncEnabled,
+    appendLog,
+  ]);
 
   // Subscribe to lock monitoring events
   React.useEffect(() => {
@@ -919,7 +964,9 @@ function AppContent(): React.JSX.Element {
       ]);
 
       const localServers = await window.serverAPI.listLocalServers();
-      setServers(localServers.map((server) => ({ ...server, type: server.type as Server["type"] })));
+      setServers(
+        localServers.map((server) => ({ ...server, type: server.type as Server["type"] })),
+      );
       setTotalBucketSize(0);
       setSelectedServerSize(0);
 
@@ -944,7 +991,9 @@ function AppContent(): React.JSX.Element {
     }
   };
 
-  const refreshServerList = async (cloudSyncEnabled: boolean = isCloudSyncEnabled): Promise<void> => {
+  const refreshServerList = async (
+    cloudSyncEnabled: boolean = isCloudSyncEnabled,
+  ): Promise<void> => {
     if (cloudSyncEnabled) {
       await loadServersFromS3();
       return;
@@ -1311,6 +1360,8 @@ function AppContent(): React.JSX.Element {
     serverType: "vanilla" | "forge" | "neoforge",
     overwrite: boolean = false,
   ): Promise<void> => {
+    // serverName is what the user typed; the folder and cloud key use its kebab-case id
+    const serverId = toServerId(serverName);
     setIsCreatingServer(true);
     setCreateServerProgress("");
 
@@ -1352,10 +1403,11 @@ function AppContent(): React.JSX.Element {
       }
 
       const result = await window.serverAPI.createMinecraftServer(
-        serverName,
+        serverId,
         version,
         serverType,
         overwrite,
+        serverName,
       );
 
       // Check if server already exists
@@ -1395,7 +1447,7 @@ function AppContent(): React.JSX.Element {
           setTransferTotal("0");
 
           const s3Service = new S3Service(s3Config);
-          const uploadSuccess = await s3Service.uploadServer(serverName);
+          const uploadSuccess = await s3Service.uploadServer(serverId);
 
           setIsTransferring(false);
 
@@ -1424,7 +1476,7 @@ function AppContent(): React.JSX.Element {
         await refreshServerList();
 
         // Select the newly created server
-        setSelectedServer(serverName);
+        setSelectedServer(serverId);
       } else {
         setLogs((prev) => [
           ...prev,
@@ -1687,8 +1739,65 @@ function AppContent(): React.JSX.Element {
     }
   };
 
-  const handleEditProperties = (): void => {
+  // Edits are made on the local copy, so it must be the latest one: otherwise saving would
+  // upload an old world over a friend's progress
+  const handleEditProperties = async (): Promise<void> => {
+    if (selectedServer && isCloudSyncEnabled && serverStatus === ServerStatus.STOPPED) {
+      // Blocks the UI while rclone checks, so nobody starts the server under the dialog
+      setIsCheckingCloud(true);
+      try {
+        const lock = await window.serverAPI.readLock(s3Config, selectedServer);
+        if (lock.exists && lock.username !== username) {
+          setLockedServerInfo({
+            username: lock.username || "Unknown",
+            startedAt: lock.startedAt || new Date().toISOString(),
+          });
+          setIsServerLockedModalOpen(true);
+          return;
+        }
+        const needsDownload = await window.serverAPI.shouldDownload(s3Config, selectedServer);
+        setIsCheckingCloud(false);
+        if (needsDownload) {
+          appendLog("Downloading the latest server files before editing...", "info");
+          setIsTransferring(true);
+          resetTransferProgress("download");
+          try {
+            if (!(await new S3Service(s3Config).downloadServer(selectedServer))) {
+              appendLog("Could not download the latest server files", "warning");
+            }
+          } finally {
+            setIsTransferring(false);
+          }
+        }
+      } catch (error) {
+        appendLog(
+          `Could not check the cloud copy: ${error instanceof Error ? error.message : String(error)}`,
+          "warning",
+        );
+      } finally {
+        setIsCheckingCloud(false);
+      }
+    }
     setIsEditServerModalOpen(true);
+  };
+
+  // Uploads right away so the next start, here or on a friend's PC, doesn't bring the old files back
+  const handleServerFilesEdited = async (message: string): Promise<void> => {
+    appendLog(message, "success");
+    if (!selectedServer || !isCloudSyncEnabled || serverStatus !== ServerStatus.STOPPED) return;
+    setIsTransferring(true);
+    resetTransferProgress("upload");
+    try {
+      const uploaded = await new S3Service(s3Config).uploadServer(selectedServer);
+      appendLog(
+        uploaded
+          ? "Server files synchronized successfully"
+          : `Failed to sync server files to ${PROVIDER_LABELS[s3Config.provider]}`,
+        uploaded ? "info" : "error",
+      );
+    } finally {
+      setIsTransferring(false);
+    }
   };
 
   const handleOpenServerFolder = async (): Promise<void> => {
@@ -1885,8 +1994,8 @@ function AppContent(): React.JSX.Element {
   };
 
   return (
-    <ThemeProvider theme={darkTheme}>
-      <CssBaseline />
+    <ThemeProvider theme={theme}>
+      <CssBaseline enableColorScheme />
       <GlobalStyles
         styles={{
           body: {
@@ -1913,27 +2022,46 @@ function AppContent(): React.JSX.Element {
           bgcolor: "background.default",
         }}
       >
-        {/* App Bar with Language Switcher */}
-        <AppBar position="static" elevation={1}>
-          <Toolbar variant="dense">
+        <AppBar position="static">
+          <Toolbar variant="dense" sx={{ minHeight: 48 }}>
             <Box component="img" src={appIcon} alt="" sx={{ width: 28, height: 28, mr: 1.25 }} />
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            <Typography component="div" sx={{ flexGrow: 1, fontSize: 15, fontWeight: 600 }}>
               Pass the host!
             </Typography>
             {isCloudSyncEnabled && totalBucketSize > 0 && (
-              <Typography variant="body2" sx={{ mr: 2, display: "flex", alignItems: "center" }}>
-                {t("storage.total")}: {formatBytes(totalBucketSize)}
+              <Stack
+                direction="row"
+                spacing={1.5}
+                alignItems="center"
+                divider={<Box sx={{ width: "1px", height: 12, bgcolor: surface.border }} />}
+                sx={{ mr: 1.5, fontSize: 12, color: "text.secondary" }}
+              >
+                <span>
+                  {t("storage.total")}{" "}
+                  <Box
+                    component="span"
+                    sx={{ color: "text.primary", fontFamily: monoFont, ml: 0.5 }}
+                  >
+                    {formatBytes(totalBucketSize)}
+                  </Box>
+                </span>
                 {selectedServer && selectedServerSize > 0 && (
-                  <span style={{ marginLeft: "8px" }}>
-                    | {t("storage.server")}: {formatBytes(selectedServerSize)}
+                  <span>
+                    {t("storage.server")}{" "}
+                    <Box
+                      component="span"
+                      sx={{ color: "text.primary", fontFamily: monoFont, ml: 0.5 }}
+                    >
+                      {formatBytes(selectedServerSize)}
+                    </Box>
                   </span>
                 )}
-              </Typography>
+              </Stack>
             )}
             <Tooltip title={t("serverControl.viewStatistics")}>
               <span>
                 <IconButton
-                  color="inherit"
+                  sx={{ color: "#b4bac6" }}
                   onClick={handleViewStatistics}
                   disabled={!selectedServer}
                 >
@@ -1942,7 +2070,7 @@ function AppContent(): React.JSX.Element {
               </span>
             </Tooltip>
             <Tooltip title={t("settings.title")}>
-              <IconButton color="inherit" onClick={() => setIsSettingsModalOpen(true)}>
+              <IconButton sx={{ color: "#b4bac6" }} onClick={() => setIsSettingsModalOpen(true)}>
                 <SettingsIcon />
               </IconButton>
             </Tooltip>
@@ -1950,28 +2078,17 @@ function AppContent(): React.JSX.Element {
           </Toolbar>
         </AppBar>
 
-        {/* Main Content */}
-        <Box
-          sx={{
-            display: "flex",
-            flex: 1,
-            overflow: "hidden",
-          }}
-        >
-          {/* Panel Izquierdo - Configuraciones */}
+        <Box sx={{ display: "flex", flex: 1, gap: 2, p: 2, minHeight: 0 }}>
           <Box
+            component="aside"
             sx={{
-              width: { xs: "100%", md: 400 },
-              minWidth: 350,
-              maxWidth: 450,
-              p: 2,
-              overflow: "auto",
-              borderRight: 1,
-              borderColor: "divider",
+              width: 352,
+              flexShrink: 0,
+              overflowY: "auto",
+              overflowX: "hidden",
               display: "flex",
               flexDirection: "column",
-              gap: 2,
-              flexShrink: 0,
+              gap: 1.5,
             }}
           >
             <ServerControlPanel
@@ -1997,78 +2114,123 @@ function AppContent(): React.JSX.Element {
               lockedServerInfo={lockedServerInfo}
             />
 
-
             <P2PPanel
               serverRunning={serverStatus === ServerStatus.RUNNING}
               serverActive={serverStatus !== ServerStatus.STOPPED}
               serverPort={serverPort}
               username={username}
-              serverName={servers.find((server) => server.id === selectedServer)?.name ?? null}
+              serverName={selectedServerName}
             />
 
-            <S3Configuration
-              config={s3Config}
-              onSave={handleSaveS3Config}
-              cloudSyncEnabled={isCloudSyncEnabledByUser}
-              onToggleCloudSync={handleToggleCloudSync}
-              disabled={serverStatus !== ServerStatus.STOPPED}
-            />
-
-            <NetworkConfiguration
-              availableIps={availableIps}
-              selectedIp={selectedIp}
-              serverPort={serverPort}
-              onSelectIp={setSelectedIp}
-              onPortChange={handlePortChange}
-              disabled={serverStatus !== ServerStatus.STOPPED}
-            />
-
-            <RamConfiguration
-              ramConfig={ramConfig}
-              onChange={handleRamConfigChange}
-              disabled={serverStatus !== ServerStatus.STOPPED}
-            />
+            <Button
+              onClick={() => setIsConfigOpen(true)}
+              startIcon={<TuneIcon sx={{ color: "text.secondary" }} />}
+              endIcon={<ChevronRightIcon sx={{ color: "text.secondary" }} />}
+              color="inherit"
+              sx={{
+                mt: "auto",
+                flexShrink: 0,
+                height: 40,
+                px: 1.5,
+                justifyContent: "flex-start",
+                fontWeight: 500,
+                bgcolor: surface.input,
+                border: 1,
+                borderColor: surface.border,
+                "& .MuiButton-endIcon": { ml: 1 },
+              }}
+            >
+              {t("configuration.title")}
+              <Box
+                component="span"
+                sx={{ ml: "auto", fontSize: 12, fontWeight: 400, color: "text.secondary" }}
+              >
+                {isCloudSyncEnabledByUser
+                  ? t("configuration.summary")
+                  : t("configuration.cloudSyncOff")}
+              </Box>
+            </Button>
           </Box>
 
-          {/* Panel Derecho - Consola y Comandos */}
           <Box
+            component="main"
             sx={{
               flex: 1,
+              minWidth: 0,
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
-              minWidth: 0,
+              borderRadius: 2,
+              bgcolor: surface.console,
+              border: 1,
+              borderColor: "divider",
             }}
           >
-            <Box
-              sx={{
-                flex: 1,
-                p: 2,
-                overflow: "hidden",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              <ServerConsole logs={logs} />
-            </Box>
-
-            <Box
-              sx={{
-                p: 2,
-                borderTop: 1,
-                borderColor: "divider",
-                flexShrink: 0,
-              }}
-            >
-              <CommandInput onExecuteCommand={handleExecuteCommand} />
-            </Box>
+            <ServerConsole logs={logs} />
+            <CommandInput onExecuteCommand={handleExecuteCommand} />
           </Box>
         </Box>
+
+        <Drawer anchor="right" open={isConfigOpen} onClose={() => setIsConfigOpen(false)}>
+          <Box sx={{ width: 480, display: "flex", flexDirection: "column", height: "100%" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2.5, pt: 2 }}>
+              <TuneIcon sx={{ color: "text.secondary" }} />
+              <Typography sx={{ flexGrow: 1, fontSize: 17, fontWeight: 600 }}>
+                {t("configuration.title")}
+              </Typography>
+              <IconButton onClick={() => setIsConfigOpen(false)} aria-label={t("common.close")}>
+                <CloseIcon />
+              </IconButton>
+            </Box>
+            <Tabs
+              value={configTab}
+              onChange={(_, tab) => setConfigTab(tab)}
+              sx={{ px: 2.5, borderBottom: 1, borderColor: "divider" }}
+            >
+              <Tab label={t("s3Configuration.title")} />
+              <Tab label={t("network.title")} />
+              <Tab label={t("ram.title")} />
+            </Tabs>
+            <Box sx={{ flex: 1, overflow: "auto", p: 2.5 }}>
+              {serverStatus !== ServerStatus.STOPPED && (
+                <Alert severity="info" icon={<LockIcon />} sx={{ mb: 2 }}>
+                  {t("configuration.stopToEdit")}
+                </Alert>
+              )}
+              {configTab === 0 && (
+                <S3Configuration
+                  config={s3Config}
+                  onSave={handleSaveS3Config}
+                  cloudSyncEnabled={isCloudSyncEnabledByUser}
+                  onToggleCloudSync={handleToggleCloudSync}
+                  disabled={serverStatus !== ServerStatus.STOPPED}
+                />
+              )}
+              {configTab === 1 && (
+                <NetworkConfiguration
+                  availableIps={availableIps}
+                  selectedIp={selectedIp}
+                  serverPort={serverPort}
+                  onSelectIp={setSelectedIp}
+                  onPortChange={handlePortChange}
+                  disabled={serverStatus !== ServerStatus.STOPPED}
+                />
+              )}
+              {configTab === 2 && (
+                <RamConfiguration
+                  ramConfig={ramConfig}
+                  onChange={handleRamConfigChange}
+                  disabled={serverStatus !== ServerStatus.STOPPED}
+                />
+              )}
+            </Box>
+          </Box>
+        </Drawer>
 
         {/* Release Lock Modal */}
         <ReleaseLockModal
           open={isReleaseLockModalOpen}
-          serverName={selectedServer}
+          serverName={selectedServerName}
           onClose={(): void => setIsReleaseLockModalOpen(false)}
           onConfirm={handleConfirmReleaseLock}
         />
@@ -2076,7 +2238,7 @@ function AppContent(): React.JSX.Element {
         {/* Server Locked Modal */}
         <ServerLockedModal
           open={isServerLockedModalOpen}
-          serverName={selectedServer}
+          serverName={selectedServerName}
           username={lockedServerInfo.username}
           startedAt={lockedServerInfo.startedAt}
           onClose={(): void => setIsServerLockedModalOpen(false)}
@@ -2090,6 +2252,12 @@ function AppContent(): React.JSX.Element {
         />
 
         {/* Java Download Modal */}
+        <DownloadProgressModal
+          open={isCheckingCloud}
+          title={t("serverControl.checkingCloudTitle")}
+          message={t("serverControl.checkingCloud")}
+        />
+
         <DownloadProgressModal
           open={isJavaDownloading}
           title={t("java.modalTitle")}
@@ -2109,7 +2277,7 @@ function AppContent(): React.JSX.Element {
         <ServerStatisticsModal
           open={isStatisticsModalOpen}
           onClose={() => setIsStatisticsModalOpen(false)}
-          serverName={selectedServer}
+          serverName={selectedServerName}
           statistics={serverStatistics}
         />
 
@@ -2133,7 +2301,9 @@ function AppContent(): React.JSX.Element {
           onDelete={async () => {
             if (pendingServerCreation) {
               // Delete the existing server
-              const deleteResult = await window.serverAPI.deleteLocally(pendingServerCreation.name);
+              const deleteResult = await window.serverAPI.deleteLocally(
+                toServerId(pendingServerCreation.name),
+              );
               if (deleteResult.success) {
                 setLogs((prev) => [
                   ...prev,
@@ -2166,7 +2336,7 @@ function AppContent(): React.JSX.Element {
         {/* Delete Server Modal */}
         <DeleteServerModal
           open={isDeleteServerModalOpen}
-          serverName={selectedServer}
+          serverName={selectedServerName}
           cloudSyncEnabled={isCloudSyncEnabled}
           onClose={() => setIsDeleteServerModalOpen(false)}
           onConfirm={handleConfirmDeleteServer}
@@ -2184,14 +2354,16 @@ function AppContent(): React.JSX.Element {
         <EditServerModal
           open={isEditServerModalOpen}
           serverId={selectedServer}
-          isRunning={serverStatus === ServerStatus.RUNNING}
+          serverName={selectedServerName}
+          isRunning={serverStatus !== ServerStatus.STOPPED}
           onClose={() => setIsEditServerModalOpen(false)}
-          onSaved={() => appendLog("server.properties updated", "success")}
+          onSaved={handleServerFilesEdited}
         />
 
         <ShareServerModal
           open={isShareServerModalOpen}
           serverName={selectedServer}
+          displayName={selectedServerName}
           s3Config={s3Config}
           onClose={() => setIsShareServerModalOpen(false)}
         />

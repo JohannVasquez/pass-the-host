@@ -36,6 +36,12 @@ export const en = {
       driveError: "Could not connect to Google. Please try again.",
     },
     serverControl: {
+      checkingCloudTitle: "Checking the cloud copy",
+      checkingCloud: "Making sure nobody else is using this server and you have the latest files...",
+      you: "you",
+      since: "since {{time}}",
+      moreActions: "More actions",
+      noServers: "No servers yet",
       title: "Server Control",
       status: "Status",
       selectServer: "Select Server",
@@ -116,7 +122,14 @@ export const en = {
       installed: "Rclone installed successfully",
       failed: "Failed to install rclone",
     },
+    configuration: {
+      title: "Configuration",
+      summary: "Cloud · Network · RAM",
+      cloudSyncOff: "Cloud sync off",
+      stopToEdit: "Stop the server to edit the configuration.",
+    },
     common: {
+      close: "Close",
       preparing: "Preparing...",
       doNotClose: "Please wait, do not close the application",
     },
@@ -188,10 +201,9 @@ export const en = {
     createServer: {
       title: "Create New Server",
       serverName: "Server Name",
-      nameHelp: "Only letters, numbers, hyphens and underscores (min. 3 characters)",
+      nameHelp: "At least 3 characters",
       nameRequired: "Server name is required",
       nameTooShort: "Server name must be at least 3 characters",
-      invalidName: "Invalid name. Only letters, numbers, hyphens and underscores are allowed",
       serverType: "Server Type",
       vanilla: "Vanilla",
       forge: "Forge",
@@ -220,6 +232,22 @@ export const en = {
       restartHint: "The server is running. Changes will apply after a restart.",
       noFile: "This server has no server.properties yet. Start it once to generate it.",
       lockedHint: "Configured in the Network section",
+      world: {
+        import: "Import world",
+        export: "Export world",
+        reset: "Regenerate world",
+        continue: "Continue",
+        confirm_import:
+          "Pick a .zip or the level.dat file inside a world folder (for example one from .minecraft/saves). It replaces the current world and can't be undone: export it first if you want to keep it.",
+        confirm_reset:
+          "The current world will be deleted and the server will generate a new one the next time you start it. This can't be undone: export it first if you want to keep it.",
+        exported: "World exported. The folder with the .zip has been opened.",
+        "no-world": "There's no world yet. Start the server once to generate it.",
+        invalid: "No Minecraft world (level.dat) was found in what you picked.",
+        regenerateOnSave: "Regenerate the world on save (deletes the current world)",
+        genHint: "The seed, world type and structures only apply when a new world is generated.",
+        stopFirst: "Stop the server to import, export or regenerate the world.",
+      },
       whitelist: {
         title: "Whitelisted players ({{count}})",
         placeholder: "Player name",
@@ -319,6 +347,7 @@ export const en = {
       close: "Close",
     },
     p2p: {
+      roomActions: "Room actions",
       copyAddress: "Copy address for Minecraft",
       addressCopied: "Address copied: paste it in Minecraft → Multiplayer",
       autoConnect: "Connect automatically when someone hosts",
@@ -391,7 +420,8 @@ export const en = {
       connect: "Connect",
       connecting: "Connecting…",
       disconnect: "Disconnect",
-      connected: "Connected. In Minecraft, add the server {{address}}",
+      connected: "Connected",
+      serverAddress: "Server address",
       hosting: "Friends in this room can join your server.",
       disconnected: "Lost the connection to the host.",
       turn: {

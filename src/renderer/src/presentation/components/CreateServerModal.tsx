@@ -20,6 +20,7 @@ import {
   Typography,
   LinearProgress,
 } from "@mui/material";
+import AddBoxIcon from "@mui/icons-material/AddBox";
 import { useTranslation } from "react-i18next";
 
 interface CreateServerModalProps {
@@ -31,6 +32,11 @@ interface CreateServerModalProps {
 }
 
 const minecraftVersions = [
+  "26.3",
+  "26.2",
+  "26.1.2",
+  "26.1.1",
+  "26.1",
   "1.21.11",
   "1.21.10",
   "1.21.9",
@@ -168,12 +174,8 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
   const handleServerNameChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
     const value = event.target.value;
 
-    // Validate: no special characters, no spaces
-    const validNameRegex = /^[a-zA-Z0-9_-]*$/;
-
-    if (!validNameRegex.test(value)) {
-      setNameError(t("createServer.invalidName"));
-    } else if (value.length > 0 && value.length < 3) {
+    // Any characters: the folder / cloud id is derived from it with toServerId
+    if (value.trim().length > 0 && value.trim().length < 3) {
       setNameError(t("createServer.nameTooShort"));
     } else {
       setNameError("");
@@ -188,7 +190,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
       return;
     }
 
-    if (serverName.length < 3) {
+    if (serverName.trim().length < 3) {
       setNameError(t("createServer.nameTooShort"));
       return;
     }
@@ -197,13 +199,13 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
       return;
     }
 
-    onConfirm(serverName, version, serverType);
+    onConfirm(serverName.trim(), version, serverType);
     handleClose();
   };
 
   const handleClose = (): void => {
     setServerName("");
-    setVersion("1.21.4");
+    setVersion(minecraftVersions[0]);
     setServerType("vanilla");
     setNameError("");
     onClose();
@@ -211,7 +213,10 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{t("createServer.title")}</DialogTitle>
+      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5, fontWeight: 600 }}>
+        <AddBoxIcon color="primary" fontSize="small" />
+        {t("createServer.title")}
+      </DialogTitle>
       <DialogContent>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}>
           {/* Server Name */}
@@ -223,6 +228,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
             helperText={nameError || t("createServer.nameHelp")}
             fullWidth
             autoFocus
+            slotProps={{ htmlInput: { maxLength: 50 } }}
           />
 
           {/* Server Type */}
@@ -267,8 +273,9 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
           <Alert severity="info">{t("createServer.info")}</Alert>
         </Box>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose}>{t("createServer.cancel")}</Button>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={handleClose} color="inherit">
+          {t("createServer.cancel")}</Button>
         <Button
           onClick={handleConfirm}
           variant="contained"

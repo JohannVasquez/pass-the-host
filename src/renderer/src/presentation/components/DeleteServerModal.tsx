@@ -75,9 +75,12 @@ export const DeleteServerModal: React.FC<DeleteServerModalProps> = ({
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <DeleteForeverIcon color="error" />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, fontWeight: 600 }}>
+          <DeleteForeverIcon color="error" fontSize="small" />
           {t("deleteServerModal.title")}
+          <Typography component="span" variant="body2" color="text.secondary">
+            {serverName}
+          </Typography>
         </Box>
       </DialogTitle>
       <DialogContent>

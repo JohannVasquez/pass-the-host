@@ -79,11 +79,12 @@ This automatically creates a test bucket (`MINIO_BUCKET_NAME`) to validate synch
 
 The project is configured to be driven from Claude Code using [`electron-test-mcp`](https://github.com/lazy-dinosaur/electron-test-mcp), an MCP server that controls an Electron app over the Chrome DevTools Protocol (CDP) via Playwright.
 
-The server is already registered for this project (local scope, see `claude mcp list`):
+The MCP servers are shared with the repo in [`.mcp.json`](.mcp.json) (project scope), so anyone who clones it gets them; Claude Code asks you to approve them the first time you open the project:
 
-```bash
-claude mcp add electron-test-mcp -- npx -y electron-test-mcp
-```
+- `electron-test-mcp` — drives the Electron app.
+- `playwright` ([`@playwright/mcp`](https://github.com/microsoft/playwright-mcp)) — drives a regular browser, e.g. for the landing site in `site/`.
+
+Versions are pinned; bump them in `.mcp.json` when you want to upgrade.
 
 ### Option A: attach to a running dev instance (recommended)
 
@@ -101,7 +102,7 @@ claude mcp add electron-test-mcp -- npx -y electron-test-mcp
    connect({ port: 9222 })
    ```
 
-3. Drive the app with the MCP tools (`click`, `fill`, `screenshot`, `snapshot`, `evaluate`, `evaluateMain`, etc.) and close the session with `disconnect()` when done.
+3. Drive the app with the MCP tools (`click`, `fill`, `screenshot`, `snapshot`, `evaluate`, etc.) and close the session with `disconnect()` when done. `evaluateMain` is not available over CDP; it only works with `launch`.
 
 ### Option B: let the MCP launch the app itself
 
@@ -112,6 +113,8 @@ launch({ path: "." })
 ```
 
 (adjust `path` to the built `main` entry, e.g. `./out/main/index.js`, if you want to test a production build instead of the dev server).
+
+Note: since `npx` runs the MCP outside the repo, `launch` may fail with "Electron executablePath not found". In that case use Option A, or for a production build run `pnpm exec electron out/main/index.js --remote-debugging-port=9222` and `connect({ port: 9222 })`.
 
 ### Example test flow
 
@@ -124,7 +127,6 @@ screenshot()                        # visually confirm the main screen rendered
 click({ selector: "text=Servers" }) # navigate within the renderer UI
 fill({ selector: "#username", value: "test-user" })
 evaluate({ script: "document.title" })              # runs in the renderer (DevTools context)
-evaluateMain({ script: "app.getVersion()" })          # runs in the Electron main process
 screenshot()                        # capture the resulting state
 disconnect()
 ```

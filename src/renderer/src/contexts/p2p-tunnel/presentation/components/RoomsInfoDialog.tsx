@@ -15,6 +15,7 @@ import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsAc
 import SettingsEthernetOutlinedIcon from "@mui/icons-material/SettingsEthernetOutlined";
 import SportsEsportsOutlinedIcon from "@mui/icons-material/SportsEsportsOutlined";
 import { useTranslation } from "react-i18next";
+import { surface } from "@renderer/theme";
 
 const STEPS = [
   { key: "step1", Icon: GroupAddOutlinedIcon },
@@ -47,16 +48,16 @@ export const RoomsInfoDialog: React.FC<RoomsInfoDialogProps> = ({ open, onClose 
           }}
         >
           {STEPS.map(({ key, Icon }, index) => (
-            <Paper component="li" key={key} variant="outlined" sx={{ p: 2 }}>
+            <Paper component="li" key={key} variant="outlined" sx={{ p: 2, bgcolor: surface.panel }}>
               <Stack spacing={1.5}>
                 <Stack direction="row" alignItems="center" spacing={1.5}>
                   <Box
                     sx={{
-                      width: 44,
-                      height: 44,
+                      width: 40,
+                      height: 40,
                       borderRadius: "50%",
-                      bgcolor: "primary.main",
-                      color: "primary.contrastText",
+                      bgcolor: "action.hover",
+                      color: "primary.main",
                       display: "grid",
                       placeItems: "center",
                       flexShrink: 0,

@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import { surface } from "@renderer/theme";
 
 interface ServerExistsModalProps {
   open: boolean;
@@ -31,24 +32,31 @@ export const ServerExistsModal: React.FC<ServerExistsModalProps> = ({
 
   return (
     <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <WarningAmberIcon color="warning" />
-          {t("serverExists.title")}
-        </Box>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          fontSize: 16,
+          fontWeight: 600,
+          py: 1.5,
+        }}
+      >
+        <WarningAmberIcon color="warning" />
+        {t("serverExists.title")}
       </DialogTitle>
       <DialogContent>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <Typography variant="body1">{t("serverExists.message", { serverName })}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {t("serverExists.message", { serverName })}
+          </Typography>
 
           <Alert severity="warning">{t("serverExists.warning")}</Alert>
 
-          <Typography variant="body2" color="text.secondary">
-            {t("serverExists.options")}
-          </Typography>
+          <Typography variant="body2">{t("serverExists.options")}</Typography>
         </Box>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+      <DialogActions sx={{ px: 2.5, py: 1.5, gap: 1, borderTop: `1px solid ${surface.border}` }}>
         <Button onClick={onCancel} color="inherit">
           {t("serverExists.cancel")}
         </Button>

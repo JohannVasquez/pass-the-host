@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { useTranslation } from "react-i18next";
+import { monoFont, surface } from "@renderer/theme";
 
 interface ReleaseLockModalProps {
   open: boolean;
@@ -55,14 +56,21 @@ export const ReleaseLockModal: React.FC<ReleaseLockModalProps> = ({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <WarningAmberIcon color="warning" />
-          {t("releaseLockModal.title")}
-        </Box>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          fontSize: 16,
+          fontWeight: 600,
+          py: 1.5,
+        }}
+      >
+        <WarningAmberIcon color="warning" />
+        {t("releaseLockModal.title")}
       </DialogTitle>
       <DialogContent>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 0.5 }}>
           {/* Warning Alert */}
           <Alert severity="warning">
             <AlertTitle>{t("releaseLockModal.warningTitle")}</AlertTitle>
@@ -86,7 +94,7 @@ export const ReleaseLockModal: React.FC<ReleaseLockModalProps> = ({
           <Box>
             <Typography variant="body2" sx={{ mb: 1 }}>
               {t("releaseLockModal.confirmationText")}{" "}
-              <Typography component="span" sx={{ fontWeight: "bold", color: "warning.main" }}>
+              <Typography component="span" sx={{ fontWeight: 600, fontFamily: monoFont }}>
                 {serverName}
               </Typography>
             </Typography>
@@ -107,7 +115,7 @@ export const ReleaseLockModal: React.FC<ReleaseLockModalProps> = ({
           </Box>
         </Box>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      <DialogActions sx={{ px: 2.5, py: 1.5, gap: 1, borderTop: `1px solid ${surface.border}` }}>
         <Button onClick={handleClose} color="inherit">
           {t("releaseLockModal.cancel")}
         </Button>

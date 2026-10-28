@@ -1,7 +1,9 @@
 import React from "react";
-import { Box, TextField, Button, Paper, Stack, Chip, Typography } from "@mui/material";
+import { Box, Button, InputBase, Typography } from "@mui/material";
 import { Send as SendIcon } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
+import { monoFont, surface } from "@renderer/theme";
+
 interface CommandInputProps {
   onExecuteCommand: (command: string) => void | Promise<void>;
 }
@@ -37,50 +39,93 @@ export const CommandInput: React.FC<CommandInputProps> = ({
   };
 
   return (
-    <Paper elevation={2} sx={{ p: 2, width: "100%" }}>
-      <Typography variant="h6" gutterBottom>
-        {t("commands.title")}
-      </Typography>
-
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          {t("commands.quickCommands")}:
+    <>
+      <Box
+        sx={{
+          minHeight: 48,
+          flexShrink: 0,
+          px: 1.5,
+          display: "flex",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 0.5,
+          borderTop: 1,
+          borderColor: surface.subtleBorder,
+        }}
+      >
+        <Typography sx={{ fontSize: 12, color: "text.secondary", mr: 1, pl: 0.5 }}>
+          {t("commands.quickCommands")}
         </Typography>
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          {PRESET_COMMANDS.map((preset) => (
-            <Chip
-              key={preset.label}
-              label={preset.label}
-              onClick={() => handlePresetClick(preset.command)}
-              clickable
-              size="small"
-              sx={{ mb: 1 }}
-            />
-          ))}
-        </Stack>
+        {PRESET_COMMANDS.map((preset) => (
+          <Button
+            key={preset.label}
+            size="small"
+            color="inherit"
+            onClick={() => handlePresetClick(preset.command)}
+            sx={{ color: "#b4bac6", fontWeight: 400, px: 1.5 }}
+          >
+            {preset.label}
+          </Button>
+        ))}
       </Box>
 
-      <form onSubmit={handleSubmit}>
-        <Stack direction="row" spacing={1}>
-          <TextField
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
+        sx={{
+          height: 56,
+          flexShrink: 0,
+          px: 2,
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          borderTop: 1,
+          borderColor: surface.subtleBorder,
+        }}
+      >
+        <Box
+          sx={{
+            flex: 1,
+            height: 40,
+            px: 1.5,
+            display: "flex",
+            alignItems: "center",
+            borderRadius: 1,
+            bgcolor: surface.panel,
+            border: 1,
+            borderColor: surface.border,
+            "&:focus-within": { borderColor: "primary.main" },
+          }}
+        >
+          <Box component="span" sx={{ color: "primary.main", fontFamily: monoFont, mr: 1 }}>
+            &gt;
+          </Box>
+          <InputBase
             value={command}
             onChange={(e) => setCommand(e.target.value)}
             placeholder={t("commands.placeholder")}
             fullWidth
-            size="small"
             autoComplete="off"
+            inputProps={{ "aria-label": t("commands.placeholder") }}
+            sx={{ fontFamily: monoFont, fontSize: 13 }}
           />
-          <Button
-            type="submit"
-            variant="contained"
-            endIcon={<SendIcon />}
-            disabled={!command.trim()}
-            sx={{ flexShrink: 0 }}
-          >
-            {t("commands.send")}
-          </Button>
-        </Stack>
-      </form>
-    </Paper>
+        </Box>
+        <Button
+          type="submit"
+          variant="contained"
+          endIcon={<SendIcon />}
+          disabled={!command.trim()}
+          sx={{
+            flexShrink: 0,
+            height: 40,
+            bgcolor: "#eaeaea",
+            color: surface.base,
+            "&:hover": { bgcolor: "#ffffff" },
+          }}
+        >
+          {t("commands.send")}
+        </Button>
+      </Box>
+    </>
   );
 };

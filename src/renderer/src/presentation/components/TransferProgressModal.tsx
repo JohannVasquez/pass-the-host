@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Dialog,
+  DialogTitle,
   DialogContent,
   Box,
   Typography,
@@ -10,6 +11,7 @@ import {
 import CloudDownloadIcon from "@mui/icons-material/CloudDownload";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { useTranslation } from "react-i18next";
+import { monoFont } from "@renderer/theme";
 
 interface TransferProgressModalProps {
   open: boolean;
@@ -29,106 +31,68 @@ export const TransferProgressModal: React.FC<TransferProgressModalProps> = ({
   const { t } = useTranslation();
 
   return (
-    <Dialog
-      open={open}
-      disableEscapeKeyDown
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: {
-          backgroundColor: "background.paper",
-        },
-      }}
-    >
+    <Dialog open={open} disableEscapeKeyDown maxWidth="xs" fullWidth>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          fontSize: 16,
+          fontWeight: 600,
+          py: 1.5,
+        }}
+      >
+        {type === "download" ? (
+          <CloudDownloadIcon color="primary" />
+        ) : (
+          <CloudUploadIcon color="success" />
+        )}
+        {type === "download" ? t("transfer.downloading") : t("transfer.uploading")}
+      </DialogTitle>
       <DialogContent>
         <Box
           sx={{
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
-            py: 4,
-            gap: 3,
+            py: 2,
+            gap: 2,
+            textAlign: "center",
           }}
         >
-          {/* Icon */}
-          {type === "download" ? (
-            <CloudDownloadIcon sx={{ fontSize: 60, color: "primary.main" }} />
-          ) : (
-            <CloudUploadIcon sx={{ fontSize: 60, color: "primary.main" }} />
-          )}
-
-          {/* Title */}
-          <Typography variant="h6" component="div" sx={{ fontWeight: 600 }}>
-            {type === "download" ? t("transfer.downloading") : t("transfer.uploading")}
-          </Typography>
-
-          {/* Progress Percentage */}
           <Box sx={{ position: "relative", display: "inline-flex" }}>
-            <CircularProgress
-              variant="determinate"
-              value={percent}
-              size={120}
-              thickness={4}
-              sx={{
-                color: type === "download" ? "primary.main" : "success.main",
-              }}
-            />
+            <CircularProgress variant="determinate" value={percent} size={96} thickness={3} />
             <Box
               sx={{
-                top: 0,
-                left: 0,
-                bottom: 0,
-                right: 0,
                 position: "absolute",
+                inset: 0,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
-              <Typography
-                variant="h4"
-                component="div"
-                color="text.primary"
-                sx={{ fontWeight: 600 }}
-              >
-                {`${percent}%`}
-              </Typography>
+              <Typography sx={{ fontFamily: monoFont, fontSize: 20 }}>{`${percent}%`}</Typography>
             </Box>
           </Box>
 
-          {/* Transfer Details */}
-          <Box sx={{ textAlign: "center" }}>
-            <Typography variant="body1" color="text.secondary">
-              {transferred} / {total}
-            </Typography>
-          </Box>
+          <Typography sx={{ fontFamily: monoFont, fontSize: 14 }}>
+            {transferred} / {total}
+          </Typography>
 
-          {/* Progress Bar */}
-          <Box sx={{ width: "100%", mt: 2 }}>
+          <Box sx={{ width: "100%" }}>
             <LinearProgress
               variant="determinate"
               value={percent}
               sx={{
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: "rgba(0, 0, 0, 0.1)",
-                "& .MuiLinearProgress-bar": {
-                  backgroundColor: type === "download" ? "primary.main" : "success.main",
-                },
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: "#262c38",
+                "& .MuiLinearProgress-bar": { borderRadius: 3 },
               }}
             />
           </Box>
 
-          {/* Warning */}
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{
-              textAlign: "center",
-              mt: 1,
-            }}
-          >
+          <Typography variant="caption" color="text.secondary">
             {t("common.doNotClose")}
           </Typography>
         </Box>

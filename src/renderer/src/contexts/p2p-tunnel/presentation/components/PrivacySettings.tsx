@@ -40,7 +40,7 @@ export const PrivacySettings: React.FC = () => {
 
   return (
     <Stack spacing={1.5}>
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="body2" sx={{ color: "#c9ced8", lineHeight: 1.6 }}>
         {t("p2p.privacy.description")}{" "}
         <Link href={policyUrl(i18n.language)} target="_blank" rel="noreferrer">
           {t("p2p.privacy.policyLink")}
@@ -56,12 +56,12 @@ export const PrivacySettings: React.FC = () => {
       </Button>
 
       <Dialog open={confirming} onClose={() => !busy && setConfirming(false)} maxWidth="xs">
-        <DialogTitle>{t("p2p.privacy.confirmTitle")}</DialogTitle>
+        <DialogTitle sx={{ fontSize: 16, fontWeight: 600 }}>{t("p2p.privacy.confirmTitle")}</DialogTitle>
         <DialogContent>
-          <DialogContentText>{t("p2p.privacy.confirmBody")}</DialogContentText>
+          <DialogContentText sx={{ fontSize: 13, color: "#c9ced8", lineHeight: 1.6 }}>{t("p2p.privacy.confirmBody")}</DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirming(false)} disabled={busy}>
+        <DialogActions sx={{ px: 2.5, height: 64, borderTop: 1, borderColor: "divider" }}>
+          <Button onClick={() => setConfirming(false)} disabled={busy} sx={{ color: "#b4bac6" }}>
             {t("p2p.cancel")}
           </Button>
           <Button color="error" variant="contained" onClick={handleDelete} disabled={busy}>

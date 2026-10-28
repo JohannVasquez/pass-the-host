@@ -1,11 +1,15 @@
 import { injectable } from "inversify";
-import { app } from "electron";
+import { app, BrowserWindow, dialog, shell } from "electron";
 import * as path from "path";
 import * as fs from "fs";
+import * as os from "os";
 import { createHash } from "crypto";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import {
   IServerPropertiesRepository,
   WhitelistEntry,
+  WorldActionResult,
 } from "@main/contexts/cloud-storage/domain/repositories";
 import { FileSystemError, ValidationError } from "@shared/domain/errors";
 
@@ -134,6 +138,7 @@ export class ServerPropertiesRepository implements IServerPropertiesRepository {
       }
 
       fs.writeFileSync(propertiesPath, lines.join("\n"), "utf-8");
+      this.markLocalChanges(serverId);
       return true;
     } catch (error) {
       throw new FileSystemError(
@@ -170,6 +175,7 @@ export class ServerPropertiesRepository implements IServerPropertiesRepository {
         JSON.stringify(clean, null, 2),
         "utf-8",
       );
+      this.markLocalChanges(serverId);
       return true;
     } catch (error) {
       throw new FileSystemError(
@@ -203,9 +209,171 @@ export class ServerPropertiesRepository implements IServerPropertiesRepository {
     };
   }
 
+  async exportWorld(serverId: string): Promise<WorldActionResult> {
+    const serverPath = this.getLocalServerPath(serverId);
+    const levelName = this.readLevelName(serverId);
+    const folders = this.worldFolders(serverPath, [levelName]);
+    if (folders.length === 0) {
+      return "no-world";
+    }
+
+    const { canceled, filePath } = await withParent((win) =>
+      dialog.showSaveDialog(win, {
+        defaultPath: path.join(app.getPath("downloads"), `${serverId}-${levelName}.zip`),
+        filters: [{ name: "Zip", extensions: ["zip"] }],
+      }),
+    );
+    if (canceled || !filePath) {
+      return "canceled";
+    }
+
+    // zip appends to an existing archive instead of replacing it
+    await fs.promises.rm(filePath, { force: true });
+    const names = folders.map((folder) => path.basename(folder));
+    // ponytail: system archivers (bsdtar on Windows 10+/macOS, zip on Linux) instead of a zip dependency
+    if (process.platform === "linux") {
+      await execFileAsync("zip", ["-r", "-q", filePath, ...names], { cwd: serverPath });
+    } else {
+      await execFileAsync("tar", ["-a", "-c", "-f", filePath, "-C", serverPath, ...names]);
+    }
+    shell.showItemInFolder(filePath);
+    return "done";
+  }
+
+  async importWorld(serverId: string): Promise<WorldActionResult> {
+    const savesPath = minecraftSavesPath();
+    const { canceled, filePaths } = await withParent((win) =>
+      dialog.showOpenDialog(win, {
+        // A world is a folder, but Windows can't pick files and folders in one dialog:
+        // picking its level.dat works everywhere
+        properties: ["openFile"],
+        defaultPath: fs.existsSync(savesPath) ? savesPath : undefined,
+        filters: [{ name: "Minecraft world (.zip, level.dat)", extensions: ["zip", "dat"] }],
+      }),
+    );
+    if (canceled || filePaths.length === 0) {
+      return "canceled";
+    }
+
+    const picked = filePaths[0];
+    const tempPath = await fs.promises.mkdtemp(path.join(os.tmpdir(), "pass-the-host-world-"));
+    try {
+      let worldPath: string | null = null;
+      if (picked.toLowerCase().endsWith(".zip")) {
+        if (process.platform === "linux") {
+          await execFileAsync("unzip", ["-q", picked, "-d", tempPath]);
+        } else {
+          await execFileAsync("tar", ["-x", "-f", picked, "-C", tempPath]);
+        }
+        worldPath = findWorldFolder(tempPath);
+      } else if (path.basename(picked) === "level.dat") {
+        worldPath = path.dirname(picked);
+      }
+      if (!worldPath) {
+        return "invalid";
+      }
+
+      const serverPath = this.getLocalServerPath(serverId);
+      const levelName = this.readLevelName(serverId);
+      await this.deleteWorldFolders(serverPath, [levelName]);
+      const target = path.join(serverPath, levelName);
+      await fs.promises.cp(worldPath, target, { recursive: true });
+      // Left behind by a client that had the world open
+      await fs.promises.rm(path.join(target, "session.lock"), { force: true });
+      this.markLocalChanges(serverId);
+      return "done";
+    } finally {
+      await fs.promises.rm(tempPath, { recursive: true, force: true });
+    }
+  }
+
+  async resetWorld(serverId: string, levelNames: string[]): Promise<WorldActionResult> {
+    await this.deleteWorldFolders(this.getLocalServerPath(serverId), levelNames);
+    this.markLocalChanges(serverId);
+    return "done";
+  }
+
+  private readLevelName(serverId: string): string {
+    return this.readAll(serverId)["level-name"] || "world";
+  }
+
+  // Vanilla, Forge and Fabric keep every dimension inside the world folder; Paper splits them out
+  private worldFolders(serverPath: string, levelNames: string[]): string[] {
+    return levelNames
+      .flatMap((name) => [name, `${name}_nether`, `${name}_the_end`])
+      .map((name) => path.resolve(serverPath, name))
+      .filter((folder) => {
+        // level-name comes from a user-editable file: never let "", "." or "../x" escape the server
+        const relative = path.relative(serverPath, folder);
+        return (
+          relative !== "" &&
+          !relative.startsWith("..") &&
+          !path.isAbsolute(relative) &&
+          fs.existsSync(path.join(folder, "level.dat"))
+        );
+      });
+  }
+
+  private async deleteWorldFolders(serverPath: string, levelNames: string[]): Promise<void> {
+    for (const folder of this.worldFolders(serverPath, levelNames)) {
+      await fs.promises.rm(folder, { recursive: true, force: true });
+    }
+  }
+
+  // Keeps the next start from downloading the old cloud copy over these edits; the next upload clears it
+  private markLocalChanges(serverId: string): void {
+    fs.writeFileSync(
+      path.join(this.getLocalServerPath(serverId), ".cloud-sync-state.json"),
+      JSON.stringify(
+        { localChangesPendingUpload: true, lastLocalChangeTimestamp: Date.now() },
+        null,
+        2,
+      ),
+      "utf-8",
+    );
+  }
+
   private getLocalServerPath(serverId: string): string {
     return path.join(app.getPath("userData"), "servers", serverId);
   }
+}
+
+const execFileAsync = promisify(execFile);
+
+function withParent<T>(show: (win: BrowserWindow) => Promise<T>): Promise<T> {
+  const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+  return show(win);
+}
+
+function minecraftSavesPath(): string {
+  if (process.platform === "win32") {
+    return path.join(app.getPath("appData"), ".minecraft", "saves");
+  }
+  if (process.platform === "darwin") {
+    return path.join(app.getPath("appData"), "minecraft", "saves");
+  }
+  return path.join(os.homedir(), ".minecraft", "saves");
+}
+
+/** Shallowest folder holding a level.dat (zips often wrap the world in one or two folders) */
+export function findWorldFolder(root: string, depth = 3): string | null {
+  let level = [root];
+  for (let i = 0; i <= depth && level.length > 0; i++) {
+    // Shortest path first, so "world" wins over Paper's "world_nether"
+    const found = level
+      .filter((dir) => fs.existsSync(path.join(dir, "level.dat")))
+      .sort((a, b) => a.length - b.length)[0];
+    if (found) {
+      return found;
+    }
+    level = level.flatMap((dir) =>
+      fs
+        .readdirSync(dir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && entry.name !== "__MACOSX")
+        .map((entry) => path.join(dir, entry.name)),
+    );
+  }
+  return null;
 }
 
 // server.properties is a Java .properties file: values escape ":", "=", "#", "!" and

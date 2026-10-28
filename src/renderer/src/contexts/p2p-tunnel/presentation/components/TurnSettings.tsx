@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useTranslation } from "react-i18next";
+import { monoFont } from "@renderer/theme";
 import type { TurnConfig } from "@preload/index.d";
 
 type TurnType = TurnConfig["type"];
@@ -78,11 +79,11 @@ export const TurnSettings: React.FC = () => {
       : urls.trim() !== "" && username.trim() !== "" && credential !== "";
 
   return (
-    <Stack spacing={2}>
-      <Typography variant="body2" color="text.secondary">
+    <Stack spacing={1.5}>
+      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.7 }}>
         {t("p2p.turn.description")}
       </Typography>
-      <Alert severity={isCustom ? "success" : "info"}>
+      <Alert severity={isCustom ? "success" : "info"} variant="outlined" sx={{ py: 0.5 }}>
         {isCustom ? t("p2p.turn.usingCustom") : t("p2p.turn.notConfigured")}
       </Alert>
       <ToggleButtonGroup
@@ -107,6 +108,7 @@ export const TurnSettings: React.FC = () => {
             onChange={(e) => setKeyId(e.target.value)}
             size="small"
             fullWidth
+            slotProps={{ htmlInput: { style: { fontFamily: monoFont } } }}
             disabled={busy}
           />
           <TextField
@@ -116,6 +118,7 @@ export const TurnSettings: React.FC = () => {
             onChange={(e) => setApiToken(e.target.value)}
             size="small"
             fullWidth
+            slotProps={{ htmlInput: { style: { fontFamily: monoFont } } }}
             disabled={busy}
           />
         </>
@@ -131,6 +134,7 @@ export const TurnSettings: React.FC = () => {
             minRows={2}
             size="small"
             fullWidth
+            slotProps={{ htmlInput: { style: { fontFamily: monoFont } } }}
             disabled={busy}
           />
           <TextField
@@ -139,6 +143,7 @@ export const TurnSettings: React.FC = () => {
             onChange={(e) => setUsername(e.target.value)}
             size="small"
             fullWidth
+            slotProps={{ htmlInput: { style: { fontFamily: monoFont } } }}
             disabled={busy}
           />
           <TextField
@@ -148,6 +153,7 @@ export const TurnSettings: React.FC = () => {
             onChange={(e) => setCredential(e.target.value)}
             size="small"
             fullWidth
+            slotProps={{ htmlInput: { style: { fontFamily: monoFont } } }}
             disabled={busy}
           />
         </>
@@ -155,8 +161,8 @@ export const TurnSettings: React.FC = () => {
       <Typography variant="caption" color="text.secondary">
         {t("p2p.turn.appliesNextConnection")}
       </Typography>
-      <Stack direction="row" spacing={1} justifyContent="flex-end">
-        <Button onClick={() => save(null)} disabled={busy || !isCustom}>
+      <Stack direction="row" spacing={1} justifyContent="space-between">
+        <Button color="error" variant="outlined" onClick={() => save(null)} disabled={busy || !isCustom}>
           {t("p2p.turn.remove")}
         </Button>
         <Button variant="contained" onClick={() => save(config)} disabled={busy || !canSave}>

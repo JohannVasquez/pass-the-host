@@ -34,6 +34,7 @@ import {
   ReadWhitelistUseCase,
   WriteWhitelistUseCase,
   LookupPlayerUseCase,
+  ManageWorldUseCase,
   GetBucketSizeUseCase,
   GetServerSizeUseCase,
   AuthorizeGoogleDriveUseCase,
@@ -225,8 +226,11 @@ function setupAutoUpdater(container: Container): void {
 }
 function createWindow(): void {
   mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1100,
+    height: 720,
+    minWidth: 900,
+    minHeight: 600,
+    backgroundColor: "#0f1115",
     show: false,
     autoHideMenuBar: true,
     icon: icon,
@@ -365,6 +369,7 @@ if (!gotTheLock) {
       container.get(ReadWhitelistUseCase),
       container.get(WriteWhitelistUseCase),
       container.get(LookupPlayerUseCase),
+      container.get(ManageWorldUseCase),
       container.get(GetBucketSizeUseCase),
       container.get(GetServerSizeUseCase),
       container.get(AuthorizeGoogleDriveUseCase),
