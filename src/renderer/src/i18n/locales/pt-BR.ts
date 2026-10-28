@@ -350,6 +350,7 @@ export const ptBR: typeof en = {
       close: "Fechar",
     },
     p2p: {
+      roomActions: "Ações da sala",
       copyAddress: "Copiar endereço para o Minecraft",
       addressCopied: "Endereço copiado: cole no Minecraft → Multijogador",
       autoConnect: "Conectar automaticamente quando alguém hospedar",

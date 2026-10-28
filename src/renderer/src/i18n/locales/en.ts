@@ -345,6 +345,7 @@ export const en = {
       close: "Close",
     },
     p2p: {
+      roomActions: "Room actions",
       copyAddress: "Copy address for Minecraft",
       addressCopied: "Address copied: paste it in Minecraft → Multiplayer",
       autoConnect: "Connect automatically when someone hosts",

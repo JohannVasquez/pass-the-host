@@ -351,6 +351,7 @@ export const es = {
       close: "Cerrar",
     },
     p2p: {
+      roomActions: "Acciones de la sala",
       copyAddress: "Copiar dirección para Minecraft",
       addressCopied: "Dirección copiada: pégala en Minecraft → Multijugador",
       autoConnect: "Conectarme automáticamente cuando alguien hostee",

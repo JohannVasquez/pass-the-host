@@ -17,6 +17,7 @@ import {
   Stack,
   Tooltip,
 } from "@mui/material";
+import GroupsOutlinedIcon from "@mui/icons-material/GroupsOutlined";
 import PersonRemoveOutlinedIcon from "@mui/icons-material/PersonRemoveOutlined";
 import { useTranslation } from "react-i18next";
 import type { P2PMember } from "@preload/index.d";
@@ -65,8 +66,11 @@ export const MembersDialog: React.FC<MembersDialogProps> = ({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>{t("p2p.membersTitle", { name: groupName })}</DialogTitle>
-      <DialogContent dividers>
+      <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        <GroupsOutlinedIcon sx={{ color: "primary.main" }} />
+        {t("p2p.membersTitle", { name: groupName })}
+      </DialogTitle>
+      <DialogContent>
         {failed ? (
           t("p2p.errors.generic", { code: "members" })
         ) : !members ? (
@@ -82,10 +86,12 @@ export const MembersDialog: React.FC<MembersDialogProps> = ({
                 <ListItem
                   key={member.id}
                   disableGutters
+                  divider
+                  sx={{ minHeight: 56 }}
                   secondaryAction={
                     <Stack direction="row" spacing={0.5}>
                       {presence?.hosting && (
-                        <Chip size="small" color="success" label={t("p2p.hostingChip")} />
+                        <Chip size="small" color="success" variant="outlined" label={t("p2p.hostingChip")} />
                       )}
                       {member.isOwner && <Chip size="small" label={t("p2p.creator")} />}
                       {canRemove && !member.isOwner && (
@@ -112,7 +118,7 @@ export const MembersDialog: React.FC<MembersDialogProps> = ({
                       invisible={!presence}
                       aria-label={presence ? t("p2p.online") : undefined}
                     >
-                      <Avatar sx={{ width: 32, height: 32 }}>{name[0]?.toUpperCase()}</Avatar>
+                      <Avatar sx={{ width: 36, height: 36, fontSize: 14, fontWeight: 600 }}>{name[0]?.toUpperCase()}</Avatar>
                     </Badge>
                   </ListItemAvatar>
                   <ListItemText

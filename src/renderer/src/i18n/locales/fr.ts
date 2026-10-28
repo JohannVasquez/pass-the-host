@@ -352,6 +352,7 @@ export const fr: typeof en = {
       close: "Fermer",
     },
     p2p: {
+      roomActions: "Actions du salon",
       copyAddress: "Copier l'adresse pour Minecraft",
       addressCopied: "Adresse copiée : colle-la dans Minecraft → Multijoueur",
       autoConnect: "Me connecter automatiquement quand quelqu'un héberge",

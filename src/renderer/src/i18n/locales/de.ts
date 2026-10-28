@@ -351,6 +351,7 @@ export const de: typeof en = {
       close: "Schließen",
     },
     p2p: {
+      roomActions: "Raumaktionen",
       copyAddress: "Adresse für Minecraft kopieren",
       addressCopied: "Adresse kopiert: füge sie in Minecraft → Mehrspieler ein",
       autoConnect: "Automatisch verbinden, wenn jemand hostet",

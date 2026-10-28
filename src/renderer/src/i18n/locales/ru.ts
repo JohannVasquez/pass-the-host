@@ -348,6 +348,7 @@ export const ru: typeof en = {
       close: "Закрыть",
     },
     p2p: {
+      roomActions: "Действия с комнатой",
       copyAddress: "Скопировать адрес для Minecraft",
       addressCopied: "Адрес скопирован: вставьте его в Minecraft → Сетевая игра",
       autoConnect: "Подключаться автоматически, когда кто-то хостит",
