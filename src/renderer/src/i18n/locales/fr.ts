@@ -433,6 +433,9 @@ export const fr: typeof en = {
       error: "Impossible de partager le serveur.",
     },
     settings: {
+      offlineCloudWarning: "Avertir avant de démarrer un serveur non synchronisé",
+      offlineCloudWarningHint:
+        "Demande une confirmation quand un serveur enregistré dans le cloud ne peut pas se synchroniser et tournerait seulement sur ce PC.",
       title: "Paramètres",
       advanced: "Avancé",
       close: "Fermer",

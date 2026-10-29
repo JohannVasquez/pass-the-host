@@ -431,6 +431,9 @@ export const ptBR: typeof en = {
       error: "Não foi possível compartilhar o servidor.",
     },
     settings: {
+      offlineCloudWarning: "Avisar antes de iniciar um servidor sem sincronizar",
+      offlineCloudWarningHint:
+        "Pede confirmação quando um servidor salvo na nuvem não consegue sincronizar e rodaria só neste PC.",
       title: "Configurações",
       advanced: "Avançado",
       close: "Fechar",

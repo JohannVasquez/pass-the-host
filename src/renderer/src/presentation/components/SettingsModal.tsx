@@ -8,7 +8,9 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   Stack,
+  Switch,
   Typography,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -19,6 +21,7 @@ import { TurnSettings } from "@contexts/p2p-tunnel/presentation/components/TurnS
 import { ModsFolderSettings } from "@contexts/p2p-tunnel/presentation/components/ModsFolderSettings";
 import { PrivacySettings } from "@contexts/p2p-tunnel/presentation/components/PrivacySettings";
 import { surface } from "@renderer/theme";
+import { OFFLINE_CLOUD_WARNING_KEY } from "./OfflineCloudServerModal";
 
 const accordionSx = {
   bgcolor: surface.panel,
@@ -48,6 +51,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
+  const [offlineWarning, setOfflineWarning] = React.useState(true);
+
+  // Re-read on open: the start dialog may have turned it off since
+  React.useEffect(() => {
+    if (open) setOfflineWarning(localStorage.getItem(OFFLINE_CLOUD_WARNING_KEY) !== "hidden");
+  }, [open]);
+
+  const handleOfflineWarningChange = (checked: boolean): void => {
+    setOfflineWarning(checked);
+    if (checked) localStorage.removeItem(OFFLINE_CLOUD_WARNING_KEY);
+    else localStorage.setItem(OFFLINE_CLOUD_WARNING_KEY, "hidden");
+  };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -59,6 +74,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <Stack spacing={2} sx={{ pt: 0.5 }}>
           <UsernameInput username={username} onSave={onSaveUsername} disabled={usernameDisabled} />
           <ModsFolderSettings />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={offlineWarning}
+                onChange={(e) => handleOfflineWarningChange(e.target.checked)}
+              />
+            }
+            label={
+              <Stack>
+                <Typography variant="body2">{t("settings.offlineCloudWarning")}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {t("settings.offlineCloudWarningHint")}
+                </Typography>
+              </Stack>
+            }
+          />
           <Accordion disableGutters sx={accordionSx}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography variant="subtitle2">{t("settings.advanced")}</Typography>

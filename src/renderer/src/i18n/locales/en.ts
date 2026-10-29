@@ -426,6 +426,9 @@ export const en = {
       error: "Could not share the server.",
     },
     settings: {
+      offlineCloudWarning: "Warn before starting an unsynced server",
+      offlineCloudWarningHint:
+        "Asks for confirmation when a server saved in the cloud can't sync and would run only on this PC.",
       title: "Settings",
       advanced: "Advanced",
       close: "Close",

@@ -41,7 +41,10 @@ import { TransferProgressModal } from "./presentation/components/TransferProgres
 import { ServerStatisticsModal } from "./presentation/components/ServerStatisticsModal";
 import { CreateServerModal } from "./presentation/components/CreateServerModal";
 import { ServerExistsModal } from "./presentation/components/ServerExistsModal";
-import { OfflineCloudServerModal } from "./presentation/components/OfflineCloudServerModal";
+import {
+  OfflineCloudServerModal,
+  OFFLINE_CLOUD_WARNING_KEY,
+} from "./presentation/components/OfflineCloudServerModal";
 import { DeleteServerModal } from "./presentation/components/DeleteServerModal";
 import { ShareServerModal } from "./presentation/components/ShareServerModal";
 import { EditServerModal } from "./presentation/components/EditServerModal";
@@ -120,8 +123,6 @@ function App(): React.JSX.Element {
     </ThemeProvider>
   );
 }
-
-const OFFLINE_CLOUD_WARNING_KEY = "offlineCloudServerWarning";
 
 function AppContent(): React.JSX.Element {
   const { t, i18n } = useTranslation();

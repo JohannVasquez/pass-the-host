@@ -432,6 +432,9 @@ export const de: typeof en = {
       error: "Der Server konnte nicht geteilt werden.",
     },
     settings: {
+      offlineCloudWarning: "Vor dem Start eines nicht synchronisierten Servers warnen",
+      offlineCloudWarningHint:
+        "Fragt nach, wenn ein in der Cloud gespeicherter Server nicht synchronisiert werden kann und nur auf diesem PC laufen würde.",
       title: "Einstellungen",
       advanced: "Erweitert",
       close: "Schließen",

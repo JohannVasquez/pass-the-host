@@ -432,6 +432,9 @@ export const es = {
       error: "No se pudo compartir el servidor.",
     },
     settings: {
+      offlineCloudWarning: "Avisar antes de iniciar un servidor sin sincronizar",
+      offlineCloudWarningHint:
+        "Pide confirmación cuando un servidor guardado en la nube no puede sincronizarse y correría solo en este PC.",
       title: "Configuración",
       advanced: "Avanzado",
       close: "Cerrar",

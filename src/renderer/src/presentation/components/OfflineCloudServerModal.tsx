@@ -20,6 +20,9 @@ interface OfflineCloudServerModalProps {
   onConfirm: (dontShowAgain: boolean) => void;
 }
 
+/** localStorage key: "hidden" once the user ticks "don't show again" */
+export const OFFLINE_CLOUD_WARNING_KEY = "offlineCloudServerWarning";
+
 /** Asks before starting a local copy of a cloud server that can't be synced right now */
 export const OfflineCloudServerModal: React.FC<OfflineCloudServerModalProps> = ({
   open,
