@@ -54,6 +54,18 @@ describe("TcpTunnel", () => {
     expect(port).toBeGreaterThan(0);
   });
 
+  it("reuses the saved fallback port before picking a random one", async () => {
+    const blocker = createServer();
+    servers.push(blocker);
+    const busyPort = await listenOnRandomPort(blocker);
+    const probe = createServer();
+    const savedPort = await listenOnRandomPort(probe);
+    await new Promise((r) => probe.close(r));
+    const { sender } = fakeSender();
+
+    expect(await tunnel.listen(sender, busyPort, savedPort)).toBe(savedPort);
+  });
+
   it("friend side: holds incoming bytes until resumed, then relays both ways", async () => {
     const { sender, events, next } = fakeSender();
     const port = await tunnel.listen(sender, 0);

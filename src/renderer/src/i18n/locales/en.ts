@@ -421,6 +421,7 @@ export const en = {
       connecting: "Connecting…",
       disconnect: "Disconnect",
       connected: "Connected",
+      portBusyHint: "{{port}} was busy on this PC: use this address in Minecraft. It stays the same next time.",
       serverAddress: "Server address",
       hosting: "Friends in this room can join your server.",
       disconnected: "Lost the connection to the host.",

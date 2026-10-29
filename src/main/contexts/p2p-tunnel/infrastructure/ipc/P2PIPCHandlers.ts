@@ -51,7 +51,7 @@ export function registerP2PIPCHandlers(): void {
   ipcMain.handle("p2p:get-turn-config", () => loadTurnConfig());
   ipcMain.handle("p2p:save-turn-config", (_e, config: TurnConfig | null) => saveTurnConfig(config));
 
-  ipcMain.handle("p2p:client-listen", (e, port: number) => tunnel.listen(e.sender, port));
+  ipcMain.handle("p2p:client-listen", (e, ports: number[]) => tunnel.listen(e.sender, ...ports));
   ipcMain.on("p2p:host-connect", (e, connId: string, port: number) => {
     if (UUID.test(connId)) tunnel.connectToServer(e.sender, connId, port);
   });

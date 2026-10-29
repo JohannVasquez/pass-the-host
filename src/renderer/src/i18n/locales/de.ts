@@ -427,6 +427,7 @@ export const de: typeof en = {
       connecting: "Verbinde…",
       disconnect: "Trennen",
       connected: "Verbunden",
+      portBusyHint: "{{port}} war auf diesem PC belegt: Nutze diese Adresse in Minecraft. Sie bleibt beim nächsten Mal gleich.",
       serverAddress: "Serveradresse",
       hosting: "Freunde in diesem Raum können deinem Server beitreten.",
       disconnected: "Verbindung zum Host verloren.",

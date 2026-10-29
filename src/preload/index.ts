@@ -5,7 +5,8 @@ import type { TokenRequest } from "ably";
 type WorldActionResult = "done" | "canceled" | "no-world" | "invalid";
 
 // S3 provider types
-type S3Provider = "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other" | "GoogleDrive";
+type S3Provider =
+  "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other" | "GoogleDrive";
 
 interface S3ConfigType {
   provider: S3Provider;
@@ -182,7 +183,10 @@ const serverAPI = {
     serverId: string,
     entries: Array<{ uuid: string; name: string }>,
   ): Promise<boolean> => ipcRenderer.invoke("server:write-whitelist", serverId, entries),
-  lookupPlayer: (name: string, onlineMode: boolean): Promise<{ uuid: string; name: string } | null> =>
+  lookupPlayer: (
+    name: string,
+    onlineMode: boolean,
+  ): Promise<{ uuid: string; name: string } | null> =>
     ipcRenderer.invoke("server:lookup-player", name, onlineMode),
   getLocalServerPath: (serverId: string): Promise<string> =>
     ipcRenderer.invoke("server:get-local-server-path", serverId),
@@ -261,7 +265,12 @@ const serverAPI = {
   deleteLocally: (serverId: string): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke("server:delete-locally", serverId),
   listLocalServers: (): Promise<
-    Array<{ id: string; name: string; version: string; type: "vanilla" | "forge" | "neoforge" | "unknown" }>
+    Array<{
+      id: string;
+      name: string;
+      version: string;
+      type: "vanilla" | "forge" | "neoforge" | "unknown";
+    }>
   > => ipcRenderer.invoke("server:list-local"),
 };
 
@@ -307,7 +316,8 @@ const p2pAPI = {
     ipcRenderer.invoke("p2p:save-turn-config", config),
   getIceServers: (): Promise<{ iceServers: RTCIceServer[] }> =>
     ipcRenderer.invoke("p2p:ice-servers"),
-  clientListen: (port: number): Promise<number> => ipcRenderer.invoke("p2p:client-listen", port),
+  clientListen: (ports: number[]): Promise<number> =>
+    ipcRenderer.invoke("p2p:client-listen", ports),
   hostConnect: (connId: string, port: number): void =>
     ipcRenderer.send("p2p:host-connect", connId, port),
   tcpWrite: (connId: string, data: Uint8Array): void =>
@@ -329,6 +339,12 @@ const p2pAPI = {
     ): void => callback(connId, data);
     ipcRenderer.on("p2p:tcp-data", listener);
     return () => ipcRenderer.removeListener("p2p:tcp-data", listener);
+  },
+  onTcpError: (callback: (connId: string, message: string) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, connId: string, message: string): void =>
+      callback(connId, message);
+    ipcRenderer.on("p2p:tcp-error", listener);
+    return () => ipcRenderer.removeListener("p2p:tcp-error", listener);
   },
   onTcpClose: (callback: (connId: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, connId: string): void => callback(connId);

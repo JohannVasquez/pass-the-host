@@ -1,7 +1,11 @@
 import { channelName, getRealtime } from "@contexts/p2p-tunnel/infrastructure/Realtime";
 import {
   answerFrom,
+  DIAG_DETAIL_MAX,
+  diagFrom,
   offerFor,
+  type Diag,
+  type DiagCode,
   type SignalMessage,
 } from "@contexts/p2p-tunnel/infrastructure/signaling";
 
@@ -20,6 +24,16 @@ const CONTROL_LABEL = "control";
 const MAX_PEERS_PER_MEMBER = 2;
 const MAX_CONNECTIONS_PER_PEER = 16;
 
+const DIAG_THROTTLE_MS = 5_000;
+const DIAG_EVENT = "p2p_diag";
+
+/** What the host learns about a friend's tunnel; `from` is the friend's clientId. */
+export interface HostEvents {
+  onOpened: (from: string) => void;
+  onClosed: (from: string) => void;
+  onDiag: (diag: Diag) => void;
+}
+
 const dataChannels = new Map<string, RTCDataChannel>();
 
 window.p2pAPI.onTcpData((connId, data) => {
@@ -34,7 +48,12 @@ window.p2pAPI.onTcpClose((connId) => {
   dataChannels.delete(connId);
 });
 
-function bridge(connId: string, dc: RTCDataChannel, owned: Set<string>): void {
+function bridge(
+  connId: string,
+  dc: RTCDataChannel,
+  owned: Set<string>,
+  onError?: () => void,
+): void {
   dc.binaryType = "arraybuffer";
   dc.bufferedAmountLowThreshold = LOW_WATER_BYTES;
   dataChannels.set(connId, dc);
@@ -42,6 +61,7 @@ function bridge(connId: string, dc: RTCDataChannel, owned: Set<string>): void {
   dc.onmessage = (event) =>
     window.p2pAPI.tcpWrite(connId, new Uint8Array(event.data as ArrayBuffer));
   dc.onbufferedamountlow = () => window.p2pAPI.tcpResume(connId);
+  dc.onerror = () => onError?.();
   dc.onclose = () => {
     dataChannels.delete(connId);
     owned.delete(connId);
@@ -108,17 +128,25 @@ const isClosed = (pc: RTCPeerConnection): boolean =>
   pc.connectionState === "failed" || pc.connectionState === "closed";
 
 /** Host: answer offers addressed to us on the group's channel and pipe their data channels into the local server. */
-export async function startHosting(groupId: string, serverPort: number): Promise<() => void> {
+export async function startHosting(
+  groupId: string,
+  serverPort: number,
+  events: HostEvents,
+): Promise<() => void> {
   const realtime = getRealtime();
   const channel = realtime.channels.get(channelName(groupId));
   // Keyed by sender + peerId: a member can't take over another member's peer
-  const peers = new Map<string, { pc: RTCPeerConnection; owned: Set<string>; from: string }>();
+  const peers = new Map<
+    string,
+    { pc: RTCPeerConnection; owned: Set<string>; from: string; connected: boolean }
+  >();
 
   const dropPeer = (key: string, pc: RTCPeerConnection): void => {
     const peer = peers.get(key);
     if (peer?.pc !== pc) return;
     peers.delete(key);
     closePeer(pc, peer.owned);
+    if (peer.connected) events.onClosed(peer.from);
   };
 
   const onOffer = async (message: SignalMessage): Promise<void> => {
@@ -131,7 +159,8 @@ export async function startHosting(groupId: string, serverPort: number): Promise
     // ICE servers are set below; creating the connection first reserves the slot
     const pc = new RTCPeerConnection();
     const owned = new Set<string>();
-    peers.set(key, { pc, owned, from });
+    const peer = { pc, owned, from, connected: false };
+    peers.set(key, peer);
     pc.ondatachannel = ({ channel: dc }) => {
       if (dc.label === CONTROL_LABEL) return;
       if (owned.size >= MAX_CONNECTIONS_PER_PEER) return dc.close();
@@ -139,6 +168,10 @@ export async function startHosting(groupId: string, serverPort: number): Promise
       bridge(dc.label, dc, owned);
     };
     pc.onconnectionstatechange = () => {
+      if (pc.connectionState === "connected" && !peer.connected) {
+        peer.connected = true;
+        events.onOpened(from);
+      }
       if (isClosed(pc)) dropPeer(key, pc);
     };
     try {
@@ -160,11 +193,17 @@ export async function startHosting(groupId: string, serverPort: number): Promise
       dropPeer(key, pc);
     }
   };
+  const onDiag = (message: SignalMessage): void => {
+    const diag = diagFrom(message, realtime.auth.clientId);
+    if (diag) events.onDiag(diag);
+  };
   await channel.subscribe("webrtc_offer", onOffer);
+  await channel.subscribe(DIAG_EVENT, onDiag);
 
   // The channel stays attached: presence on it outlives hosting
   return () => {
     channel.unsubscribe("webrtc_offer", onOffer);
+    channel.unsubscribe(DIAG_EVENT, onDiag);
     for (const { pc, owned } of peers.values()) closePeer(pc, owned);
     peers.clear();
     window.p2pAPI.closeAll();
@@ -176,18 +215,31 @@ export interface JoinedServer {
   stop: () => void;
 }
 
-/** Friend: offer a connection to the group member `host` (their clientId), then expose it on a local TCP port for Minecraft. */
+/** Friend: offer a connection to the group member `host` (their clientId), then expose it on a local TCP port for Minecraft (the first free of `preferredPorts`, else any). */
 export async function joinServer(
   groupId: string,
   host: string,
-  preferredPort: number,
+  preferredPorts: number[],
   onDisconnected: () => void,
+  onNotice: (code: DiagCode, detail?: string) => void = () => undefined,
 ): Promise<JoinedServer> {
   const { iceServers } = await window.p2pAPI.getIceServers();
   const channel = getRealtime().channels.get(channelName(groupId));
   const peerId = crypto.randomUUID();
   const pc = new RTCPeerConnection({ iceServers });
   const owned = new Set<string>();
+  // Tell our console and the host (best effort, at most one message per code per few seconds)
+  const lastSent = new Map<DiagCode, number>();
+  const notice = (code: DiagCode, detail?: string): void => {
+    onNotice(code, detail);
+    const now = Date.now();
+    if (now - (lastSent.get(code) ?? 0) < DIAG_THROTTLE_MS) return;
+    lastSent.set(code, now);
+    const capped = detail?.slice(0, DIAG_DETAIL_MAX);
+    Promise.resolve(channel.publish(DIAG_EVENT, { to: host, code, detail: capped })).catch(
+      () => undefined,
+    );
+  };
   // An offer needs at least one data channel to carry an application section
   pc.createDataChannel(CONTROL_LABEL);
 
@@ -223,12 +275,24 @@ export async function joinServer(
     );
   } catch (error) {
     pc.close();
+    notice("tunnel_failed", error instanceof Error ? error.message : String(error));
     throw error;
   }
 
-  const port = await window.p2pAPI.clientListen(preferredPort);
+  let port: number;
+  try {
+    port = await window.p2pAPI.clientListen(preferredPorts);
+  } catch (error) {
+    pc.close();
+    notice("tunnel_failed", error instanceof Error ? error.message : String(error));
+    throw error;
+  }
+  notice("joined", String(port));
+  if (port !== preferredPorts[0]) notice("port_changed", String(port));
   const offOpen = window.p2pAPI.onTcpOpen((connId) =>
-    bridge(connId, pc.createDataChannel(connId), owned),
+    bridge(connId, pc.createDataChannel(connId), owned, () =>
+      notice("channel_failed", "data channel error"),
+    ),
   );
   const stop = (): void => {
     offOpen();
@@ -239,6 +303,7 @@ export async function joinServer(
   pc.onconnectionstatechange = () => {
     if (!isClosed(pc)) return;
     stop();
+    notice("tunnel_closed", String(port));
     onDisconnected();
   };
   return { port, stop };

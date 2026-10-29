@@ -42,6 +42,7 @@ import {
   startHosting,
   type JoinedServer,
 } from "@contexts/p2p-tunnel/infrastructure/PeerTunnel";
+import type { DiagCode } from "@contexts/p2p-tunnel/infrastructure/signaling";
 import { resetRealtime } from "@contexts/p2p-tunnel/infrastructure/Realtime";
 import {
   watchPresence,
@@ -58,6 +59,8 @@ import { RoomsInfoDialog } from "@contexts/p2p-tunnel/presentation/components/Ro
 const MINECRAFT_PORT = 25565;
 const GROUP_STORAGE_KEY = "p2p.groupId";
 const AUTO_CONNECT_STORAGE_KEY = "p2p.autoConnect";
+// Reused when the Minecraft port is busy, so the friend's saved server entry keeps working
+const FALLBACK_PORT_STORAGE_KEY = "p2p.fallbackPort";
 
 type Mode = "join" | "create";
 
@@ -69,6 +72,8 @@ interface P2PPanelProps {
   username: string;
   /** Name of the selected Minecraft server, announced to the network while hosting */
   serverName: string | null;
+  /** Writes to the console the user sees */
+  onLog?: (message: string, type: "info" | "success" | "warning" | "error") => void;
 }
 
 const readStoredGroup = (): string => {
@@ -87,6 +92,22 @@ const readAutoConnect = (): boolean => {
   }
 };
 
+const readFallbackPort = (): number => {
+  try {
+    return Number(localStorage.getItem(FALLBACK_PORT_STORAGE_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+};
+
+const saveFallbackPort = (port: number): void => {
+  try {
+    localStorage.setItem(FALLBACK_PORT_STORAGE_KEY, String(port));
+  } catch {
+    // Without storage the port is simply picked again next time
+  }
+};
+
 const errorCode = (error: unknown): string =>
   (error instanceof Error ? error.message : String(error))
     .replace(/^Error invoking remote method '[^']+': /, "")
@@ -100,7 +121,9 @@ const CopyField: React.FC<{
   value: string;
   copyLabel: string;
   onCopy: () => void;
-}> = ({ label, value, copyLabel, onCopy }) => (
+  /** Highlights a value the user must not take for granted */
+  warning?: boolean;
+}> = ({ label, value, copyLabel, onCopy, warning = false }) => (
   <Stack
     direction="row"
     alignItems="center"
@@ -112,13 +135,16 @@ const CopyField: React.FC<{
       borderRadius: 1,
       bgcolor: surface.base,
       border: 1,
-      borderColor: surface.border,
+      borderColor: warning ? "warning.main" : surface.border,
     }}
   >
     <Typography variant="caption" color="text.secondary">
       {label}
     </Typography>
-    <Typography noWrap sx={{ fontFamily: monoFont, color: "primary.main", flexGrow: 1 }}>
+    <Typography
+      noWrap
+      sx={{ fontFamily: monoFont, color: warning ? "warning.main" : "primary.main", flexGrow: 1 }}
+    >
       {value}
     </Typography>
     <Tooltip title={copyLabel}>
@@ -135,6 +161,7 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
   serverPort,
   username,
   serverName,
+  onLog,
 }) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
@@ -157,6 +184,19 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
   const [realtimeEpoch, setRealtimeEpoch] = React.useState(0);
   const presenceRef = React.useRef<NetworkPresence | null>(null);
   const hostingSinceRef = React.useRef<number | null>(null);
+
+  // Read from long-lived tunnel callbacks without re-subscribing
+  const onlineRef = React.useRef(online);
+  onlineRef.current = online;
+  const onLogRef = React.useRef(onLog);
+  onLogRef.current = onLog;
+  const log = React.useCallback(
+    (message: string, type: "info" | "success" | "warning" | "error"): void =>
+      onLogRef.current?.(`[P2P] ${message}`, type),
+    [],
+  );
+  const nameOf = (clientId: string): string =>
+    onlineRef.current?.find((member) => member.clientId === clientId)?.name ?? "A friend";
 
   const selectedGroup = groups.find((group) => group.id === groupId);
   const hosts = online?.filter((member) => member.hosting && !member.isYou) ?? [];
@@ -289,17 +329,42 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
     if (!groupId || !serverRunning) return undefined;
     let stop: (() => void) | null = null;
     let cancelled = false;
-    startHosting(groupId, serverPort).then((stopHosting) => {
+    let lastTcpError = 0;
+    const offTcpError = window.p2pAPI.onTcpError((_connId, message) => {
+      // The multiplayer screen pings constantly: one line per few seconds is enough
+      if (Date.now() - lastTcpError < 5_000) return;
+      lastTcpError = Date.now();
+      log(`Couldn't reach your Minecraft server on port ${serverPort}: ${message}`, "error");
+    });
+    startHosting(groupId, serverPort, {
+      onOpened: (from) => log(`${nameOf(from)} connected to your server through the room`, "info"),
+      onClosed: (from) => log(`${nameOf(from)}'s connection to your server closed`, "warning"),
+      onDiag: ({ from, code, detail }) => {
+        const name = nameOf(from);
+        if (code === "port_changed")
+          log(
+            `${name} is using localhost:${detail} because ${MINECRAFT_PORT} was busy on their PC`,
+            "warning",
+          );
+        else if (code === "channel_failed")
+          log(`${name}'s connection to your server hit a data channel error`, "warning");
+        else if (code === "tunnel_failed")
+          log(`${name} couldn't connect to your server${detail ? ` (${detail})` : ""}`, "warning");
+        else if (code === "tunnel_closed")
+          log(`${name}'s tunnel closed, so their localhost:${detail} port was shut`, "warning");
+      },
+    }).then((stopHosting) => {
       if (cancelled) return stopHosting();
       stop = stopHosting;
       setHosting(true);
     }, showError);
     return () => {
       cancelled = true;
+      offTcpError();
       stop?.();
       setHosting(false);
     };
-  }, [groupId, serverRunning, serverPort, showError, realtimeEpoch]);
+  }, [groupId, serverRunning, serverPort, showError, realtimeEpoch, log]);
 
   const handleCreateGroup = (): Promise<void> =>
     run(async () => {
@@ -372,12 +437,37 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
     run(async () => {
       const target = hosts[0];
       if (!target) throw new Error("p2p_host_not_found");
-      setJoined(
-        await joinServer(groupId, target.clientId, MINECRAFT_PORT, () => {
+      const hostName = target.name;
+      let port = 0;
+      const onNotice = (code: DiagCode, detail?: string): void => {
+        if (code === "joined") {
+          port = Number(detail);
+          log(
+            `Connected to ${hostName}'s server. In Minecraft, use localhost:${detail}`,
+            "success",
+          );
+        } else if (code === "port_changed")
+          log(`Port ${MINECRAFT_PORT} was busy, so the tunnel uses localhost:${detail}`, "warning");
+        else if (code === "tunnel_failed")
+          log(`Couldn't connect to ${hostName}'s server${detail ? ` (${detail})` : ""}`, "error");
+        else if (code === "tunnel_closed")
+          log(
+            `Lost the connection to ${hostName}. Minecraft at localhost:${port} will be refused until you reconnect`,
+            "warning",
+          );
+      };
+      const tunnel = await joinServer(
+        groupId,
+        target.clientId,
+        [MINECRAFT_PORT, readFallbackPort()],
+        () => {
           setJoined(null);
           enqueueSnackbar(t("p2p.disconnected"), { variant: "warning" });
-        }),
+        },
+        onNotice,
       );
+      if (tunnel.port !== MINECRAFT_PORT) saveFallbackPort(tunnel.port);
+      setJoined(tunnel);
     });
 
   const handleDisconnect = (): void => {
@@ -547,7 +637,17 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
                     value={`localhost:${joined.port}`}
                     copyLabel={t("p2p.copyAddress")}
                     onCopy={() => handleCopyAddress(joined.port)}
+                    warning={joined.port !== MINECRAFT_PORT}
                   />
+                  {joined.port !== MINECRAFT_PORT && (
+                    <Typography
+                      variant="caption"
+                      color="warning.main"
+                      sx={{ display: "block", mt: 0.75 }}
+                    >
+                      {t("p2p.portBusyHint", { port: MINECRAFT_PORT })}
+                    </Typography>
+                  )}
                 </Box>
                 <Button fullWidth variant="outlined" color="warning" onClick={handleDisconnect}>
                   {t("p2p.disconnect")}
