@@ -257,6 +257,14 @@ export class ModsRepository {
     return path.join(this.checkedDir(serverId, this.readServerInfo(serverId).engine, folder), fileName);
   }
 
+  /** Absolute mod folders this server has (mods/ + client-mods/, or plugins/) */
+  modDirs(serverId: string): string[] {
+    const engine = this.readServerInfo(serverId).engine;
+    return (engine === "paper" ? ["plugins"] : ["mods", "client-mods"]).map((f) =>
+      this.dirOf(serverId, f as ModFolder),
+    );
+  }
+
   private folderName(engine: string): "mods" | "plugins" {
     return engine === "paper" ? "plugins" : "mods";
   }

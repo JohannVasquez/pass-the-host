@@ -202,6 +202,24 @@ async function folderJarHashes(folder: string): Promise<Map<string, string>> {
   return out;
 }
 
+/** Cheap change detector: stat only (no hashing), one line per jar, so 200+ jars stay fast */
+export async function fingerprintDirs(dirs: string[]): Promise<string> {
+  const lines: string[] = [];
+  for (const dir of dirs) {
+    const entries = await fs.promises.readdir(dir, { withFileTypes: true }).catch(() => []);
+    for (const e of entries) {
+      if (!e.isFile() || !e.name.toLowerCase().endsWith(".jar")) continue;
+      try {
+        const st = await fs.promises.stat(path.join(dir, e.name));
+        lines.push(`${path.basename(dir)}/${e.name}:${st.size}:${st.mtimeMs}`);
+      } catch {
+        // Vanished between readdir and stat: the next poll sees it gone
+      }
+    }
+  }
+  return lines.sort().join("\n");
+}
+
 export async function planFolder(folder: string, manifest: ClientModManifest): Promise<SyncPlan> {
   const hashes = new Set((await folderJarHashes(folder)).values());
   return { folder, ...computePlan(manifest.mods, hashes, readState(folder).managed) };
@@ -376,6 +394,10 @@ export class ModSync {
     };
     this.cache.set(serverId, { at: Date.now(), manifest, paths });
     return manifest;
+  }
+
+  modsFingerprint(serverId: string): Promise<string> {
+    return fingerprintDirs(this.repository.modDirs(serverId));
   }
 
   async readClientMod(serverId: string, sha1: string): Promise<Uint8Array> {

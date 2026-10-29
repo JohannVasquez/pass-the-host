@@ -263,6 +263,7 @@ interface ModsAPI {
   openModrinth: (slug: string) => Promise<boolean>;
   getPathForFile: (file: File) => string;
   clientManifest: (serverId: string) => Promise<ClientModManifest>;
+  modsFingerprint: (serverId: string) => Promise<string>;
   readClientMod: (serverId: string, sha1: string) => Promise<Uint8Array>;
   getSyncFolder: (key: string) => Promise<string | null>;
   pickSyncFolder: (key: string) => Promise<string | null>;

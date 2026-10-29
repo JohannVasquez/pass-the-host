@@ -400,6 +400,8 @@ const modsAPI = {
   // Client mod sync: host side
   clientManifest: (serverId: string): Promise<ClientModManifest> =>
     ipcRenderer.invoke("mods:client-manifest", serverId),
+  modsFingerprint: (serverId: string): Promise<string> =>
+    ipcRenderer.invoke("mods:fingerprint", serverId),
   readClientMod: (serverId: string, sha1: string): Promise<Uint8Array> =>
     ipcRenderer.invoke("mods:read-client-mod", serverId, sha1),
   // Client mod sync: friend side

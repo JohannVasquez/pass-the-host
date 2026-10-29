@@ -45,6 +45,7 @@ export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog
   const [syncing, setSyncing] = React.useState(false);
   const [progress, setProgress] = React.useState({ done: 0, total: 0, name: "" });
   const [failures, setFailures] = React.useState<Failure[]>([]);
+  const [changed, setChanged] = React.useState(false);
   const aliveRef = React.useRef(true);
   const onLogRef = React.useRef(onLog);
   onLogRef.current = onLog;
@@ -73,6 +74,7 @@ export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog
     setLoading(true);
     setError(null);
     setFailures([]);
+    setChanged(false);
     try {
       const next = await tunnel.mods().manifest();
       if (!aliveRef.current) return;
@@ -91,6 +93,46 @@ export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog
     void load();
   }, [load]);
 
+  // The host's mods changed while connected: refetch and replan (debounced), warn if anything is pending
+  React.useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = tunnel.mods().onChanged(() => {
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        try {
+          const next = await tunnel.mods().manifest();
+          if (!aliveRef.current) return;
+          setManifest(next);
+          const remembered = await window.modsAPI.getSyncFolder(`${groupId}:${next.serverName}`);
+          if (!aliveRef.current) return;
+          setFolder(remembered);
+          const nextPlan = remembered
+            ? await window.modsAPI.planSync(`${groupId}:${next.serverName}`, next)
+            : null;
+          if (!aliveRef.current) return;
+          setPlan(nextPlan);
+          if (!nextPlan || (nextPlan.download.length === 0 && nextPlan.remove.length === 0)) return;
+          setChanged(true);
+          onLogRef.current(
+            `${next.serverName} changed the server's mods: sync to stay compatible`,
+            "warning",
+          );
+          if (!document.hasFocus())
+            void window.notificationAPI.show(
+              t("p2p.modSync.notifyTitle", { server: next.serverName }),
+              t("p2p.modSync.notifyBody"),
+            );
+        } catch {
+          // The manual "Check again" button still works
+        }
+      }, 1000);
+    });
+    return () => {
+      clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [tunnel, groupId, t]);
+
   const pickFolder = async (): Promise<void> => {
     if (!key || !manifest) return;
     try {
@@ -106,6 +148,7 @@ export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog
     const failed: Failure[] = [];
     let done = 0;
     setSyncing(true);
+    setChanged(false);
     setFailures([]);
     setProgress({ done: 0, total: queue.length, name: "" });
     onLogRef.current(`Syncing ${queue.length} mods from ${manifest.serverName}`, "info");
@@ -186,6 +229,13 @@ export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog
   const loaderLabel = loaderVersion ? `${loader} ${loaderVersion}` : loader;
   const pending = plan ? plan.download.length : 0;
   const removing = plan ? plan.remove.length : 0;
+  const mismatch = pending > 0 || removing > 0;
+  const summary = [
+    pending > 0 && t("p2p.modSync.toDownload", { count: pending }),
+    removing > 0 && t("p2p.modSync.toRemove", { count: removing }),
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const busy = syncing || loading;
 
   return (
@@ -199,6 +249,20 @@ export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog
         borderColor: surface.border,
       }}
     >
+      {plan && mismatch && !syncing && (
+        <Alert
+          severity="warning"
+          variant="filled"
+          sx={{ mb: 1, py: 0.5 }}
+          action={
+            <Button color="inherit" size="small" onClick={() => void sync()} disabled={busy}>
+              {t("p2p.modSync.sync")}
+            </Button>
+          }
+        >
+          {t(changed ? "p2p.modSync.changedWarning" : "p2p.modSync.mismatchWarning", { summary })}
+        </Alert>
+      )}
       <Stack direction="row" alignItems="flex-start" spacing={1}>
         <Box sx={{ minWidth: 0, flexGrow: 1 }}>
           <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>
@@ -253,7 +317,8 @@ export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog
         </Box>
       )}
 
-      {plan && (
+      {/* A mismatch already shows its counts and the sync action in the warning above */}
+      {plan && (syncing || !mismatch) && (
         <Box sx={{ mt: 1 }}>
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
             {t("p2p.modSync.plan", {
@@ -280,20 +345,10 @@ export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog
                 })}
               </Typography>
             </>
-          ) : pending === 0 && removing === 0 ? (
+          ) : (
             <Alert severity="success" sx={{ py: 0 }}>
               {t("p2p.modSync.upToDate")}
             </Alert>
-          ) : (
-            <Button
-              fullWidth
-              variant="contained"
-              size="small"
-              onClick={() => void sync()}
-              disabled={busy}
-            >
-              {t("p2p.modSync.sync")}
-            </Button>
           )}
         </Box>
       )}

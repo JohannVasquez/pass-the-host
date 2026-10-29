@@ -30,6 +30,7 @@ export function registerModsIPCHandlers(): void {
   );
 
   ipcMain.handle("mods:client-manifest", (_event, serverId: string) => sync.clientManifest(serverId));
+  ipcMain.handle("mods:fingerprint", (_event, serverId: string) => sync.modsFingerprint(serverId));
   ipcMain.handle("mods:read-client-mod", (_event, serverId: string, sha1: string) =>
     sync.readClientMod(serverId, sha1),
   );

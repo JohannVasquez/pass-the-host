@@ -6,6 +6,7 @@ import * as path from "path";
 import {
   ClientMod,
   computePlan,
+  fingerprintDirs,
   finishFolder,
   managedToRemove,
   planFolder,
@@ -162,5 +163,26 @@ describe("folder operations", () => {
       removed: 0,
     });
     expect(fs.existsSync(path.join(dir, "a.jar"))).toBe(true);
+  });
+});
+
+describe("fingerprintDirs", () => {
+  it("changes when a jar is added, replaced or removed and ignores other files", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pth-fp-"));
+    try {
+      const empty = await fingerprintDirs([dir, path.join(dir, "missing")]);
+      fs.writeFileSync(path.join(dir, "notes.txt"), "x");
+      expect(await fingerprintDirs([dir])).toBe(empty);
+      fs.writeFileSync(path.join(dir, "a.jar"), "one");
+      const one = await fingerprintDirs([dir]);
+      expect(one).not.toBe(empty);
+      fs.writeFileSync(path.join(dir, "a.jar"), "three!");
+      const replaced = await fingerprintDirs([dir]);
+      expect(replaced).not.toBe(one);
+      fs.rmSync(path.join(dir, "a.jar"));
+      expect(await fingerprintDirs([dir])).toBe(empty);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

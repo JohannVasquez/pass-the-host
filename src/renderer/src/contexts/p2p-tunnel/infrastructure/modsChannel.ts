@@ -9,6 +9,7 @@ const HIGH_WATER_BYTES = 1024 * 1024;
 const LOW_WATER_BYTES = 256 * 1024;
 const REQUEST_TIMEOUT_MS = 60_000;
 const SHA1 = /^[0-9a-f]{40}$/;
+const WATCH_INTERVAL_MS = 5_000;
 
 // Host
 
@@ -64,6 +65,29 @@ export function serveMods(dc: RTCDataChannel, serverId: string): void {
     if (typeof event.data !== "string") return;
     queue = queue.then(() => handle(event.data));
   };
+
+  // Tell the friend when the mod folders change: a stat-only fingerprint compared every few seconds
+  let last: string | null = null;
+  // ponytail: 5 s stat poll, fs.watch if it ever matters
+  const timer = setInterval(() => {
+    queue = queue.then(async () => {
+      if (dc.readyState !== "open") return;
+      try {
+        const now = await window.modsAPI.modsFingerprint(serverId);
+        if (last !== null && now !== last) reply(dc, { op: "changed" });
+        last = now;
+      } catch {
+        // Server gone or unreadable: try again next tick
+      }
+    });
+  }, WATCH_INTERVAL_MS);
+  dc.addEventListener("close", () => clearInterval(timer));
+  void window.modsAPI.modsFingerprint(serverId).then(
+    (now) => {
+      last ??= now;
+    },
+    () => undefined,
+  );
 }
 
 // Friend
@@ -72,6 +96,8 @@ export interface ModsClient {
   manifest(): Promise<ClientModManifest>;
   /** Fetches the jar with this sha1; `size` is what the manifest announced. */
   file(sha1: string, size: number): Promise<Uint8Array>;
+  /** The host's mod folders changed (pushed unprompted); returns the unsubscribe */
+  onChanged(listener: () => void): () => void;
   close(): void;
 }
 
@@ -88,9 +114,18 @@ export function createModsClient(pc: RTCPeerConnection): ModsClient {
   let onText: ((text: string) => void) | null = null;
   let onBinary: ((data: ArrayBuffer) => void) | null = null;
   let onClose: (() => void) | null = null;
+  const changed = new Set<() => void>();
   dc.onmessage = (event) => {
-    if (typeof event.data === "string") onText?.(event.data);
-    else onBinary?.(event.data as ArrayBuffer);
+    if (typeof event.data !== "string") return onBinary?.(event.data as ArrayBuffer);
+    try {
+      if ((JSON.parse(event.data) as { op?: unknown }).op === "changed") {
+        changed.forEach((listener) => listener());
+        return;
+      }
+    } catch {
+      // Not JSON: the request in flight reports it
+    }
+    onText?.(event.data);
   };
   dc.addEventListener("close", () => onClose?.());
 
@@ -192,6 +227,10 @@ export function createModsClient(pc: RTCPeerConnection): ModsClient {
           }
         });
       }),
+    onChanged: (listener) => {
+      changed.add(listener);
+      return () => changed.delete(listener);
+    },
     close: () => dc.close(),
   };
 }
