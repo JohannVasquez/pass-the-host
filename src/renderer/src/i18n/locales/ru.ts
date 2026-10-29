@@ -57,6 +57,8 @@ export const ru: typeof en = {
       offline: "Только на этом ПК",
       uploadTo: "Загрузить в {{provider}}",
       uploadToCloud: "Загрузить в облако",
+      cloudCopyNotSynced:
+        "Этот сервер сохранён в {{provider}}, но сейчас не синхронизируется. Если вы будете играть, изменения останутся на этом ПК и могут конфликтовать с копией в облаке.",
       openServerFolder: "Папка сервера",
       editProperties: "Изменить",
       deleteServer: "Удалить",

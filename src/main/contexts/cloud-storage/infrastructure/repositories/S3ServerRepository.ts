@@ -9,6 +9,8 @@ import {
   IS3SyncService,
 } from "@main/contexts/cloud-storage/domain/repositories";
 import {
+  CLOUD_LOCATION_FILE,
+  CloudLocation,
   CloudSyncState,
   S3Config,
   ServerManifest,
@@ -91,6 +93,7 @@ export class S3ServerRepository implements IS3ServerRepository {
           localChangesPendingUpload: false,
           lastLocalChangeTimestamp: Date.now(),
         });
+        this.writeCloudLocation(serverId, config);
       }
 
       return result;
@@ -124,6 +127,7 @@ export class S3ServerRepository implements IS3ServerRepository {
           localChangesPendingUpload: false,
           lastLocalChangeTimestamp: Date.now(),
         });
+        this.writeCloudLocation(serverId, config);
       }
 
       return result;
@@ -147,6 +151,7 @@ export class S3ServerRepository implements IS3ServerRepository {
 
       const deleteCommand = `"${rclonePath}" purge "${s3ServerPath}"`;
       await execAsync(deleteCommand, { maxBuffer: 1024 * 1024 });
+      fs.rmSync(this.getCloudLocationPath(serverId), { force: true });
 
       return { success: true };
     } catch (error: unknown) {
@@ -318,6 +323,24 @@ export class S3ServerRepository implements IS3ServerRepository {
   private writeCloudSyncState(serverId: string, state: CloudSyncState): void {
     const statePath = this.getCloudSyncStatePath(serverId);
     fs.writeFileSync(statePath, JSON.stringify(state, null, 2), "utf-8");
+  }
+
+  private getCloudLocationPath(serverId: string): string {
+    return path.join(app.getPath("userData"), "servers", serverId, CLOUD_LOCATION_FILE);
+  }
+
+  // Lets the app tell a local copy of a cloud server apart from a local-only one when the cloud
+  // can't be reached, so it can warn before that copy runs offline
+  private writeCloudLocation(serverId: string, config: S3Config): void {
+    const location: CloudLocation = {
+      provider: config.provider,
+      bucket: config.provider === "GoogleDrive" ? undefined : config.bucket_name,
+    };
+    fs.writeFileSync(
+      this.getCloudLocationPath(serverId),
+      JSON.stringify(location, null, 2),
+      "utf-8",
+    );
   }
 
   private async detectServerVersionAndType(

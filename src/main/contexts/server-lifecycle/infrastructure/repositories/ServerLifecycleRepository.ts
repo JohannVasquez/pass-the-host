@@ -212,12 +212,25 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
             storedInfo = JSON.parse(fs.readFileSync(serverInfoPath, "utf-8")) as StoredServerInfo;
           }
 
+          let cloudLocation: LocalServerInfo["cloudLocation"];
+          try {
+            cloudLocation = JSON.parse(
+              fs.readFileSync(
+                path.join(localServersDir, serverId, ".cloud-location.json"),
+                "utf-8",
+              ),
+            );
+          } catch {
+            // Never synced: the server only exists on this PC
+          }
+
           return {
             id: serverId,
             name: storedInfo.name || serverId,
             version: storedInfo.version || "unknown",
             type: storedInfo.type || "unknown",
             loaderVersion: storedInfo.loaderVersion,
+            cloudLocation,
           };
         });
     } catch (error: unknown) {

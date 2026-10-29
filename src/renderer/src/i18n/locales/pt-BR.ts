@@ -57,6 +57,8 @@ export const ptBR: typeof en = {
       offline: "Só neste PC",
       uploadTo: "Enviar para {{provider}}",
       uploadToCloud: "Enviar para a nuvem",
+      cloudCopyNotSynced:
+        "Este servidor está salvo em {{provider}}, mas não está sincronizando agora. Se você jogar, suas mudanças ficam só neste PC e podem entrar em conflito com a cópia na nuvem.",
       openServerFolder: "Pasta do servidor",
       editProperties: "Editar",
       deleteServer: "Excluir",

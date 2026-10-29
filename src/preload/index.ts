@@ -295,6 +295,7 @@ const serverAPI = {
       version: string;
       type: EngineType | "unknown";
       loaderVersion?: string;
+      cloudLocation?: { provider: S3Provider; bucket?: string };
     }>
   > => ipcRenderer.invoke("server:list-local"),
 };

@@ -183,6 +183,7 @@ interface ServerAPI {
       version: string;
       type: EngineType | "unknown";
       loaderVersion?: string;
+      cloudLocation?: { provider: S3Provider; bucket?: string };
     }>
   >;
 }

@@ -28,4 +28,6 @@ export interface LocalServerInfo {
   version: string;
   type: EngineType | "unknown";
   loaderVersion?: string;
+  /** Where this copy was last synced, from the cloud-storage context's .cloud-location.json */
+  cloudLocation?: { provider: string; bucket?: string };
 }

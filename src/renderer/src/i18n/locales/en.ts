@@ -55,6 +55,8 @@ export const en = {
       offline: "Only on this PC",
       uploadTo: "Upload to {{provider}}",
       uploadToCloud: "Upload to cloud",
+      cloudCopyNotSynced:
+        "This server is saved in {{provider}}, but it isn't syncing right now. If you play it, your changes stay on this PC and could clash with the cloud copy.",
       openServerFolder: "Server folder",
       editProperties: "Edit",
       deleteServer: "Delete",

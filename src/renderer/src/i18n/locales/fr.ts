@@ -57,6 +57,8 @@ export const fr: typeof en = {
       offline: "Uniquement sur ce PC",
       uploadTo: "Envoyer vers {{provider}}",
       uploadToCloud: "Envoyer vers le cloud",
+      cloudCopyNotSynced:
+        "Ce serveur est enregistré dans {{provider}}, mais il n'est pas synchronisé pour le moment. Si tu joues, tes modifications restent sur ce PC et pourraient entrer en conflit avec la copie du cloud.",
       openServerFolder: "Dossier du serveur",
       editProperties: "Modifier",
       deleteServer: "Supprimer",

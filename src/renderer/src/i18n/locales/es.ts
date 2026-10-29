@@ -55,6 +55,8 @@ export const es = {
       offline: "Solo en este PC",
       uploadTo: "Subir a {{provider}}",
       uploadToCloud: "Subir a la nube",
+      cloudCopyNotSynced:
+        "Este servidor está guardado en {{provider}}, pero ahora no se está sincronizando. Si juegas, tus cambios quedan solo en este PC y podrían chocar con la copia de la nube.",
       openServerFolder: "Carpeta del servidor",
       editProperties: "Editar",
       deleteServer: "Eliminar",

@@ -28,6 +28,7 @@ export class S3SyncService implements IS3SyncService {
     /^server\.lock$/,
     /^session\.lock$/,
     /^\.cloud-sync-state\.json$/,
+    /^\.cloud-location\.json$/,
     /^\.cloud-sync-manifest-cache\.json$/,
     /^manifest\.json$/,
     /^logs\//,

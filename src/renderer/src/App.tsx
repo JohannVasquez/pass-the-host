@@ -979,8 +979,6 @@ function AppContent(): React.JSX.Element {
       loadBucketSize();
     } catch (error) {
       console.error(`Error loading servers from ${PROVIDER_LABELS[s3Config.provider]}:`, error);
-      // Showing local copies as offline here would let a stale world run and later overwrite the cloud
-      setServers([]);
       setLogs((prev) => [
         ...prev,
         {
@@ -989,6 +987,8 @@ function AppContent(): React.JSX.Element {
           type: "error",
         },
       ]);
+      // Local copies still show, offline; the panel warns on the ones that live in a cloud
+      await loadLocalServers();
     }
   };
 

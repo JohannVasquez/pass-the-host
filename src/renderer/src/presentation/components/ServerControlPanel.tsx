@@ -36,6 +36,7 @@ import { monoFont, surface } from "@renderer/theme";
 import DnsOutlinedIcon from "@mui/icons-material/DnsOutlined";
 import { ServerStatus } from "@renderer/domain/entities/ServerStatus";
 import { Server, ServerType } from "@renderer/domain/entities/Server";
+import { PROVIDER_LABELS } from "@renderer/domain/entities/ServerConfig";
 
 const TYPE_LABELS: Record<ServerType, string> = {
   [ServerType.VANILLA]: "Vanilla",
@@ -119,6 +120,12 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   const [menuAnchor, setMenuAnchor] = React.useState<HTMLElement | null>(null);
   const isLocked = lockedServerInfo?.username && lockedServerInfo?.username !== "";
   const lockedByOther = isLocked && lockedServerInfo?.username !== username;
+  const isOnline = (server: Server): boolean => !!cloudProvider && !!server.cloud;
+  // A copy of a cloud server that can't be synced now: playing it may clash with the cloud one
+  const unsyncedProvider =
+    current && !isOnline(current) && current.cloudLocation
+      ? PROVIDER_LABELS[current.cloudLocation.provider]
+      : null;
 
   // Update uptime every second when server is running
   React.useEffect(() => {
@@ -159,16 +166,26 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
     action();
   };
 
-  // Online = also stored in the active provider; offline = only on this PC
+  // Online = listed in the active provider; offline = only on this PC, or its cloud isn't reachable
+  const cloudLabel = (server: Server): string =>
+    isOnline(server)
+      ? cloudProvider!
+      : server.cloudLocation
+        ? PROVIDER_LABELS[server.cloudLocation.provider]
+        : t("serverControl.offline");
+
   const cloudStatus = (server: Server): React.JSX.Element => {
-    const online = !!cloudProvider && !!server.cloud;
-    const label = online ? cloudProvider : t("serverControl.offline");
+    const label = cloudLabel(server);
     return (
       <Tooltip title={label}>
-        {online ? (
+        {isOnline(server) ? (
           <CloudDoneIcon fontSize="small" sx={{ color: "success.main" }} aria-label={label} />
         ) : (
-          <CloudOffIcon fontSize="small" sx={{ color: "text.secondary" }} aria-label={label} />
+          <CloudOffIcon
+            fontSize="small"
+            sx={{ color: server.cloudLocation ? "warning.main" : "text.secondary" }}
+            aria-label={label}
+          />
         )}
       </Tooltip>
     );
@@ -191,7 +208,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
       ];
 
   const menuItems = [
-    ...(current?.cloud && cloudProvider
+    ...(current && isOnline(current)
       ? [
           {
             icon: <CloudSyncIcon fontSize="small" />,
@@ -264,7 +281,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
                 {server.name}
               </Box>
               <Typography variant="caption" color="text.secondary">
-                {cloudProvider && server.cloud ? cloudProvider : t("serverControl.offline")}
+                {cloudLabel(server)}
               </Typography>
             </MenuItem>
           ))}
@@ -292,6 +309,12 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
       </Stack>
 
       {!username && <Alert severity="error">{t("serverControl.usernameNotConfigured")}</Alert>}
+
+      {unsyncedProvider && (
+        <Alert severity="warning">
+          {t("serverControl.cloudCopyNotSynced", { provider: unsyncedProvider })}
+        </Alert>
+      )}
 
       {lockedByOther && selectedServer && (
         <Alert severity="warning" icon={<LockIcon />}>
