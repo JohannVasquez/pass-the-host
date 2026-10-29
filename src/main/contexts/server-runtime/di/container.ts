@@ -6,6 +6,7 @@ import {
   SendCommandUseCase,
   KillServerProcessUseCase,
   ReadForgeJvmArgsUseCase,
+  ReadLaunchJarUseCase,
   EditForgeJvmArgsUseCase,
   OpenServerFolderUseCase,
 } from "@main/contexts/server-runtime/application/use-cases";
@@ -39,6 +40,12 @@ export function configureServerRuntimeContext(container: Container): void {
 
   container.bind<ReadForgeJvmArgsUseCase>(ReadForgeJvmArgsUseCase).toDynamicValue(() => {
     return new ReadForgeJvmArgsUseCase(
+      container.get<IServerProcessRepository>(TYPES.ServerProcessRepository),
+    );
+  });
+
+  container.bind<ReadLaunchJarUseCase>(ReadLaunchJarUseCase).toDynamicValue(() => {
+    return new ReadLaunchJarUseCase(
       container.get<IServerProcessRepository>(TYPES.ServerProcessRepository),
     );
   });

@@ -13,99 +13,44 @@ import {
   Box,
   Alert,
   RadioGroup,
-  FormControlLabel,
   Radio,
   FormLabel,
+  Chip,
+  Skeleton,
+  Switch,
+  FormControlLabel,
   CircularProgress,
   Typography,
   LinearProgress,
 } from "@mui/material";
 import AddBoxIcon from "@mui/icons-material/AddBox";
-import { useTranslation } from "react-i18next";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import { Trans, useTranslation } from "react-i18next";
+import { monoFont, surface } from "../../theme";
 
 interface CreateServerModalProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: (serverName: string, version: string, serverType: "vanilla" | "forge" | "neoforge") => void;
+  onConfirm: (
+    serverName: string,
+    version: string,
+    serverType: EngineType,
+    engineVersion?: string,
+  ) => void;
   isCreating?: boolean;
   progressMessage?: string;
 }
 
-const minecraftVersions = [
-  "26.3",
-  "26.2",
-  "26.1.2",
-  "26.1.1",
-  "26.1",
-  "1.21.11",
-  "1.21.10",
-  "1.21.9",
-  "1.21.8",
-  "1.21.7",
-  "1.21.6",
-  "1.21.5",
-  "1.21.4",
-  "1.21.3",
-  "1.21.1",
-  "1.21",
-  "1.20.6",
-  "1.20.5",
-  "1.20.4",
-  "1.20.2",
-  "1.20.1",
-  "1.20",
-  "1.19.4",
-  "1.19.3",
-  "1.19.2",
-  "1.19.1",
-  "1.19",
-  "1.18.2",
-  "1.18.1",
-  "1.18",
-  "1.17.1",
-  "1.17",
-  "1.16.5",
-  "1.16.4",
-  "1.16.3",
-  "1.16.2",
-  "1.16.1",
-  "1.16",
-  "1.15.2",
-  "1.15.1",
-  "1.15",
-  "1.14.4",
-  "1.14.3",
-  "1.14.2",
-  "1.14.1",
-  "1.14",
-  "1.13.2",
-  "1.13.1",
-  "1.13",
-  "1.12.2",
-  "1.12.1",
-  "1.12",
-  "1.11.2",
-  "1.11.1",
-  "1.11",
-  "1.10.2",
-  "1.10.1",
-  "1.10",
-  "1.9.4",
-  "1.9.3",
-  "1.9.2",
-  "1.9.1",
-  "1.9",
-  "1.8.9",
-  "1.8.8",
-  "1.8.7",
-  "1.8.6",
-  "1.8.5",
-  "1.8.4",
-  "1.8.3",
-  "1.8.2",
-  "1.8.1",
-  "1.8",
-  "1.7.10",
+type EngineType = "vanilla" | "paper" | "fabric" | "quilt" | "forge" | "neoforge";
+type EngineVersion = { id: string; label: string; beta?: boolean };
+
+const engines: { id: EngineType; name: string; mono: string }[] = [
+  { id: "vanilla", name: "Vanilla", mono: "V" },
+  { id: "paper", name: "Paper", mono: "P" },
+  { id: "fabric", name: "Fabric", mono: "F" },
+  { id: "quilt", name: "Quilt", mono: "Q" },
+  { id: "forge", name: "Forge", mono: "Fo" },
+  { id: "neoforge", name: "NeoForge", mono: "N" },
 ];
 
 export const CreateServerModal: React.FC<CreateServerModalProps> = ({
@@ -117,9 +62,114 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
 }): React.JSX.Element => {
   const { t } = useTranslation();
   const [serverName, setServerName] = React.useState<string>("");
-  const [version, setVersion] = React.useState<string>(minecraftVersions[0]);
-  const [serverType, setServerType] = React.useState<"vanilla" | "forge" | "neoforge">("vanilla");
+  const [version, setVersion] = React.useState<string>("");
+  const [serverType, setServerType] = React.useState<EngineType>("vanilla");
+  const [engineVersion, setEngineVersion] = React.useState<string>("");
+  const [showBeta, setShowBeta] = React.useState<boolean>(false);
   const [nameError, setNameError] = React.useState<string>("");
+  const [games, setGames] = React.useState<{ engine: EngineType | null; list: string[] }>({
+    engine: null,
+    list: [],
+  });
+  const [engineData, setEngineData] = React.useState<{
+    key: string;
+    versions: EngineVersion[];
+    recommended: string | null;
+  }>({ key: "", versions: [], recommended: null });
+  const [java, setJava] = React.useState<number | null>(null);
+  const [error, setError] = React.useState<boolean>(false);
+  const [retry, setRetry] = React.useState<number>(0);
+
+  const isVanilla = serverType === "vanilla";
+  const engineName = engines.find((e) => e.id === serverType)?.name ?? "";
+  const loading =
+    !error &&
+    (games.engine !== serverType || (!isVanilla && engineData.key !== `${serverType}|${version}`));
+  const visibleVersions = showBeta
+    ? engineData.versions
+    : engineData.versions.filter((v) => !v.beta || v.id === engineData.recommended);
+
+  // Minecraft versions for the engine; keep the selection when the new engine supports it
+  React.useEffect(() => {
+    if (!open) return;
+    let stale = false;
+    setError(false);
+    window.serverAPI
+      .listGameVersions(serverType)
+      .then((list) => {
+        if (stale) return;
+        setGames({ engine: serverType, list });
+        setVersion((prev) => (list.includes(prev) ? prev : (list[0] ?? "")));
+      })
+      .catch(() => !stale && setError(true));
+    return () => {
+      stale = true;
+    };
+  }, [open, serverType, retry]);
+
+  // Engine versions for the engine + Minecraft pair; default to the recommended one
+  React.useEffect(() => {
+    if (!open || isVanilla || games.engine !== serverType || !games.list.includes(version)) return;
+    let stale = false;
+    window.serverAPI
+      .listEngineVersions(serverType, version)
+      .then((res) => {
+        if (stale) return;
+        setEngineData({ key: `${serverType}|${version}`, ...res });
+        setEngineVersion(
+          res.recommended ?? res.versions.find((v) => !v.beta)?.id ?? res.versions[0]?.id ?? "",
+        );
+      })
+      .catch(() => !stale && setError(true));
+    return () => {
+      stale = true;
+    };
+  }, [open, serverType, version, games, isVanilla, retry]);
+
+  React.useEffect(() => {
+    if (!open || !version) return;
+    let stale = false;
+    setJava(null);
+    window.javaAPI
+      .getRequiredVersion(version)
+      .then((n) => !stale && setJava(n))
+      .catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+  }, [open, version]);
+
+  const versionLabel = (v: EngineVersion): React.JSX.Element => (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      <span style={{ fontFamily: monoFont }}>{v.label}</span>
+      {v.id === engineData.recommended && (
+        <Chip
+          label={t("createServer.recommended")}
+          size="small"
+          color="primary"
+          variant="outlined"
+          sx={{ height: 18, fontSize: 11 }}
+        />
+      )}
+      {v.beta && (
+        <Chip
+          label={t("createServer.beta")}
+          size="small"
+          color="warning"
+          variant="outlined"
+          sx={{ height: 18, fontSize: 11 }}
+        />
+      )}
+    </Box>
+  );
+
+  const handleToggleBeta = (_: unknown, checked: boolean): void => {
+    setShowBeta(checked);
+    const cur = engineData.versions.find((v) => v.id === engineVersion);
+    if (!checked && cur?.beta && cur.id !== engineData.recommended) {
+      setEngineVersion(engineData.recommended ?? "");
+    }
+  };
 
   // If creating, show progress view
   if (isCreating) {
@@ -169,8 +219,6 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
     );
   }
 
-  // Minecraft versions (common versions)
-
   const handleServerNameChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
     const value = event.target.value;
 
@@ -199,13 +247,21 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
       return;
     }
 
-    onConfirm(serverName.trim(), version, serverType);
+    onConfirm(
+      serverName.trim(),
+      version,
+      serverType,
+      serverType === "vanilla" ? undefined : engineVersion,
+    );
     handleClose();
   };
 
   const handleClose = (): void => {
     setServerName("");
-    setVersion(minecraftVersions[0]);
+    setVersion("");
+    setEngineVersion("");
+    setShowBeta(false);
+    setError(false);
     setServerType("vanilla");
     setNameError("");
     onClose();
@@ -218,7 +274,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
         {t("createServer.title")}
       </DialogTitle>
       <DialogContent>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5, mt: 2 }}>
           {/* Server Name */}
           <TextField
             label={t("createServer.serverName")}
@@ -231,55 +287,210 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
             slotProps={{ htmlInput: { maxLength: 50 } }}
           />
 
-          {/* Server Type */}
+          {/* Engine */}
           <FormControl component="fieldset">
-            <FormLabel component="legend">{t("createServer.serverType")}</FormLabel>
+            <FormLabel component="legend" sx={{ mb: 1, fontSize: 13 }}>
+              {t("createServer.engine")}
+            </FormLabel>
             <RadioGroup
-              row
               value={serverType}
-              onChange={(e) => setServerType(e.target.value as "vanilla" | "forge" | "neoforge")}
+              onChange={(e) => setServerType(e.target.value as EngineType)}
+              sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}
             >
-              <FormControlLabel
-                value="vanilla"
-                control={<Radio />}
-                label={t("createServer.vanilla")}
-              />
-              <FormControlLabel value="forge" control={<Radio />} label={t("createServer.forge")} />
-              <FormControlLabel
-                value="neoforge"
-                control={<Radio />}
-                label={t("createServer.neoforge")}
-              />
+              {engines.map((e) => (
+                <Box
+                  key={e.id}
+                  component="label"
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    p: 1.25,
+                    minWidth: 0,
+                    cursor: "pointer",
+                    borderRadius: 1,
+                    border: "1px solid",
+                    borderColor: serverType === e.id ? "primary.main" : surface.border,
+                    bgcolor: serverType === e.id ? "rgba(45,212,191,.08)" : surface.input,
+                    "&:hover": {
+                      borderColor: serverType === e.id ? "primary.main" : "text.secondary",
+                    },
+                    "&:has(input:focus-visible)": {
+                      outline: "2px solid",
+                      outlineColor: "primary.main",
+                      outlineOffset: 2,
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      flexShrink: 0,
+                      display: "grid",
+                      placeItems: "center",
+                      borderRadius: 1,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      bgcolor: serverType === e.id ? "primary.main" : surface.raised,
+                      color: serverType === e.id ? "primary.contrastText" : "text.secondary",
+                    }}
+                  >
+                    {e.mono}
+                  </Box>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>
+                      {e.name}
+                    </Typography>
+                    <Typography noWrap color="text.secondary" sx={{ fontSize: 12 }}>
+                      {t(`createServer.engineDesc.${e.id}`)}
+                    </Typography>
+                  </Box>
+                  <Radio value={e.id} size="small" sx={{ p: 0 }} />
+                </Box>
+              ))}
             </RadioGroup>
           </FormControl>
 
-          {/* Minecraft Version */}
-          <FormControl fullWidth>
-            <InputLabel>{t("createServer.version")}</InputLabel>
-            <Select
-              value={version}
-              label={t("createServer.version")}
-              onChange={(e) => setVersion(e.target.value)}
+          {error && (
+            <Alert
+              severity="error"
+              action={
+                <Button color="inherit" size="small" onClick={() => setRetry((n) => n + 1)}>
+                  {t("createServer.retry")}
+                </Button>
+              }
             >
-              {minecraftVersions.map((v) => (
-                <MenuItem key={v} value={v}>
-                  {v}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+              {t("createServer.loadError")}
+            </Alert>
+          )}
 
-          {/* Info Alert */}
-          <Alert severity="info">{t("createServer.info")}</Alert>
+          {/* Versions */}
+          <Box sx={{ display: "flex", gap: 1.5 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>{t("createServer.minecraft")}</InputLabel>
+              {loading ? (
+                <Skeleton variant="rounded" height={40} />
+              ) : (
+                <Select
+                  value={games.list.includes(version) ? version : ""}
+                  label={t("createServer.minecraft")}
+                  onChange={(e) => setVersion(e.target.value)}
+                  MenuProps={{ slotProps: { paper: { sx: { maxHeight: 320 } } } }}
+                >
+                  {games.list.map((v) => (
+                    <MenuItem key={v} value={v}>
+                      {v}
+                    </MenuItem>
+                  ))}
+                </Select>
+              )}
+            </FormControl>
+            {!isVanilla && (
+              <FormControl fullWidth size="small">
+                <InputLabel>{t("createServer.engineVersion", { engine: engineName })}</InputLabel>
+                {loading ? (
+                  <Skeleton variant="rounded" height={40} />
+                ) : (
+                  <Select
+                    value={visibleVersions.some((v) => v.id === engineVersion) ? engineVersion : ""}
+                    label={t("createServer.engineVersion", { engine: engineName })}
+                    onChange={(e) => setEngineVersion(e.target.value)}
+                    renderValue={(id) => {
+                      const v = visibleVersions.find((x) => x.id === id);
+                      return v ? versionLabel(v) : id;
+                    }}
+                    MenuProps={{ slotProps: { paper: { sx: { maxHeight: 320 } } } }}
+                  >
+                    {visibleVersions.map((v) => (
+                      <MenuItem key={v.id} value={v.id}>
+                        {versionLabel(v)}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                )}
+              </FormControl>
+            )}
+          </Box>
+
+          {!isVanilla && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 2,
+                mt: -1,
+              }}
+            >
+              <FormControlLabel
+                control={<Switch size="small" checked={showBeta} onChange={handleToggleBeta} />}
+                label={<Typography sx={{ fontSize: 13 }}>{t("createServer.showBeta")}</Typography>}
+              />
+              {loading && !error && (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                  <LinearProgress sx={{ width: 110, height: 3, borderRadius: 2 }} />
+                  <Typography color="text.secondary" sx={{ fontSize: 13 }}>
+                    {t("createServer.loadingVersions")}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          )}
+
+          {/* Summary */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.25,
+              px: 1.5,
+              minHeight: 44,
+              borderRadius: 1,
+              border: `1px solid ${surface.subtleBorder}`,
+              bgcolor: surface.console,
+            }}
+          >
+            <InfoOutlinedIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+            {loading || error || !version ? (
+              <Skeleton variant="rounded" width={220} height={12} />
+            ) : (
+              <Typography sx={{ fontSize: 13 }}>
+                <Trans
+                  i18nKey={
+                    isVanilla ? "createServer.willInstallVanilla" : "createServer.willInstall"
+                  }
+                  values={{
+                    engine: t(`createServer.engineSummary.${serverType}`, {
+                      v:
+                        engineData.versions.find((v) => v.id === engineVersion)?.label ??
+                        engineVersion,
+                    }),
+                    mc: version,
+                  }}
+                  components={{ b: <b /> }}
+                />
+                {java !== null && ` · Java ${java}`}
+              </Typography>
+            )}
+          </Box>
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={handleClose} color="inherit">
-          {t("createServer.cancel")}</Button>
+          {t("createServer.cancel")}
+        </Button>
         <Button
           onClick={handleConfirm}
           variant="contained"
-          disabled={!!nameError || serverName.trim() === ""}
+          disabled={
+            !!nameError ||
+            serverName.trim() === "" ||
+            loading ||
+            error ||
+            !version ||
+            (!isVanilla && !engineVersion)
+          }
         >
           {t("createServer.create")}
         </Button>

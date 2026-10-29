@@ -15,22 +15,18 @@ export class S3ServerRepository implements IServerRepository {
   }
 
   /**
-   * Gets all servers from S3-compatible storage
+   * Gets all servers from S3-compatible storage.
+   * Throws when the listing fails, so a network error isn't mistaken for "nothing in the cloud".
    */
   async getServers(): Promise<Server[]> {
-    try {
-      const rawServers = await window.rclone.listServers(this.s3Config);
+    const rawServers = await window.rclone.listServers(this.s3Config);
 
-      return rawServers.map((server) => ({
-        id: server.id,
-        name: server.name,
-        version: server.version,
-        type: this.parseServerType(server.type),
-      }));
-    } catch (error) {
-      console.error("Error getting servers from cloud storage:", error);
-      return [];
-    }
+    return rawServers.map((server) => ({
+      id: server.id,
+      name: server.name,
+      version: server.version,
+      type: this.parseServerType(server.type),
+    }));
   }
 
   /**
@@ -56,6 +52,8 @@ export class S3ServerRepository implements IServerRepository {
         return ServerType.PAPER;
       case "fabric":
         return ServerType.FABRIC;
+      case "quilt":
+        return ServerType.QUILT;
       default:
         return ServerType.UNKNOWN;
     }

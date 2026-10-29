@@ -1,7 +1,18 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 import type { TokenRequest } from "ably";
+import type {
+  AddModsResult,
+  ModItem,
+  ModsList,
+} from "../main/contexts/mods/infrastructure/ModsRepository";
+import type {
+  ClientMod,
+  ClientModManifest,
+  SyncPlan,
+} from "../main/contexts/mods/infrastructure/ModSync";
 
+type EngineType = "vanilla" | "paper" | "fabric" | "quilt" | "forge" | "neoforge";
 type WorldActionResult = "done" | "canceled" | "no-world" | "invalid";
 
 // S3 provider types
@@ -203,6 +214,8 @@ const serverAPI = {
     ipcRenderer.invoke("server:edit-forge-jvm-args", serverId, minRam, maxRam),
   readForgeJvmArgs: (serverId: string): Promise<{ allArgs: string[] } | null> =>
     ipcRenderer.invoke("server:read-forge-jvm-args", serverId),
+  readLaunchJar: (serverId: string): Promise<string | null> =>
+    ipcRenderer.invoke("server:read-launch-jar", serverId),
   onStdout: (callback: (data: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, data: string): void => callback(data);
     ipcRenderer.on("server:stdout", listener);
@@ -235,9 +248,10 @@ const serverAPI = {
   createMinecraftServer: (
     serverName: string,
     version: string,
-    serverType: "vanilla" | "forge" | "neoforge",
+    serverType: EngineType,
     overwrite?: boolean,
     displayName?: string,
+    engineVersion?: string,
   ): Promise<{
     success: boolean;
     error?: string;
@@ -250,7 +264,17 @@ const serverAPI = {
       serverType,
       overwrite,
       displayName,
+      engineVersion,
     ),
+  listGameVersions: (engine: EngineType): Promise<string[]> =>
+    ipcRenderer.invoke("server:list-game-versions", engine),
+  listEngineVersions: (
+    engine: EngineType,
+    minecraftVersion: string,
+  ): Promise<{
+    versions: Array<{ id: string; label: string; beta?: boolean }>;
+    recommended: string | null;
+  }> => ipcRenderer.invoke("server:list-engine-versions", engine, minecraftVersion),
   onCreateProgress: (callback: (message: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, message: string): void =>
       callback(message);
@@ -269,7 +293,9 @@ const serverAPI = {
       id: string;
       name: string;
       version: string;
-      type: "vanilla" | "forge" | "neoforge" | "unknown";
+      type: EngineType | "unknown";
+      loaderVersion?: string;
+      cloudLocation?: { provider: S3Provider; bucket?: string };
     }>
   > => ipcRenderer.invoke("server:list-local"),
 };
@@ -282,7 +308,9 @@ const javaAPI = {
   getInstalledVersions: (): Promise<Array<{ version: number; path: string }>> =>
     ipcRenderer.invoke("java:get-installed-versions"),
   getRequiredVersion: (minecraftVersion: string): Promise<number> =>
-    ipcRenderer.invoke("java:get-required-version", minecraftVersion),
+    ipcRenderer
+      .invoke("java:get-required-version", minecraftVersion)
+      .then((requirement: { minVersion: number }) => requirement.minVersion),
   onProgress: (callback: (message: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, message: string): void =>
       callback(message);
@@ -353,6 +381,46 @@ const p2pAPI = {
   },
 };
 
+const modsAPI = {
+  list: (serverId: string): Promise<ModsList> => ipcRenderer.invoke("mods:list", serverId),
+  inspect: (serverId: string, filePaths: string[]): Promise<ModItem[]> =>
+    ipcRenderer.invoke("mods:inspect", serverId, filePaths),
+  add: (serverId: string, filePaths?: string[]): Promise<AddModsResult> =>
+    ipcRenderer.invoke("mods:add", serverId, filePaths),
+  remove: (serverId: string, fileName: string, folder: ModItem["folder"]): Promise<boolean> =>
+    ipcRenderer.invoke("mods:remove", serverId, fileName, folder),
+  move: (
+    serverId: string,
+    fileNames: string[],
+    from: ModItem["folder"],
+    to: ModItem["folder"],
+  ): Promise<number> => ipcRenderer.invoke("mods:move", serverId, fileNames, from, to),
+  openModrinth: (slug: string): Promise<boolean> => ipcRenderer.invoke("mods:open-modrinth", slug),
+  // Path of a drag-and-dropped File, to hand to inspect/add
+  getPathForFile: (file: File): string => webUtils.getPathForFile(file),
+  // Client mod sync: host side
+  clientManifest: (serverId: string): Promise<ClientModManifest> =>
+    ipcRenderer.invoke("mods:client-manifest", serverId),
+  modsFingerprint: (serverId: string): Promise<string> =>
+    ipcRenderer.invoke("mods:fingerprint", serverId),
+  readClientMod: (serverId: string, sha1: string): Promise<Uint8Array> =>
+    ipcRenderer.invoke("mods:read-client-mod", serverId, sha1),
+  // Client mod sync: friend side
+  getSyncFolder: (): Promise<{ folder: string | null; isDefault: boolean }> =>
+    ipcRenderer.invoke("mods:get-sync-folder"),
+  pickSyncFolder: (): Promise<string | null> => ipcRenderer.invoke("mods:pick-sync-folder"),
+  resetSyncFolder: (): Promise<{ folder: string | null; isDefault: boolean }> =>
+    ipcRenderer.invoke("mods:reset-sync-folder"),
+  planSync: (manifest: ClientModManifest): Promise<SyncPlan> =>
+    ipcRenderer.invoke("mods:plan-sync", manifest),
+  downloadModrinthMod: (mod: ClientMod): Promise<void> =>
+    ipcRenderer.invoke("mods:download-modrinth-mod", mod),
+  writeSyncedMod: (mod: ClientMod, data: Uint8Array): Promise<void> =>
+    ipcRenderer.invoke("mods:write-synced-mod", mod, data),
+  finishSync: (manifest: ClientModManifest): Promise<{ removed: number }> =>
+    ipcRenderer.invoke("mods:finish-sync", manifest),
+};
+
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
@@ -367,6 +435,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("javaAPI", javaAPI);
     contextBridge.exposeInMainWorld("notificationAPI", notificationAPI);
     contextBridge.exposeInMainWorld("p2pAPI", p2pAPI);
+    contextBridge.exposeInMainWorld("modsAPI", modsAPI);
   } catch (error) {
     console.error(error);
   }
@@ -381,4 +450,5 @@ if (process.contextIsolated) {
   win.javaAPI = javaAPI;
   win.notificationAPI = notificationAPI;
   win.p2pAPI = p2pAPI;
+  win.modsAPI = modsAPI;
 }

@@ -55,6 +55,15 @@ export class ReadForgeJvmArgsUseCase {
 }
 
 @injectable()
+export class ReadLaunchJarUseCase {
+  constructor(private serverProcessRepository: IServerProcessRepository) {}
+
+  async execute(serverId: string): Promise<string | null> {
+    return await this.serverProcessRepository.readLaunchJar(serverId);
+  }
+}
+
+@injectable()
 export class EditForgeJvmArgsUseCase {
   constructor(private serverProcessRepository: IServerProcessRepository) {}
 

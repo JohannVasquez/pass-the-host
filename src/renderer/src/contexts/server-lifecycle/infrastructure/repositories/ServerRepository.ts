@@ -40,7 +40,7 @@ export class ServerRepository implements IServerRepository {
   async createServer(
     name: string,
     version: string,
-    type: "vanilla" | "forge" | "neoforge",
+    type: "vanilla" | "paper" | "fabric" | "quilt" | "forge" | "neoforge",
   ): Promise<Server> {
     try {
       const api = (
@@ -123,6 +123,8 @@ export class ServerRepository implements IServerRepository {
         return ServerType.PAPER;
       case "fabric":
         return ServerType.FABRIC;
+      case "quilt":
+        return ServerType.QUILT;
       default:
         return ServerType.UNKNOWN;
     }

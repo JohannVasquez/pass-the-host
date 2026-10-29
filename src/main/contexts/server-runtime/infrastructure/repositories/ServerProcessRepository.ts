@@ -94,6 +94,40 @@ export class ServerProcessRepository implements IServerProcessRepository {
     return result;
   }
 
+  async readLaunchJar(serverId: string): Promise<string | null> {
+    const serverPath = this.getServerPath(serverId);
+
+    try {
+      const info = JSON.parse(fs.readFileSync(path.join(serverPath, "server_info.json"), "utf-8"));
+      if (info.launchJar && fs.existsSync(path.join(serverPath, info.launchJar))) {
+        return info.launchJar;
+      }
+    } catch {
+      // No server_info.json (or unreadable): fall back to guessing from the folder
+    }
+
+    // Forge 1.17+ / NeoForge start through their run script
+    if (
+      fs.existsSync(path.join(serverPath, "run.sh")) ||
+      fs.existsSync(path.join(serverPath, "run.bat"))
+    ) {
+      return null;
+    }
+
+    const files = fs.existsSync(serverPath) ? fs.readdirSync(serverPath) : [];
+    const oldForge = files.find(
+      (f) => f.startsWith("forge-") && f.endsWith(".jar") && !f.includes("installer"),
+    );
+    const candidates = [
+      "fabric-server-launch.jar",
+      "quilt-server-launch.jar",
+      "paper.jar",
+      oldForge,
+      "server.jar",
+    ];
+    return candidates.find((f) => f && files.includes(f)) ?? null;
+  }
+
   async readForgeJvmArgs(serverId: string): Promise<ForgeJvmArgs | null> {
     const serverPath = this.getServerPath(serverId);
 

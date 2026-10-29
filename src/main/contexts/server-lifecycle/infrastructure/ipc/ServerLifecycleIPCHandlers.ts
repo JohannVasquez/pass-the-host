@@ -1,6 +1,11 @@
 import { ipcMain, IpcMainInvokeEvent } from "electron";
 import { Container } from "inversify";
 import { ErrorHandler } from "@shared/infrastructure/error-handler";
+import { EngineType } from "@main/contexts/server-lifecycle/domain/entities";
+import {
+  listEngineVersions,
+  listGameVersions,
+} from "@main/contexts/server-lifecycle/infrastructure/repositories/EngineCatalog";
 import { TYPES } from "@main/contexts/server-lifecycle/application/use-cases/types";
 import {
   CreateMinecraftServerUseCase,
@@ -20,9 +25,10 @@ export class ServerLifecycleIPCHandlers {
           event: IpcMainInvokeEvent,
           serverName: string,
           version: string,
-          serverType: "vanilla" | "forge" | "neoforge",
+          serverType: EngineType,
           overwrite?: boolean,
           displayName?: string,
+          engineVersion?: string,
         ) => {
           const useCase = this.container.get<CreateMinecraftServerUseCase>(
             TYPES.CreateMinecraftServerUseCase,
@@ -31,10 +37,26 @@ export class ServerLifecycleIPCHandlers {
             event.sender.send("server:create-progress", message);
           };
           return useCase.execute(
-            { serverName, displayName, version, serverType, overwrite },
+            { serverName, displayName, version, serverType, engineVersion, overwrite },
             progressCallback,
           );
         },
+      ),
+    );
+
+    ipcMain.handle(
+      "server:list-game-versions",
+      this.handleIPC("listGameVersions", async (_event, engine: EngineType) =>
+        listGameVersions(engine),
+      ),
+    );
+
+    ipcMain.handle(
+      "server:list-engine-versions",
+      this.handleIPC(
+        "listEngineVersions",
+        async (_event, engine: EngineType, minecraftVersion: string) =>
+          listEngineVersions(engine, minecraftVersion),
       ),
     );
 

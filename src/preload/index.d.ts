@@ -1,7 +1,18 @@
 import { ElectronAPI } from "@electron-toolkit/preload";
 import type { TokenRequest } from "ably";
+import type {
+  AddModsResult,
+  ModItem,
+  ModsList,
+} from "../main/contexts/mods/infrastructure/ModsRepository";
+import type {
+  ClientMod,
+  ClientModManifest,
+  SyncPlan,
+} from "../main/contexts/mods/infrastructure/ModSync";
 
 // S3-compatible storage types
+type EngineType = "vanilla" | "paper" | "fabric" | "quilt" | "forge" | "neoforge";
 type S3Provider =
   "AWS" | "Cloudflare" | "MinIO" | "Backblaze" | "DigitalOcean" | "Other" | "GoogleDrive";
 
@@ -116,6 +127,7 @@ interface ServerAPI {
   killServerProcess: (serverId: string) => Promise<void>;
   editForgeJvmArgs: (serverId: string, minRam: number, maxRam: number) => Promise<void>;
   readForgeJvmArgs: (serverId: string) => Promise<{ allArgs: string[] } | null>;
+  readLaunchJar: (serverId: string) => Promise<string | null>;
   onStdout: (callback: (data: string) => void) => () => void;
   onProcessExit: (
     callback: (payload: { serverId: string; code: number | null }) => void,
@@ -141,13 +153,22 @@ interface ServerAPI {
   createMinecraftServer: (
     serverName: string,
     version: string,
-    serverType: "vanilla" | "forge" | "neoforge",
+    serverType: EngineType,
     overwrite?: boolean,
     displayName?: string,
+    engineVersion?: string,
   ) => Promise<{
     success: boolean;
     error?: string;
     errorCode?: "SERVER_EXISTS" | "JAVA_NOT_FOUND" | "NETWORK_ERROR" | "UNKNOWN";
+  }>;
+  listGameVersions: (engine: EngineType) => Promise<string[]>;
+  listEngineVersions: (
+    engine: EngineType,
+    minecraftVersion: string,
+  ) => Promise<{
+    versions: Array<{ id: string; label: string; beta?: boolean }>;
+    recommended: string | null;
   }>;
   onCreateProgress: (callback: (message: string) => void) => () => void;
   deleteFromS3: (
@@ -160,7 +181,9 @@ interface ServerAPI {
       id: string;
       name: string;
       version: string;
-      type: "vanilla" | "forge" | "neoforge" | "unknown";
+      type: EngineType | "unknown";
+      loaderVersion?: string;
+      cloudLocation?: { provider: S3Provider; bucket?: string };
     }>
   >;
 }
@@ -227,6 +250,31 @@ interface P2PAPI {
   onTcpClose: (callback: (connId: string) => void) => () => void;
 }
 
+interface ModsAPI {
+  list: (serverId: string) => Promise<ModsList>;
+  inspect: (serverId: string, filePaths: string[]) => Promise<ModItem[]>;
+  add: (serverId: string, filePaths?: string[]) => Promise<AddModsResult>;
+  remove: (serverId: string, fileName: string, folder: ModItem["folder"]) => Promise<boolean>;
+  move: (
+    serverId: string,
+    fileNames: string[],
+    from: ModItem["folder"],
+    to: ModItem["folder"],
+  ) => Promise<number>;
+  openModrinth: (slug: string) => Promise<boolean>;
+  getPathForFile: (file: File) => string;
+  clientManifest: (serverId: string) => Promise<ClientModManifest>;
+  modsFingerprint: (serverId: string) => Promise<string>;
+  readClientMod: (serverId: string, sha1: string) => Promise<Uint8Array>;
+  getSyncFolder: () => Promise<{ folder: string | null; isDefault: boolean }>;
+  pickSyncFolder: () => Promise<string | null>;
+  resetSyncFolder: () => Promise<{ folder: string | null; isDefault: boolean }>;
+  planSync: (manifest: ClientModManifest) => Promise<SyncPlan>;
+  downloadModrinthMod: (mod: ClientMod) => Promise<void>;
+  writeSyncedMod: (mod: ClientMod, data: Uint8Array) => Promise<void>;
+  finishSync: (manifest: ClientModManifest) => Promise<{ removed: number }>;
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI;
@@ -238,7 +286,18 @@ declare global {
     javaAPI: JavaAPI;
     notificationAPI: NotificationAPI;
     p2pAPI: P2PAPI;
+    modsAPI: ModsAPI;
   }
 }
 
-export type { P2PGroup, P2PMember, TurnConfig };
+export type {
+  P2PGroup,
+  P2PMember,
+  TurnConfig,
+  AddModsResult,
+  ModItem,
+  ModsList,
+  ClientMod,
+  ClientModManifest,
+  SyncPlan,
+};

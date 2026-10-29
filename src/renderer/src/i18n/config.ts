@@ -17,6 +17,21 @@ export const LANGUAGES = [
   { code: "ru", name: "Русский" },
 ] as const;
 
+// Russian also needs _few/_many plural forms; its strings read the same for any count
+// ("Установлено модов: {{count}}"), so reuse each _other instead of a key per form
+function withRussianPlurals<T extends object>(node: T): T {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node)) {
+    out[key] = typeof value === "string" ? value : withRussianPlurals(value);
+    if (typeof value === "string" && key.endsWith("_other")) {
+      const base = key.slice(0, -"_other".length);
+      out[`${base}_few`] = value;
+      out[`${base}_many`] = value;
+    }
+  }
+  return out as T;
+}
+
 i18n.use(initReactI18next).init({
   resources: {
     en,
@@ -24,7 +39,7 @@ i18n.use(initReactI18next).init({
     "pt-BR": ptBR,
     de,
     fr,
-    ru,
+    ru: withRussianPlurals(ru),
   },
   lng: "en", // default language
   fallbackLng: "en",

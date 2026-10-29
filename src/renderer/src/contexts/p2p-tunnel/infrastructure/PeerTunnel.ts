@@ -1,5 +1,11 @@
 import { channelName, getRealtime } from "@contexts/p2p-tunnel/infrastructure/Realtime";
 import {
+  createModsClient,
+  MODS_LABEL,
+  serveMods,
+  type ModsClient,
+} from "@contexts/p2p-tunnel/infrastructure/modsChannel";
+import {
   answerFrom,
   DIAG_DETAIL_MAX,
   diagFrom,
@@ -32,6 +38,15 @@ export interface HostEvents {
   onOpened: (from: string) => void;
   onClosed: (from: string) => void;
   onDiag: (diag: Diag) => void;
+}
+
+interface HostPeer {
+  pc: RTCPeerConnection;
+  owned: Set<string>;
+  from: string;
+  connected: boolean;
+  /** The friend's mod sync channel, at most one */
+  mods?: RTCDataChannel;
 }
 
 const dataChannels = new Map<string, RTCDataChannel>();
@@ -131,15 +146,13 @@ const isClosed = (pc: RTCPeerConnection): boolean =>
 export async function startHosting(
   groupId: string,
   serverPort: number,
+  serverId: string,
   events: HostEvents,
 ): Promise<() => void> {
   const realtime = getRealtime();
   const channel = realtime.channels.get(channelName(groupId));
   // Keyed by sender + peerId: a member can't take over another member's peer
-  const peers = new Map<
-    string,
-    { pc: RTCPeerConnection; owned: Set<string>; from: string; connected: boolean }
-  >();
+  const peers = new Map<string, HostPeer>();
 
   const dropPeer = (key: string, pc: RTCPeerConnection): void => {
     const peer = peers.get(key);
@@ -159,10 +172,17 @@ export async function startHosting(
     // ICE servers are set below; creating the connection first reserves the slot
     const pc = new RTCPeerConnection();
     const owned = new Set<string>();
-    const peer = { pc, owned, from, connected: false };
+    const peer: HostPeer = { pc, owned, from, connected: false };
     peers.set(key, peer);
     pc.ondatachannel = ({ channel: dc }) => {
       if (dc.label === CONTROL_LABEL) return;
+      if (dc.label === MODS_LABEL) {
+        // Not a Minecraft connection: doesn't count against the cap, but one per peer
+        if (peer.mods?.readyState === "open" || peer.mods?.readyState === "connecting")
+          return dc.close();
+        peer.mods = dc;
+        return serveMods(dc, serverId);
+      }
       if (owned.size >= MAX_CONNECTIONS_PER_PEER) return dc.close();
       window.p2pAPI.hostConnect(dc.label, serverPort);
       bridge(dc.label, dc, owned);
@@ -212,6 +232,8 @@ export async function startHosting(
 
 export interface JoinedServer {
   port: number;
+  /** Mod sync with the host; the channel is created on first use */
+  mods: () => ModsClient;
   stop: () => void;
 }
 
@@ -294,6 +316,8 @@ export async function joinServer(
       notice("channel_failed", "data channel error"),
     ),
   );
+  let modsClient: ModsClient | null = null;
+  const mods = (): ModsClient => (modsClient ??= createModsClient(pc));
   const stop = (): void => {
     offOpen();
     pc.onconnectionstatechange = null;
@@ -306,5 +330,5 @@ export async function joinServer(
     notice("tunnel_closed", String(port));
     onDisconnected();
   };
-  return { port, stop };
+  return { port, mods, stop };
 }

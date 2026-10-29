@@ -4,6 +4,7 @@ import {
   getBundledJavaCandidates,
   getDefaultRelativeJavaPath,
   getJavaBinaryName,
+  getRequiredJavaMajor,
   hasBundledJavaBinary,
 } from "@main/utils/javaRuntime";
 
@@ -48,5 +49,14 @@ describe("javaRuntime utilities", () => {
     expect(getDefaultRelativeJavaPath("win32")).toBe("./java_runtime/bin/java.exe");
     expect(getDefaultRelativeJavaPath("darwin")).toBe("./java_runtime/bin/java");
     expect(getDefaultRelativeJavaPath("linux")).toBe("./java_runtime/bin/java");
+  });
+
+  it("maps Minecraft versions to the Java major they need", () => {
+    expect(getRequiredJavaMajor("1.7.10")).toBe(8);
+    expect(getRequiredJavaMajor("1.12.2")).toBe(8);
+    expect(getRequiredJavaMajor("1.16.5")).toBe(11);
+    expect(getRequiredJavaMajor("1.18.2")).toBe(17);
+    expect(getRequiredJavaMajor("1.21.1")).toBe(21);
+    expect(getRequiredJavaMajor("26.1")).toBe(25);
   });
 });

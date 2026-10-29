@@ -1,3 +1,5 @@
+import type { S3Provider } from "./ServerConfig";
+
 /**
  * Server type enumeration
  */
@@ -7,6 +9,7 @@ export enum ServerType {
   NEOFORGE = "neoforge",
   PAPER = "paper",
   FABRIC = "fabric",
+  QUILT = "quilt",
   UNKNOWN = "unknown",
 }
 
@@ -18,6 +21,10 @@ export interface Server {
   name: string;
   version: string;
   type: ServerType;
+  /** Listed in the active cloud provider right now */
+  cloud?: boolean;
+  /** Where the local copy was last synced; set on a server that isn't only on this PC */
+  cloudLocation?: { provider: S3Provider; bucket?: string };
 }
 
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com\d|lpt\d)$/;

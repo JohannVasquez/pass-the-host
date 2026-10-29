@@ -1,3 +1,5 @@
+import type { S3Provider } from "./S3Config";
+
 export interface SessionEntry {
   username: string;
   startTime: string; // ISO timestamp
@@ -18,6 +20,14 @@ export interface CloudSyncState {
   localChangesPendingUpload: boolean;
   lastLocalChangeTimestamp: number;
 }
+
+/** Where a server was last uploaded to or downloaded from, kept in its local folder */
+export interface CloudLocation {
+  provider: S3Provider;
+  bucket?: string;
+}
+
+export const CLOUD_LOCATION_FILE = ".cloud-location.json";
 
 export interface ServerStatistics {
   totalPlaytime: number; // Total playtime in milliseconds

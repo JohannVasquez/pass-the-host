@@ -54,6 +54,7 @@ import {
   type HostingChange,
 } from "@contexts/p2p-tunnel/infrastructure/hostingChanges";
 import { MembersDialog } from "@contexts/p2p-tunnel/presentation/components/MembersDialog";
+import { ModSyncCard } from "@contexts/p2p-tunnel/presentation/components/ModSyncCard";
 import { RoomsInfoDialog } from "@contexts/p2p-tunnel/presentation/components/RoomsInfoDialog";
 
 const MINECRAFT_PORT = 25565;
@@ -72,8 +73,12 @@ interface P2PPanelProps {
   username: string;
   /** Name of the selected Minecraft server, announced to the network while hosting */
   serverName: string | null;
+  /** Id of the selected server: its client mods are what friends sync while hosting */
+  serverId: string | null;
   /** Writes to the console the user sees */
   onLog?: (message: string, type: "info" | "success" | "warning" | "error") => void;
+  /** Opens Settings, where the mods destination folder lives */
+  onOpenSettings?: () => void;
 }
 
 const readStoredGroup = (): string => {
@@ -161,7 +166,9 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
   serverPort,
   username,
   serverName,
+  serverId,
   onLog,
+  onOpenSettings,
 }) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
@@ -326,7 +333,7 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
 
   // Host: while the server runs, answer friends of the selected group
   React.useEffect(() => {
-    if (!groupId || !serverRunning) return undefined;
+    if (!groupId || !serverRunning || !serverId) return undefined;
     let stop: (() => void) | null = null;
     let cancelled = false;
     let lastTcpError = 0;
@@ -336,7 +343,7 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
       lastTcpError = Date.now();
       log(`Couldn't reach your Minecraft server on port ${serverPort}: ${message}`, "error");
     });
-    startHosting(groupId, serverPort, {
+    startHosting(groupId, serverPort, serverId, {
       onOpened: (from) => log(`${nameOf(from)} connected to your server through the room`, "info"),
       onClosed: (from) => log(`${nameOf(from)}'s connection to your server closed`, "warning"),
       onDiag: ({ from, code, detail }) => {
@@ -364,7 +371,7 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
       stop?.();
       setHosting(false);
     };
-  }, [groupId, serverRunning, serverPort, showError, realtimeEpoch, log]);
+  }, [groupId, serverRunning, serverPort, serverId, showError, realtimeEpoch, log]);
 
   const handleCreateGroup = (): Promise<void> =>
     run(async () => {
@@ -649,6 +656,12 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
                     </Typography>
                   )}
                 </Box>
+                <ModSyncCard
+                  key={joined.port}
+                  tunnel={joined}
+                  onLog={log}
+                  onOpenSettings={onOpenSettings}
+                />
                 <Button fullWidth variant="outlined" color="warning" onClick={handleDisconnect}>
                   {t("p2p.disconnect")}
                 </Button>

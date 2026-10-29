@@ -20,6 +20,9 @@ import {
   Stop as StopIcon,
   LockOpen as LockOpenIcon,
   CloudSync as CloudSyncIcon,
+  CloudDone as CloudDoneIcon,
+  CloudOff as CloudOffIcon,
+  CloudUpload as CloudUploadIcon,
   Edit as EditIcon,
   Add as AddIcon,
   FolderOpen as FolderOpenIcon,
@@ -33,6 +36,7 @@ import { monoFont, surface } from "@renderer/theme";
 import DnsOutlinedIcon from "@mui/icons-material/DnsOutlined";
 import { ServerStatus } from "@renderer/domain/entities/ServerStatus";
 import { Server, ServerType } from "@renderer/domain/entities/Server";
+import { PROVIDER_LABELS } from "@renderer/domain/entities/ServerConfig";
 
 const TYPE_LABELS: Record<ServerType, string> = {
   [ServerType.VANILLA]: "Vanilla",
@@ -40,6 +44,7 @@ const TYPE_LABELS: Record<ServerType, string> = {
   [ServerType.NEOFORGE]: "NeoForge",
   [ServerType.PAPER]: "Paper",
   [ServerType.FABRIC]: "Fabric",
+  [ServerType.QUILT]: "Quilt",
   [ServerType.UNKNOWN]: "",
 };
 
@@ -64,7 +69,12 @@ interface ServerControlPanelProps {
   onDeleteServer: () => void;
   /** Only passed when sharing applies (Google Drive connected): the button is hidden otherwise */
   onShare?: () => void;
+  /** Whether the selected server syncs with the cloud (it's in the active provider) */
   cloudSyncEnabled?: boolean;
+  /** Name of the active provider, only while cloud sync is on */
+  cloudProvider?: string;
+  /** Providers with saved credentials an offline server can be uploaded to */
+  uploadTargets?: { label: string; onUpload: () => void }[];
   serverStartTime: Date | null;
   username: string;
   lockedServerInfo?: {
@@ -90,6 +100,8 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   onDeleteServer,
   onShare,
   cloudSyncEnabled = false,
+  cloudProvider,
+  uploadTargets = [],
   serverStartTime,
   username,
   lockedServerInfo,
@@ -108,6 +120,12 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   const [menuAnchor, setMenuAnchor] = React.useState<HTMLElement | null>(null);
   const isLocked = lockedServerInfo?.username && lockedServerInfo?.username !== "";
   const lockedByOther = isLocked && lockedServerInfo?.username !== username;
+  const isOnline = (server: Server): boolean => !!cloudProvider && !!server.cloud;
+  // A copy of a cloud server that can't be synced now: playing it may clash with the cloud one
+  const unsyncedProvider =
+    current && !isOnline(current) && current.cloudLocation
+      ? PROVIDER_LABELS[current.cloudLocation.provider]
+      : null;
 
   // Update uptime every second when server is running
   React.useEffect(() => {
@@ -148,13 +166,58 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
     action();
   };
 
+  // Online = listed in the active provider; offline = only on this PC, or its cloud isn't reachable
+  const cloudLabel = (server: Server): string =>
+    isOnline(server)
+      ? cloudProvider!
+      : server.cloudLocation
+        ? PROVIDER_LABELS[server.cloudLocation.provider]
+        : t("serverControl.offline");
+
+  const cloudStatus = (server: Server): React.JSX.Element => {
+    const label = cloudLabel(server);
+    return (
+      <Tooltip title={label}>
+        {isOnline(server) ? (
+          <CloudDoneIcon fontSize="small" sx={{ color: "success.main" }} aria-label={label} />
+        ) : (
+          <CloudOffIcon
+            fontSize="small"
+            sx={{ color: server.cloudLocation ? "warning.main" : "text.secondary" }}
+            aria-label={label}
+          />
+        )}
+      </Tooltip>
+    );
+  };
+
+  const uploadItems = uploadTargets.length
+    ? uploadTargets.map((target) => ({
+        icon: <CloudUploadIcon fontSize="small" />,
+        label: t("serverControl.uploadTo", { provider: target.label }),
+        onClick: target.onUpload,
+        disabled: isRunning || isTransitioning,
+      }))
+    : [
+        {
+          icon: <CloudUploadIcon fontSize="small" />,
+          label: t("serverControl.uploadToCloud"),
+          onClick: () => {},
+          disabled: true,
+        },
+      ];
+
   const menuItems = [
-    {
-      icon: <CloudSyncIcon fontSize="small" />,
-      label: t("serverControl.syncToCloud"),
-      onClick: onSyncToR2,
-      disabled: !cloudSyncEnabled,
-    },
+    ...(current && isOnline(current)
+      ? [
+          {
+            icon: <CloudSyncIcon fontSize="small" />,
+            label: t("serverControl.syncToCloud"),
+            onClick: onSyncToR2,
+            disabled: !cloudSyncEnabled,
+          },
+        ]
+      : uploadItems),
     ...(onShare
       ? [
           {
@@ -198,7 +261,11 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           inputProps={{ "aria-label": t("serverControl.selectServer") }}
           renderValue={(value) => (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, fontWeight: 500 }}>
-              <DnsOutlinedIcon fontSize="small" sx={{ color: "text.secondary" }} />
+              {current && current.id === value ? (
+                cloudStatus(current)
+              ) : (
+                <DnsOutlinedIcon fontSize="small" sx={{ color: "text.secondary" }} />
+              )}
               {servers.find((server) => server.id === value)?.name ?? (
                 <Box component="span" sx={{ color: "text.secondary", fontWeight: 400 }}>
                   {t("serverControl.selectServer")}
@@ -208,8 +275,14 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           )}
         >
           {servers.map((server) => (
-            <MenuItem key={server.id} value={server.id}>
-              {server.name}
+            <MenuItem key={server.id} value={server.id} sx={{ gap: 1 }}>
+              {cloudStatus(server)}
+              <Box component="span" sx={{ flex: 1, minWidth: 0 }}>
+                {server.name}
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                {cloudLabel(server)}
+              </Typography>
             </MenuItem>
           ))}
         </Select>
@@ -236,6 +309,12 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
       </Stack>
 
       {!username && <Alert severity="error">{t("serverControl.usernameNotConfigured")}</Alert>}
+
+      {unsyncedProvider && (
+        <Alert severity="warning">
+          {t("serverControl.cloudCopyNotSynced", { provider: unsyncedProvider })}
+        </Alert>
+      )}
 
       {lockedByOther && selectedServer && (
         <Alert severity="warning" icon={<LockIcon />}>
