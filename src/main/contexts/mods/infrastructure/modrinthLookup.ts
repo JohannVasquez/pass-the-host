@@ -15,6 +15,8 @@ export interface ModrinthInfo {
   loaders: string[];
   clientSide: ModrinthSupport;
   serverSide: ModrinthSupport;
+  /** Modrinth CDN URL of this exact file (absent in cache entries from before mod sync) */
+  downloadUrl?: string;
 }
 
 const API = "https://api.modrinth.com/v2";
@@ -23,9 +25,28 @@ const HASH_CHUNK = 500;
 const PROJECT_CHUNK = 100;
 const MISS_TTL_MS = 24 * 60 * 60 * 1000;
 
-type CacheEntry = { at: number; info: ModrinthInfo | null };
+// Bump when ModrinthInfo gains fields: older entries are refetched once
+const CACHE_VERSION = 2;
+type CacheEntry = { v?: number; at: number; info: ModrinthInfo | null };
 let memory: Record<string, CacheEntry> | null = null;
 let memoryFile = "";
+
+/** Trust boundary: only files served straight from Modrinth's CDN may be downloaded */
+export function isModrinthCdnUrl(url: unknown): url is string {
+  if (typeof url !== "string") return false;
+  try {
+    const u = new URL(url);
+    return (
+      u.protocol === "https:" &&
+      u.hostname === "cdn.modrinth.com" &&
+      u.port === "" &&
+      u.username === "" &&
+      u.password === ""
+    );
+  } catch {
+    return false;
+  }
+}
 
 /** Which side(s) need the mod, per Modrinth's own client/server flags */
 export function sideFromModrinth(
@@ -63,11 +84,12 @@ export function metadataFromModrinth(info: ModrinthInfo): ModMetadata {
 
 /**
  * Looks the jars up on Modrinth by SHA1. Never throws: offline or on any error it returns
- * whatever the cache already knows.
+ * whatever the cache already knows. `hashesOut`, when given, receives each readable file's SHA1.
  */
 export async function lookupModrinth(
   filePaths: string[],
   cacheFile?: string,
+  hashesOut?: Map<string, string>,
 ): Promise<Map<string, ModrinthInfo>> {
   const result = new Map<string, ModrinthInfo>();
   try {
@@ -77,15 +99,17 @@ export async function lookupModrinth(
     await Promise.all(
       filePaths.map(async (p) => {
         try {
-          hashes.set(p, await sha1(p));
+          hashes.set(p, await sha1File(p));
         } catch {
           // Unreadable file: no lookup for it
         }
       }),
     );
 
+    hashesOut && hashes.forEach((h, p) => hashesOut.set(p, h));
+
     const fresh = (e: CacheEntry | undefined): boolean =>
-      !!e && (e.info !== null || Date.now() - e.at < MISS_TTL_MS);
+      !!e && e.v === CACHE_VERSION && (e.info !== null || Date.now() - e.at < MISS_TTL_MS);
     const missing = [...new Set(hashes.values())].filter((h) => !fresh(cache[h]));
     try {
       await fetchInto(cache, missing);
@@ -105,7 +129,12 @@ export async function lookupModrinth(
 }
 
 async function fetchInto(cache: Record<string, CacheEntry>, hashes: string[]): Promise<void> {
-  type Version = { project_id: string; version_number: string; loaders?: string[] };
+  type Version = {
+    project_id: string;
+    version_number: string;
+    loaders?: string[];
+    files?: { hashes?: { sha1?: string }; url?: string }[];
+  };
   type Project = { id: string; slug: string; title: string; client_side?: string; server_side?: string };
   const support = (v: unknown): ModrinthSupport =>
     v === "required" || v === "optional" || v === "unsupported" ? v : "unknown";
@@ -130,7 +159,9 @@ async function fetchInto(cache: Record<string, CacheEntry>, hashes: string[]): P
     for (const hash of chunk) {
       const version = versions[hash];
       const project = version && projects.get(version.project_id);
+      const url = version?.files?.find((f) => f.hashes?.sha1 === hash)?.url;
       cache[hash] = {
+        v: CACHE_VERSION,
         at: now,
         info: project
           ? {
@@ -141,6 +172,7 @@ async function fetchInto(cache: Record<string, CacheEntry>, hashes: string[]): P
               loaders: version.loaders ?? [],
               clientSide: support(project.client_side),
               serverSide: support(project.server_side),
+              ...(isModrinthCdnUrl(url) && { downloadUrl: url }),
             }
           : null,
       };
@@ -190,7 +222,7 @@ function request(method: "GET" | "POST", url: string, body?: unknown): Promise<u
   });
 }
 
-function sha1(filePath: string): Promise<string> {
+export function sha1File(filePath: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const hash = crypto.createHash("sha1");
     fs.createReadStream(filePath)

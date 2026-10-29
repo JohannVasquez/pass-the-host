@@ -2124,6 +2124,7 @@ function AppContent(): React.JSX.Element {
               serverPort={serverPort}
               username={username}
               serverName={selectedServerName}
+              serverId={selectedServer}
               onLog={appendLog}
             />
 

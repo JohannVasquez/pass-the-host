@@ -6,6 +6,11 @@ import type {
   ModItem,
   ModsList,
 } from "../main/contexts/mods/infrastructure/ModsRepository";
+import type {
+  ClientMod,
+  ClientModManifest,
+  SyncPlan,
+} from "../main/contexts/mods/infrastructure/ModSync";
 
 type EngineType = "vanilla" | "paper" | "fabric" | "quilt" | "forge" | "neoforge";
 type WorldActionResult = "done" | "canceled" | "no-world" | "invalid";
@@ -392,6 +397,24 @@ const modsAPI = {
   openModrinth: (slug: string): Promise<boolean> => ipcRenderer.invoke("mods:open-modrinth", slug),
   // Path of a drag-and-dropped File, to hand to inspect/add
   getPathForFile: (file: File): string => webUtils.getPathForFile(file),
+  // Client mod sync: host side
+  clientManifest: (serverId: string): Promise<ClientModManifest> =>
+    ipcRenderer.invoke("mods:client-manifest", serverId),
+  readClientMod: (serverId: string, sha1: string): Promise<Uint8Array> =>
+    ipcRenderer.invoke("mods:read-client-mod", serverId, sha1),
+  // Client mod sync: friend side
+  getSyncFolder: (key: string): Promise<string | null> =>
+    ipcRenderer.invoke("mods:get-sync-folder", key),
+  pickSyncFolder: (key: string): Promise<string | null> =>
+    ipcRenderer.invoke("mods:pick-sync-folder", key),
+  planSync: (key: string, manifest: ClientModManifest): Promise<SyncPlan> =>
+    ipcRenderer.invoke("mods:plan-sync", key, manifest),
+  downloadModrinthMod: (key: string, mod: ClientMod): Promise<void> =>
+    ipcRenderer.invoke("mods:download-modrinth-mod", key, mod),
+  writeSyncedMod: (key: string, mod: ClientMod, data: Uint8Array): Promise<void> =>
+    ipcRenderer.invoke("mods:write-synced-mod", key, mod, data),
+  finishSync: (key: string, manifest: ClientModManifest): Promise<{ removed: number }> =>
+    ipcRenderer.invoke("mods:finish-sync", key, manifest),
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to

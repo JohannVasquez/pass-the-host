@@ -5,6 +5,11 @@ import type {
   ModItem,
   ModsList,
 } from "../main/contexts/mods/infrastructure/ModsRepository";
+import type {
+  ClientMod,
+  ClientModManifest,
+  SyncPlan,
+} from "../main/contexts/mods/infrastructure/ModSync";
 
 // S3-compatible storage types
 type EngineType = "vanilla" | "paper" | "fabric" | "quilt" | "forge" | "neoforge";
@@ -257,6 +262,14 @@ interface ModsAPI {
   ) => Promise<number>;
   openModrinth: (slug: string) => Promise<boolean>;
   getPathForFile: (file: File) => string;
+  clientManifest: (serverId: string) => Promise<ClientModManifest>;
+  readClientMod: (serverId: string, sha1: string) => Promise<Uint8Array>;
+  getSyncFolder: (key: string) => Promise<string | null>;
+  pickSyncFolder: (key: string) => Promise<string | null>;
+  planSync: (key: string, manifest: ClientModManifest) => Promise<SyncPlan>;
+  downloadModrinthMod: (key: string, mod: ClientMod) => Promise<void>;
+  writeSyncedMod: (key: string, mod: ClientMod, data: Uint8Array) => Promise<void>;
+  finishSync: (key: string, manifest: ClientModManifest) => Promise<{ removed: number }>;
 }
 
 declare global {
@@ -274,4 +287,14 @@ declare global {
   }
 }
 
-export type { P2PGroup, P2PMember, TurnConfig, AddModsResult, ModItem, ModsList };
+export type {
+  P2PGroup,
+  P2PMember,
+  TurnConfig,
+  AddModsResult,
+  ModItem,
+  ModsList,
+  ClientMod,
+  ClientModManifest,
+  SyncPlan,
+};

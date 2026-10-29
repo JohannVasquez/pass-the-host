@@ -32,9 +32,14 @@ export interface ModItem {
   modrinth?: { slug: string; title: string };
   /** Where the jar lives: client-mods is stored (and synced) with the server but never loaded by it */
   folder: ModFolder;
+  /** SHA1 of the jar, when it could be read */
+  sha1?: string;
+  /** Modrinth CDN URL of this exact file, when Modrinth has it */
+  downloadUrl?: string;
 }
 
 export interface ModsList {
+  serverName: string;
   engine: string;
   minecraftVersion: string;
   loaderVersion?: string;
@@ -47,6 +52,7 @@ export type AddModsResult =
   | { canceled?: false; added: ModItem[]; replaced: ModItem[]; rejected: ModItem[] };
 
 interface ServerInfo {
+  name?: string;
   engine: string;
   minecraftVersion: string;
   loaderVersion?: string;
@@ -56,7 +62,7 @@ export class ModsRepository {
   async list(serverId: string): Promise<ModsList> {
     const info = this.readServerInfo(serverId);
     const folder = this.folderName(info.engine);
-    return { ...info, folder, mods: await this.installed(serverId, info) };
+    return { ...info, serverName: info.name ?? serverId, folder, mods: await this.installed(serverId, info) };
   }
 
   async inspect(serverId: string, filePaths: string[]): Promise<ModItem[]> {
@@ -174,9 +180,14 @@ export class ModsRepository {
         .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".jar"))
         .map((entry) => ({ jar: path.join(dir, entry.name), folder }));
     });
-    const modrinth = await lookupModrinth(jars.map((j) => j.jar));
+    const hashes = new Map<string, string>();
+    const modrinth = await lookupModrinth(
+      jars.map((j) => j.jar),
+      undefined,
+      hashes,
+    );
     return jars
-      .map(({ jar, folder }) => this.inspectFile(jar, info, modrinth, folder))
+      .map(({ jar, folder }) => this.inspectFile(jar, info, modrinth, folder, hashes.get(jar)))
       .sort((a, b) =>
         (a.metadata?.name ?? a.fileName).localeCompare(b.metadata?.name ?? b.fileName, undefined, {
           sensitivity: "base",
@@ -189,6 +200,7 @@ export class ModsRepository {
     info: ServerInfo,
     modrinthInfo: Map<string, ModrinthInfo>,
     folder: ModFolder = this.folderName(info.engine),
+    sha1?: string,
   ): ModItem {
     let metadata: ModMetadata | null = null;
     try {
@@ -219,6 +231,8 @@ export class ModsRepository {
       side,
       sideSource: known ? "modrinth" : "jar",
       ...(known && { modrinth: { slug: known.slug, title: known.title } }),
+      ...(sha1 && { sha1 }),
+      ...(known?.downloadUrl && { downloadUrl: known.downloadUrl }),
     };
   }
 
@@ -227,6 +241,7 @@ export class ModsRepository {
     try {
       const raw = JSON.parse(fs.readFileSync(infoPath, "utf-8")) as Record<string, unknown>;
       return {
+        name: typeof raw.name === "string" && raw.name ? raw.name : undefined,
         engine: typeof raw.type === "string" ? raw.type : "vanilla",
         minecraftVersion: typeof raw.version === "string" ? raw.version : "",
         loaderVersion: typeof raw.loaderVersion === "string" ? raw.loaderVersion : undefined,
@@ -234,6 +249,12 @@ export class ModsRepository {
     } catch {
       throw new ValidationError(`Server ${serverId} has no readable server_info.json`);
     }
+  }
+
+  /** Absolute path of an installed jar, for reading it back (host side of mod sync) */
+  jarPath(serverId: string, folder: ModFolder, fileName: string): string {
+    assertJarName(fileName);
+    return path.join(this.checkedDir(serverId, this.readServerInfo(serverId).engine, folder), fileName);
   }
 
   private folderName(engine: string): "mods" | "plugins" {

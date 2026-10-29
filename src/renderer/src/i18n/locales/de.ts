@@ -504,6 +504,30 @@ export const de: typeof en = {
       serverAddress: "Serveradresse",
       hosting: "Freunde in diesem Raum können deinem Server beitreten.",
       disconnected: "Verbindung zum Host verloren.",
+      modSync: {
+        checking: "Mods des Hosts werden geprüft…",
+        retry: "Erneut versuchen",
+        refresh: "Erneut prüfen",
+        count_one: "{{count}} Mod für Spieler",
+        count_other: "{{count}} Mods für Spieler",
+        needs: "Du brauchst {{loader}} für Minecraft {{mc}} in deinem Launcher.",
+        changeFolder: "Ordner ändern",
+        pickFolder: "Mods-Ordner wählen",
+        folderHint:
+          "Der mods-Ordner deiner Instanz (Prism, CurseForge, Modrinth App oder .minecraft). Es werden nur Mods angefasst, die Pass the host hinzugefügt hat.",
+        plan: "{{download}} herunterzuladen · {{upToDate}} aktuell · {{remove}} zu entfernen",
+        sync: "Mods synchronisieren",
+        upToDate: "Alles aktuell",
+        progressLabel: "Fortschritt der Mod-Synchronisierung",
+        downloading: "Lade {{done}}/{{total}} · {{name}}",
+        failed_one: "{{count}} Mod konnte nicht heruntergeladen werden",
+        failed_other: "{{count}} Mods konnten nicht heruntergeladen werden",
+        error: {
+          noHost: "Der Host teilt keine Mods oder nutzt eine ältere App-Version.",
+          network:
+            "Die Mods konnten nicht abgerufen werden. Prüfe deine Verbindung und versuche es erneut.",
+        },
+      },
       turn: {
         title: "Eigener TURN-Server",
         description: "Optional. Ohne TURN verbinden sich Freunde direkt; in manchen strengen Netzen (Mobilfunk, bestimmte Anbieter) klappt das nicht. Du kannst deinen eigenen TURN-Server hinzufügen (z. B. coturn, Metered oder Twilio).",
