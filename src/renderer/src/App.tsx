@@ -50,6 +50,8 @@ import { ServerStatus, canTransitionServerStatus } from "./domain/entities/Serve
 import {
   PROVIDER_LABELS,
   S3Config,
+  StorageProfile,
+  toStorageProfile,
   RamConfig,
   NetworkInterface,
 } from "./domain/entities/ServerConfig";
@@ -126,8 +128,8 @@ function AppContent(): React.JSX.Element {
   const [serverStatus, setServerStatus] = React.useState<ServerStatus>(ServerStatus.STOPPED);
   const [servers, setServers] = React.useState<Server[]>([]);
   const [selectedServer, setSelectedServer] = React.useState<string | null>(null);
-  const selectedServerName =
-    servers.find((server) => server.id === selectedServer)?.name ?? selectedServer;
+  const selectedServerInfo = servers.find((server) => server.id === selectedServer);
+  const selectedServerName = selectedServerInfo?.name ?? selectedServer;
   const [isCloudSyncEnabledByUser, setIsCloudSyncEnabledByUser] = React.useState<boolean>(false);
   const [isS3Configured, setIsS3Configured] = React.useState<boolean>(false);
   const [isRcloneReady, setIsRcloneReady] = React.useState<boolean>(false);
@@ -364,12 +366,14 @@ function AppContent(): React.JSX.Element {
   }, [serverStatus]);
 
   const isCloudSyncEnabled = isCloudSyncEnabledByUser && isS3Configured && isRcloneReady;
+  // A server only on this PC runs offline until it's uploaded: no cloud lock, download or upload
+  const selectedSyncsToCloud = isCloudSyncEnabled && !!selectedServerInfo?.cloud;
 
   // Monitor server lock status when server is stopped and selected
   useLockMonitor(
     selectedServer,
     s3Config,
-    serverStatus === ServerStatus.STOPPED && isCloudSyncEnabled,
+    serverStatus === ServerStatus.STOPPED && selectedSyncsToCloud,
   );
 
   React.useEffect(() => {
@@ -387,7 +391,12 @@ function AppContent(): React.JSX.Element {
       if (!isIntentionalStop) {
         updateServerStatus(ServerStatus.STOPPING, "server process exited", { force: true });
         stopManagedServerUseCase
-          .finalize({ serverId, username: username || "Unknown", s3Config, isCloudSyncEnabled })
+          .finalize({
+            serverId,
+            username: username || "Unknown",
+            s3Config,
+            isCloudSyncEnabled: selectedSyncsToCloud,
+          })
           .catch((error) =>
             appendLog(
               `Error finishing shutdown: ${error instanceof Error ? error.message : String(error)}`,
@@ -419,7 +428,7 @@ function AppContent(): React.JSX.Element {
     stopManagedServerUseCase,
     username,
     s3Config,
-    isCloudSyncEnabled,
+    selectedSyncsToCloud,
     appendLog,
   ]);
 
@@ -696,6 +705,24 @@ function AppContent(): React.JSX.Element {
     );
   };
 
+  // Every provider with saved credentials, so an offline server can be uploaded to any of them
+  const uploadTargets = (
+    Object.entries({ ...s3Config.profiles, [s3Config.provider]: toStorageProfile(s3Config) }) as [
+      S3Config["provider"],
+      StorageProfile,
+    ][]
+  )
+    .map(([provider, profile]): S3Config => ({
+      endpoint: "",
+      region: "",
+      access_key: "",
+      secret_key: "",
+      bucket_name: "",
+      ...profile,
+      provider,
+    }))
+    .filter(validateS3Config);
+
   const ensureCloudSyncReady = async (config: S3Config): Promise<boolean> => {
     if (!validateS3Config(config)) {
       setIsS3Configured(false);
@@ -926,9 +953,18 @@ function AppContent(): React.JSX.Element {
       ]);
 
       const repository = new S3ServerRepository(s3Config);
-      const serverList = await repository.getServers();
+      const [serverList, localServers] = await Promise.all([
+        repository.getServers(),
+        window.serverAPI.listLocalServers(),
+      ]);
+      const cloudIds = new Set(serverList.map((server) => server.id));
 
-      setServers(serverList);
+      setServers([
+        ...serverList.map((server) => ({ ...server, cloud: true })),
+        ...localServers
+          .filter((server) => !cloudIds.has(server.id))
+          .map((server) => ({ ...server, type: server.type as Server["type"], cloud: false })),
+      ]);
 
       setLogs((prev) => [
         ...prev,
@@ -943,6 +979,8 @@ function AppContent(): React.JSX.Element {
       loadBucketSize();
     } catch (error) {
       console.error(`Error loading servers from ${PROVIDER_LABELS[s3Config.provider]}:`, error);
+      // Showing local copies as offline here would let a stale world run and later overwrite the cloud
+      setServers([]);
       setLogs((prev) => [
         ...prev,
         {
@@ -1184,7 +1222,7 @@ function AppContent(): React.JSX.Element {
       setServerPort(25565);
     }
 
-    if (isCloudSyncEnabled) {
+    if (isCloudSyncEnabled && servers.find((server) => server.id === serverId)?.cloud) {
       loadServerSize(serverId);
       return;
     }
@@ -1271,7 +1309,7 @@ function AppContent(): React.JSX.Element {
           serverPort,
           s3Config,
           ramConfig,
-          isCloudSyncEnabled,
+          isCloudSyncEnabled: selectedSyncsToCloud,
           isWindowsClient: navigator.userAgent.includes("Windows"),
         });
         serverProcessRef.current = true;
@@ -1300,7 +1338,7 @@ function AppContent(): React.JSX.Element {
           serverId: selectedServer,
           username: username || "Unknown",
           s3Config,
-          isCloudSyncEnabled,
+          isCloudSyncEnabled: selectedSyncsToCloud,
         });
         serverProcessRef.current = false;
       } catch (e) {
@@ -1525,7 +1563,7 @@ function AppContent(): React.JSX.Element {
     try {
       let anyLockDeleted = false;
 
-      if (isCloudSyncEnabled) {
+      if (selectedSyncsToCloud) {
         // Delete lock from cloud storage
         setLogs((prev) => [
           ...prev,
@@ -1648,11 +1686,8 @@ function AppContent(): React.JSX.Element {
     }
   };
 
-  const handleSyncToR2 = async (): Promise<void> => {
-    if (!isCloudSyncEnabled) {
-      return;
-    }
-
+  // Uploads to the active provider, or to `target` when an offline server is sent to another one
+  const handleSyncToR2 = async (target: S3Config = s3Config): Promise<void> => {
     if (!selectedServer) {
       setLogs((prev) => [
         ...prev,
@@ -1669,7 +1704,7 @@ function AppContent(): React.JSX.Element {
       ...prev,
       {
         timestamp: new Date(),
-        message: `Syncing ${selectedServer} to cloud storage...`,
+        message: `Syncing ${selectedServer} to ${PROVIDER_LABELS[target.provider]}...`,
         type: "info",
       },
     ]);
@@ -1680,7 +1715,7 @@ function AppContent(): React.JSX.Element {
     setTransferTransferred("0");
     setTransferTotal("0");
 
-    const s3Service = new S3Service(s3Config);
+    const s3Service = new S3Service(target);
     const uploadSuccess = await s3Service.uploadServer(selectedServer);
 
     setIsTransferring(false);
@@ -1710,7 +1745,7 @@ function AppContent(): React.JSX.Element {
         username || "Unknown",
       );
       if (sessionUpdateSuccess) {
-        const sessionUploadSuccess = await window.serverAPI.uploadSession(s3Config, selectedServer);
+        const sessionUploadSuccess = await window.serverAPI.uploadSession(target, selectedServer);
         if (sessionUploadSuccess) {
           setLogs((prev) => [
             ...prev,
@@ -1736,17 +1771,22 @@ function AppContent(): React.JSX.Element {
         ...prev,
         {
           timestamp: new Date(),
-          message: `Failed to sync server files to ${PROVIDER_LABELS[s3Config.provider]}`,
+          message: `Failed to sync server files to ${PROVIDER_LABELS[target.provider]}`,
           type: "error",
         },
       ]);
+    }
+
+    // An offline server uploaded to the active provider now shows as online
+    if (uploadSuccess && isCloudSyncEnabled && !selectedServerInfo?.cloud) {
+      await refreshServerList();
     }
   };
 
   // Edits are made on the local copy, so it must be the latest one: otherwise saving would
   // upload an old world over a friend's progress
   const handleEditProperties = async (): Promise<void> => {
-    if (selectedServer && isCloudSyncEnabled && serverStatus === ServerStatus.STOPPED) {
+    if (selectedServer && selectedSyncsToCloud && serverStatus === ServerStatus.STOPPED) {
       // Blocks the UI while rclone checks, so nobody starts the server under the dialog
       setIsCheckingCloud(true);
       try {
@@ -1788,7 +1828,7 @@ function AppContent(): React.JSX.Element {
   // Uploads right away so the next start, here or on a friend's PC, doesn't bring the old files back
   const handleServerFilesEdited = async (message: string): Promise<void> => {
     appendLog(message, "success");
-    if (!selectedServer || !isCloudSyncEnabled || serverStatus !== ServerStatus.STOPPED) return;
+    if (!selectedServer || !selectedSyncsToCloud || serverStatus !== ServerStatus.STOPPED) return;
     setIsTransferring(true);
     resetTransferProgress("upload");
     try {
@@ -1913,7 +1953,7 @@ function AppContent(): React.JSX.Element {
       },
     ]);
 
-    if (isCloudSyncEnabled) {
+    if (selectedSyncsToCloud) {
       setLogs((prev) => [
         ...prev,
         {
@@ -1947,7 +1987,7 @@ function AppContent(): React.JSX.Element {
     }
 
     // Delete locally if checkbox was checked
-    if (deleteLocally || !isCloudSyncEnabled) {
+    if (deleteLocally || !selectedSyncsToCloud) {
       setLogs((prev) => [
         ...prev,
         {
@@ -2108,11 +2148,16 @@ function AppContent(): React.JSX.Element {
               onOpenServerFolder={handleOpenServerFolder}
               onDeleteServer={handleDeleteServer}
               onShare={
-                isCloudSyncEnabled && s3Config.provider === "GoogleDrive" && s3Config.drive_token
+                selectedSyncsToCloud && s3Config.provider === "GoogleDrive" && s3Config.drive_token
                   ? () => setIsShareServerModalOpen(true)
                   : undefined
               }
-              cloudSyncEnabled={isCloudSyncEnabled}
+              cloudSyncEnabled={selectedSyncsToCloud}
+              cloudProvider={isCloudSyncEnabled ? PROVIDER_LABELS[s3Config.provider] : undefined}
+              uploadTargets={uploadTargets.map((config) => ({
+                label: PROVIDER_LABELS[config.provider],
+                onUpload: () => handleSyncToR2(config),
+              }))}
               serverStartTime={serverStartTime}
               username={username}
               lockedServerInfo={lockedServerInfo}
@@ -2347,7 +2392,7 @@ function AppContent(): React.JSX.Element {
         <DeleteServerModal
           open={isDeleteServerModalOpen}
           serverName={selectedServerName}
-          cloudSyncEnabled={isCloudSyncEnabled}
+          cloudSyncEnabled={selectedSyncsToCloud}
           onClose={() => setIsDeleteServerModalOpen(false)}
           onConfirm={handleConfirmDeleteServer}
         />

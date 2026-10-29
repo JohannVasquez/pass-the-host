@@ -19,6 +19,8 @@ export interface Server {
   name: string;
   version: string;
   type: ServerType;
+  /** Also stored in the active cloud provider; false means it only exists on this PC */
+  cloud?: boolean;
 }
 
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com\d|lpt\d)$/;

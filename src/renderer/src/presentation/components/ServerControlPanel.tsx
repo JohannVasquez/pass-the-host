@@ -20,6 +20,9 @@ import {
   Stop as StopIcon,
   LockOpen as LockOpenIcon,
   CloudSync as CloudSyncIcon,
+  CloudDone as CloudDoneIcon,
+  CloudOff as CloudOffIcon,
+  CloudUpload as CloudUploadIcon,
   Edit as EditIcon,
   Add as AddIcon,
   FolderOpen as FolderOpenIcon,
@@ -65,7 +68,12 @@ interface ServerControlPanelProps {
   onDeleteServer: () => void;
   /** Only passed when sharing applies (Google Drive connected): the button is hidden otherwise */
   onShare?: () => void;
+  /** Whether the selected server syncs with the cloud (it's in the active provider) */
   cloudSyncEnabled?: boolean;
+  /** Name of the active provider, only while cloud sync is on */
+  cloudProvider?: string;
+  /** Providers with saved credentials an offline server can be uploaded to */
+  uploadTargets?: { label: string; onUpload: () => void }[];
   serverStartTime: Date | null;
   username: string;
   lockedServerInfo?: {
@@ -91,6 +99,8 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   onDeleteServer,
   onShare,
   cloudSyncEnabled = false,
+  cloudProvider,
+  uploadTargets = [],
   serverStartTime,
   username,
   lockedServerInfo,
@@ -149,13 +159,48 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
     action();
   };
 
+  // Online = also stored in the active provider; offline = only on this PC
+  const cloudStatus = (server: Server): React.JSX.Element => {
+    const online = !!cloudProvider && !!server.cloud;
+    const label = online ? cloudProvider : t("serverControl.offline");
+    return (
+      <Tooltip title={label}>
+        {online ? (
+          <CloudDoneIcon fontSize="small" sx={{ color: "success.main" }} aria-label={label} />
+        ) : (
+          <CloudOffIcon fontSize="small" sx={{ color: "text.secondary" }} aria-label={label} />
+        )}
+      </Tooltip>
+    );
+  };
+
+  const uploadItems = uploadTargets.length
+    ? uploadTargets.map((target) => ({
+        icon: <CloudUploadIcon fontSize="small" />,
+        label: t("serverControl.uploadTo", { provider: target.label }),
+        onClick: target.onUpload,
+        disabled: isRunning || isTransitioning,
+      }))
+    : [
+        {
+          icon: <CloudUploadIcon fontSize="small" />,
+          label: t("serverControl.uploadToCloud"),
+          onClick: () => {},
+          disabled: true,
+        },
+      ];
+
   const menuItems = [
-    {
-      icon: <CloudSyncIcon fontSize="small" />,
-      label: t("serverControl.syncToCloud"),
-      onClick: onSyncToR2,
-      disabled: !cloudSyncEnabled,
-    },
+    ...(current?.cloud && cloudProvider
+      ? [
+          {
+            icon: <CloudSyncIcon fontSize="small" />,
+            label: t("serverControl.syncToCloud"),
+            onClick: onSyncToR2,
+            disabled: !cloudSyncEnabled,
+          },
+        ]
+      : uploadItems),
     ...(onShare
       ? [
           {
@@ -199,7 +244,11 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           inputProps={{ "aria-label": t("serverControl.selectServer") }}
           renderValue={(value) => (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, fontWeight: 500 }}>
-              <DnsOutlinedIcon fontSize="small" sx={{ color: "text.secondary" }} />
+              {current && current.id === value ? (
+                cloudStatus(current)
+              ) : (
+                <DnsOutlinedIcon fontSize="small" sx={{ color: "text.secondary" }} />
+              )}
               {servers.find((server) => server.id === value)?.name ?? (
                 <Box component="span" sx={{ color: "text.secondary", fontWeight: 400 }}>
                   {t("serverControl.selectServer")}
@@ -209,8 +258,14 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           )}
         >
           {servers.map((server) => (
-            <MenuItem key={server.id} value={server.id}>
-              {server.name}
+            <MenuItem key={server.id} value={server.id} sx={{ gap: 1 }}>
+              {cloudStatus(server)}
+              <Box component="span" sx={{ flex: 1, minWidth: 0 }}>
+                {server.name}
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                {cloudProvider && server.cloud ? cloudProvider : t("serverControl.offline")}
+              </Typography>
             </MenuItem>
           ))}
         </Select>
