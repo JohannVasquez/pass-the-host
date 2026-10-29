@@ -5,8 +5,17 @@ import * as fs from "fs";
 import * as https from "https";
 import { spawn } from "child_process";
 import { IServerLifecycleRepository } from "@main/contexts/server-lifecycle/domain/repositories";
-import { findBundledJavaPath } from "@main/utils/javaRuntime";
+import { findBundledJavaPath, getRequiredJavaMajor } from "@main/utils/javaRuntime";
 import {
+  getFabricInstallerVersion,
+  getPaperBuilds,
+  getQuiltInstallerVersion,
+  getUserAgent,
+  httpGetText,
+  listEngineVersions,
+} from "./EngineCatalog";
+import {
+  EngineType,
   LocalServerInfo,
   MinecraftServerConfig,
   ServerCreationResult,
@@ -16,13 +25,19 @@ import {
 interface StoredServerInfo {
   name?: string;
   version?: string;
-  type?: "vanilla" | "forge" | "neoforge" | "unknown";
+  type?: EngineType | "unknown";
+  loaderVersion?: string;
 }
 import { FileSystemError, NetworkError } from "@shared/domain/errors";
 
 interface MinecraftVersionInfo {
   id: string;
   url: string;
+}
+
+interface InstallResult {
+  /** Jar the server is started with; absent when a Forge/NeoForge run script is used */
+  launchJar?: string;
 }
 
 const JAVA_RUNTIME_DIR = path.join(app.getPath("userData"), "java_runtime");
@@ -55,12 +70,58 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
       fs.mkdirSync(serverPath, { recursive: true });
       onProgress?.("Creating server directory...");
 
-      if (config.serverType === "vanilla") {
-        await this.createVanillaServer(serverPath, config.version, onProgress);
-      } else if (config.serverType === "forge") {
-        await this.createForgeServer(serverPath, config.version, onProgress);
-      } else if (config.serverType === "neoforge") {
-        await this.createNeoForgeServer(serverPath, config.version, onProgress);
+      const engineVersion =
+        config.serverType === "vanilla"
+          ? undefined
+          : (config.engineVersion ?? (await this.resolveRecommended(config)));
+
+      let install: InstallResult = {};
+      switch (config.serverType) {
+        case "vanilla":
+          install = await this.createVanillaServer(serverPath, config.version, onProgress);
+          break;
+        case "paper":
+          install = await this.createPaperServer(
+            serverPath,
+            config.version,
+            engineVersion!,
+            onProgress,
+          );
+          break;
+        case "fabric":
+          install = await this.createFabricServer(
+            serverPath,
+            config.version,
+            engineVersion!,
+            onProgress,
+          );
+          break;
+        case "quilt":
+          install = await this.createQuiltServer(
+            serverPath,
+            config.version,
+            engineVersion!,
+            onProgress,
+          );
+          break;
+        case "forge":
+          install = await this.createForgeServer(
+            serverPath,
+            config.version,
+            engineVersion!,
+            onProgress,
+          );
+          break;
+        case "neoforge":
+          install = await this.createNeoForgeServer(
+            serverPath,
+            config.version,
+            engineVersion!,
+            onProgress,
+          );
+          break;
+        default:
+          throw new Error(`Unsupported server type: ${String(config.serverType)}`);
       }
 
       // Accept EULA
@@ -78,6 +139,8 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
         config.displayName ?? config.serverName,
         config.version,
         config.serverType,
+        engineVersion,
+        install.launchJar,
       );
       onProgress?.("Server info saved");
 
@@ -154,6 +217,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
             name: storedInfo.name || serverId,
             version: storedInfo.version || "unknown",
             type: storedInfo.type || "unknown",
+            loaderVersion: storedInfo.loaderVersion,
           };
         });
     } catch (error: unknown) {
@@ -168,11 +232,19 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
     return path.join(localServersDir, serverId);
   }
 
+  private async resolveRecommended(config: MinecraftServerConfig): Promise<string> {
+    const { recommended } = await listEngineVersions(config.serverType, config.version);
+    if (!recommended) {
+      throw new NetworkError(`No ${config.serverType} version found for Minecraft ${config.version}`);
+    }
+    return recommended;
+  }
+
   private async createVanillaServer(
     serverPath: string,
     version: string,
     onProgress?: (message: string) => void,
-  ): Promise<void> {
+  ): Promise<InstallResult> {
     onProgress?.(`Fetching Minecraft ${version} server information...`);
     let downloadUrl: string;
 
@@ -190,148 +262,189 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
 
     await this.downloadFile(downloadUrl, serverJarPath);
     onProgress?.("Server JAR downloaded successfully");
+    return { launchJar: "server.jar" };
+  }
+
+  private async createPaperServer(
+    serverPath: string,
+    version: string,
+    build: string,
+    onProgress?: (message: string) => void,
+  ): Promise<InstallResult> {
+    onProgress?.(`Setting up Paper ${version} (build ${build}) server...`);
+    const builds = await getPaperBuilds(version);
+    const url = builds.find((b) => String(b.id) === build)?.downloads["server:default"]?.url;
+    if (!url) {
+      throw new NetworkError(`Paper build ${build} not found for Minecraft ${version}`);
+    }
+
+    onProgress?.("Downloading Paper server...");
+    await this.downloadFile(url, path.join(serverPath, "paper.jar"));
+    fs.mkdirSync(path.join(serverPath, "plugins"), { recursive: true });
+    onProgress?.("Paper server downloaded successfully");
+    return { launchJar: "paper.jar" };
+  }
+
+  private async createFabricServer(
+    serverPath: string,
+    version: string,
+    loaderVersion: string,
+    onProgress?: (message: string) => void,
+  ): Promise<InstallResult> {
+    onProgress?.(`Setting up Fabric ${loaderVersion} server for Minecraft ${version}...`);
+    const installerVersion = await getFabricInstallerVersion();
+
+    // Fabric's server launcher fetches the vanilla server.jar itself on first launch
+    const url = `https://meta.fabricmc.net/v2/versions/loader/${version}/${loaderVersion}/${installerVersion}/server/jar`;
+    onProgress?.("Downloading Fabric server launcher...");
+    await this.downloadFile(url, path.join(serverPath, "fabric-server-launch.jar"));
+    fs.mkdirSync(path.join(serverPath, "mods"), { recursive: true });
+    onProgress?.("Fabric server launcher downloaded successfully");
+    return { launchJar: "fabric-server-launch.jar" };
+  }
+
+  private async createQuiltServer(
+    serverPath: string,
+    version: string,
+    loaderVersion: string,
+    onProgress?: (message: string) => void,
+  ): Promise<InstallResult> {
+    onProgress?.(`Setting up Quilt ${loaderVersion} server for Minecraft ${version}...`);
+    const installerVersion = await getQuiltInstallerVersion();
+    const installerPath = path.join(serverPath, "quilt-installer.jar");
+
+    onProgress?.("Downloading Quilt installer...");
+    await this.downloadFile(
+      `https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-installer/${installerVersion}/quilt-installer-${installerVersion}.jar`,
+      installerPath,
+    );
+
+    const javaPath = this.requireJava(version);
+    onProgress?.("Installing Quilt server (this may take a few minutes)...");
+    await this.runInstallerJar(
+      javaPath,
+      installerPath,
+      serverPath,
+      [
+        "install",
+        "server",
+        version,
+        loaderVersion,
+        "--download-server",
+        `--install-dir=${serverPath}`,
+      ],
+      onProgress,
+    );
+    this.removeInstaller(installerPath);
+    fs.mkdirSync(path.join(serverPath, "mods"), { recursive: true });
+    onProgress?.("Quilt server installed successfully");
+    return { launchJar: "quilt-server-launch.jar" };
   }
 
   private async createForgeServer(
     serverPath: string,
     version: string,
+    forgeId: string,
     onProgress?: (message: string) => void,
-  ): Promise<void> {
-    onProgress?.(`Setting up Forge ${version} server...`);
+  ): Promise<InstallResult> {
+    onProgress?.(`Setting up Forge ${forgeId} server...`);
 
-    // Get the recommended Forge version for this Minecraft version
-    onProgress?.("Fetching Forge version information...");
-    const forgeVersion = await this.getForgeVersion(version);
-
-    if (!forgeVersion) {
-      throw new NetworkError(`No Forge version found for Minecraft ${version}`);
-    }
-
-    onProgress?.(`Found Forge version: ${forgeVersion}`);
-
-    // Forge installer URL format: https://maven.minecraftforge.net/net/minecraftforge/forge/{mcVersion}-{forgeVersion}/forge-{mcVersion}-{forgeVersion}-installer.jar
-    const forgeUrl = `https://maven.minecraftforge.net/net/minecraftforge/forge/${version}-${forgeVersion}/forge-${version}-${forgeVersion}-installer.jar`;
+    // forgeId is the full maven version, e.g. 1.20.1-47.3.0
+    const forgeUrl = `https://maven.minecraftforge.net/net/minecraftforge/forge/${forgeId}/forge-${forgeId}-installer.jar`;
     const forgeInstallerPath = path.join(serverPath, "forge-installer.jar");
 
     onProgress?.("Downloading Forge installer...");
     await this.downloadFile(forgeUrl, forgeInstallerPath);
     onProgress?.("Forge installer downloaded successfully");
 
-    // Get Java path for this Minecraft version
-    const javaPath = this.getJavaPathForVersion(version);
-    if (!javaPath || !fs.existsSync(javaPath)) {
-      throw new FileSystemError(
-        `Java not found for Minecraft ${version}. Please ensure Java is installed first.`,
-      );
-    }
-
-    // Run the Forge installer in server mode
+    const javaPath = this.requireJava(version);
     onProgress?.("Installing Forge server (this may take a few minutes)...");
-    await this.runInstallerJar(javaPath, forgeInstallerPath, serverPath, onProgress);
+    await this.runInstallerJar(
+      javaPath,
+      forgeInstallerPath,
+      serverPath,
+      ["--installServer"],
+      onProgress,
+    );
     onProgress?.("Forge server installed successfully");
-
-    // Clean up installer
-    try {
-      fs.unlinkSync(forgeInstallerPath);
-      // Also clean up installer log if it exists
-      const installerLogPath = path.join(serverPath, "forge-installer.jar.log");
-      if (fs.existsSync(installerLogPath)) {
-        fs.unlinkSync(installerLogPath);
-      }
-    } catch {
-      // Ignore cleanup errors
-    }
+    this.removeInstaller(forgeInstallerPath);
 
     // Save forge version info for later reference
-    const forgeInfoPath = path.join(serverPath, "forge_version.txt");
-    fs.writeFileSync(forgeInfoPath, `${version}-${forgeVersion}`, "utf-8");
+    fs.writeFileSync(path.join(serverPath, "forge_version.txt"), forgeId, "utf-8");
+
+    // 1.17+ ships run.sh/run.bat; older Forge produces a jar to launch directly
+    if (fs.existsSync(path.join(serverPath, "run.sh")) || fs.existsSync(path.join(serverPath, "run.bat"))) {
+      return {};
+    }
+    const forgeJar = fs
+      .readdirSync(serverPath)
+      .find((f) => f.startsWith("forge-") && f.endsWith(".jar") && !f.includes("installer"));
+    if (!forgeJar) {
+      throw new Error("Forge installer did not produce a server jar");
+    }
+    return { launchJar: forgeJar };
   }
 
   private async createNeoForgeServer(
     serverPath: string,
     version: string,
+    neoForgeId: string,
     onProgress?: (message: string) => void,
-  ): Promise<void> {
-    onProgress?.(`Setting up NeoForge ${version} server...`);
+  ): Promise<InstallResult> {
+    onProgress?.(`Setting up NeoForge ${neoForgeId} server...`);
 
-    // Get the latest NeoForge version for this Minecraft version
-    onProgress?.("Fetching NeoForge version information...");
-    const neoForgeVersion = await this.getNeoForgeVersion(version);
-
-    if (!neoForgeVersion) {
-      throw new NetworkError(`No NeoForge version found for Minecraft ${version}`);
-    }
-
-    onProgress?.(`Found NeoForge version: ${neoForgeVersion}`);
-
-    // NeoForge installer URL format: https://maven.neoforged.net/releases/net/neoforged/neoforge/{neoForgeVersion}/neoforge-{neoForgeVersion}-installer.jar
-    const neoForgeUrl = `https://maven.neoforged.net/releases/net/neoforged/neoforge/${neoForgeVersion}/neoforge-${neoForgeVersion}-installer.jar`;
+    // NeoForge for 1.20.1 lives under the old "forge" artifact
+    const artifact = version === "1.20.1" ? "forge" : "neoforge";
+    const neoForgeUrl = `https://maven.neoforged.net/releases/net/neoforged/${artifact}/${neoForgeId}/${artifact}-${neoForgeId}-installer.jar`;
     const neoForgeInstallerPath = path.join(serverPath, "neoforge-installer.jar");
 
     onProgress?.("Downloading NeoForge installer...");
     await this.downloadFile(neoForgeUrl, neoForgeInstallerPath);
     onProgress?.("NeoForge installer downloaded successfully");
 
-    // Get Java path for this Minecraft version
-    const javaPath = this.getJavaPathForVersion(version);
+    const javaPath = this.requireJava(version);
+    onProgress?.("Installing NeoForge server (this may take a few minutes)...");
+    await this.runInstallerJar(
+      javaPath,
+      neoForgeInstallerPath,
+      serverPath,
+      ["--installServer"],
+      onProgress,
+    );
+    onProgress?.("NeoForge server installed successfully");
+    this.removeInstaller(neoForgeInstallerPath);
+
+    // Save neoforge version info for later reference
+    fs.writeFileSync(path.join(serverPath, "neoforge_version.txt"), neoForgeId, "utf-8");
+    return {};
+  }
+
+  private requireJava(minecraftVersion: string): string {
+    const javaPath = this.getJavaPathForVersion(minecraftVersion);
     if (!javaPath || !fs.existsSync(javaPath)) {
       throw new FileSystemError(
-        `Java not found for Minecraft ${version}. Please ensure Java is installed first.`,
+        `Java not found for Minecraft ${minecraftVersion}. Please ensure Java is installed first.`,
       );
     }
+    return javaPath;
+  }
 
-    // Run the NeoForge installer in server mode
-    onProgress?.("Installing NeoForge server (this may take a few minutes)...");
-    await this.runInstallerJar(javaPath, neoForgeInstallerPath, serverPath, onProgress);
-    onProgress?.("NeoForge server installed successfully");
-
-    // Clean up installer
+  private removeInstaller(installerPath: string): void {
     try {
-      fs.unlinkSync(neoForgeInstallerPath);
+      fs.unlinkSync(installerPath);
       // Also clean up installer log if it exists
-      const installerLogPath = path.join(serverPath, "neoforge-installer.jar.log");
+      const installerLogPath = `${installerPath}.log`;
       if (fs.existsSync(installerLogPath)) {
         fs.unlinkSync(installerLogPath);
       }
     } catch {
       // Ignore cleanup errors
     }
-
-    // Save neoforge version info for later reference
-    const neoForgeInfoPath = path.join(serverPath, "neoforge_version.txt");
-    fs.writeFileSync(neoForgeInfoPath, neoForgeVersion, "utf-8");
   }
 
   private getJavaPathForVersion(minecraftVersion: string): string | null {
     try {
-      const versionParts = minecraftVersion.split(".");
-      const major = parseInt(versionParts[0]);
-      const minor = parseInt(versionParts[1]);
-
-      let javaVersion: number;
-
-      // Minecraft 26.1 and later (year-based versions) -> Java 25
-      if (major >= 26) {
-        javaVersion = 25;
-      }
-      // Minecraft 1.19 and later -> Java 21
-      else if (major > 1 || (major === 1 && minor >= 19)) {
-        javaVersion = 21;
-      }
-      // Minecraft 1.17 - 1.18.x -> Java 17
-      else if (major === 1 && minor >= 17 && minor <= 18) {
-        javaVersion = 17;
-      }
-      // Minecraft 1.12 - 1.16.5 -> Java 11
-      else if (major === 1 && minor >= 12 && minor <= 16) {
-        javaVersion = 11;
-      }
-      // Older versions -> Java 8
-      else {
-        javaVersion = 8;
-      }
-
-      const javaDir = path.join(JAVA_RUNTIME_DIR, `java${javaVersion}`);
+      const javaDir = path.join(JAVA_RUNTIME_DIR, `java${getRequiredJavaMajor(minecraftVersion)}`);
       return findBundledJavaPath(javaDir, fs.existsSync);
     } catch {
       return null;
@@ -342,10 +455,11 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
     javaPath: string,
     installerPath: string,
     serverPath: string,
+    installerArgs: string[],
     onProgress?: (message: string) => void,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      const args = ["-jar", installerPath, "--installServer"];
+      const args = ["-jar", installerPath, ...installerArgs];
 
       const installerProcess = spawn(javaPath, args, {
         cwd: serverPath,
@@ -388,146 +502,36 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
     });
   }
 
-  private async getNeoForgeVersion(minecraftVersion: string): Promise<string | null> {
-    const metadataUrl =
-      "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml";
-    // NeoForge versions look like "<mcMinor>.<mcPatch>.<build>" (e.g. Minecraft 1.21.1 -> 21.1.x),
-    // and since Minecraft 26.1 they keep the full version (e.g. Minecraft 26.1 -> 26.1.0.x)
-    const versionParts = minecraftVersion.split(".");
-    const versionPrefix =
-      versionParts[0] === "1"
-        ? `${versionParts[1] || "0"}.${versionParts[2] || "0"}`
-        : `${versionParts[0]}.${versionParts[1] || "0"}.${versionParts[2] || "0"}`;
-
-    return new Promise((resolve, reject) => {
-      https
-        .get(metadataUrl, (response) => {
-          let data = "";
-          response.on("data", (chunk) => {
-            data += chunk;
-          });
-          response.on("end", () => {
-            try {
-              const versions = Array.from(data.matchAll(/<version>([^<]+)<\/version>/g))
-                .map((match) => match[1])
-                .filter((v) => v.startsWith(`${versionPrefix}.`));
-
-              if (versions.length === 0) {
-                resolve(null);
-                return;
-              }
-
-              versions.sort(
-                (a, b) => parseInt(b.split(".").pop() || "0") - parseInt(a.split(".").pop() || "0"),
-              );
-              resolve(versions[0]);
-            } catch (e) {
-              reject(e);
-            }
-          });
-        })
-        .on("error", reject);
-    });
-  }
-
-  private async getForgeVersion(minecraftVersion: string): Promise<string | null> {
-    const promotionsUrl =
-      "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json";
-
-    return new Promise((resolve, reject) => {
-      https
-        .get(promotionsUrl, (response) => {
-          let data = "";
-          response.on("data", (chunk) => {
-            data += chunk;
-          });
-          response.on("end", () => {
-            try {
-              const promotions = JSON.parse(data);
-              // Try to get recommended version first, then latest
-              const recommendedKey = `${minecraftVersion}-recommended`;
-              const latestKey = `${minecraftVersion}-latest`;
-
-              if (promotions.promos[recommendedKey]) {
-                resolve(promotions.promos[recommendedKey]);
-              } else if (promotions.promos[latestKey]) {
-                resolve(promotions.promos[latestKey]);
-              } else {
-                resolve(null);
-              }
-            } catch (e) {
-              reject(e);
-            }
-          });
-        })
-        .on("error", reject);
-    });
-  }
-
   private async getMinecraftServerJarUrl(version: string): Promise<string> {
-    // Official Minecraft version manifest
-    const manifestUrl = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
+    const manifest = JSON.parse(
+      await httpGetText("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"),
+    ) as { versions: MinecraftVersionInfo[] };
+    const versionInfo = manifest.versions.find((v) => v.id === version);
+    if (!versionInfo) {
+      throw new Error(`Version ${version} not found in Minecraft manifest`);
+    }
 
-    return new Promise((resolve, reject) => {
-      https
-        .get(manifestUrl, (response) => {
-          let data = "";
-          response.on("data", (chunk) => {
-            data += chunk;
-          });
-          response.on("end", () => {
-            try {
-              const manifest = JSON.parse(data);
-              // Find the specific version in the versions array
-              const versionInfo = manifest.versions.find(
-                (v: MinecraftVersionInfo) => v.id === version,
-              );
-
-              if (!versionInfo) {
-                reject(new Error(`Version ${version} not found in Minecraft manifest`));
-                return;
-              }
-
-              // Fetch the version-specific manifest to get server download URL
-              https
-                .get(versionInfo.url, (versionResponse) => {
-                  let versionData = "";
-                  versionResponse.on("data", (chunk) => {
-                    versionData += chunk;
-                  });
-                  versionResponse.on("end", () => {
-                    try {
-                      const versionManifest = JSON.parse(versionData);
-                      if (!versionManifest.downloads?.server?.url) {
-                        reject(new Error(`Server download not available for version ${version}`));
-                        return;
-                      }
-                      resolve(versionManifest.downloads.server.url);
-                    } catch (e) {
-                      reject(e);
-                    }
-                  });
-                })
-                .on("error", reject);
-            } catch (e) {
-              reject(e);
-            }
-          });
-        })
-        .on("error", reject);
-    });
+    // The version-specific manifest has the server download URL
+    const versionManifest = JSON.parse(await httpGetText(versionInfo.url));
+    if (!versionManifest.downloads?.server?.url) {
+      throw new Error(`Server download not available for version ${version}`);
+    }
+    return versionManifest.downloads.server.url;
   }
 
   private async downloadFile(url: string, destPath: string): Promise<void> {
+    const headers = { "User-Agent": await getUserAgent() };
     return new Promise<void>((resolve, reject) => {
       const file = fs.createWriteStream(destPath);
       https
-        .get(url, (response) => {
+        .get(url, { headers }, (response) => {
           // Handle redirects
-          if (response.statusCode === 301 || response.statusCode === 302) {
+          if (response.statusCode && [301, 302, 303, 307, 308].includes(response.statusCode)) {
             file.close();
+            response.resume();
             if (response.headers.location) {
-              this.downloadFile(response.headers.location, destPath).then(resolve).catch(reject);
+              const next = new URL(response.headers.location, url).toString();
+              this.downloadFile(next, destPath).then(resolve).catch(reject);
             } else {
               reject(new Error("Redirect without location"));
             }
@@ -570,13 +574,17 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
     serverPath: string,
     name: string,
     version: string,
-    serverType: "vanilla" | "forge" | "neoforge",
+    serverType: EngineType,
+    loaderVersion?: string,
+    launchJar?: string,
   ): void {
     const serverInfoPath = path.join(serverPath, "server_info.json");
     const serverInfo = {
       name,
       version: version,
       type: serverType,
+      ...(loaderVersion && { loaderVersion }),
+      ...(launchJar && { launchJar }),
       createdAt: new Date().toISOString(),
     };
     fs.writeFileSync(serverInfoPath, JSON.stringify(serverInfo, null, 2), "utf-8");

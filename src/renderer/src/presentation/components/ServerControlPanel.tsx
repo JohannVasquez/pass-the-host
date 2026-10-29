@@ -40,6 +40,7 @@ const TYPE_LABELS: Record<ServerType, string> = {
   [ServerType.NEOFORGE]: "NeoForge",
   [ServerType.PAPER]: "Paper",
   [ServerType.FABRIC]: "Fabric",
+  [ServerType.QUILT]: "Quilt",
   [ServerType.UNKNOWN]: "",
 };
 

@@ -52,6 +52,13 @@ export interface IServerProcessRepository {
   readForgeJvmArgs(serverId: string): Promise<ForgeJvmArgs | null>;
 
   /**
+   * Finds the jar the server should be started with (-jar)
+   * @param serverId Server identifier
+   * @returns Jar file name, or null when a Forge/NeoForge run script is used
+   */
+  readLaunchJar(serverId: string): Promise<string | null>;
+
+  /**
    * Edits Forge user_jvm_args.txt to update RAM settings
    * @param serverId Server identifier
    * @param minRam Minimum RAM in GB

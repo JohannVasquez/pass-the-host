@@ -26,7 +26,12 @@ import { useTranslation } from "react-i18next";
 interface CreateServerModalProps {
   open: boolean;
   onClose: () => void;
-  onConfirm: (serverName: string, version: string, serverType: "vanilla" | "forge" | "neoforge") => void;
+  onConfirm: (
+    serverName: string,
+    version: string,
+    serverType: "vanilla" | "paper" | "fabric" | "quilt" | "forge" | "neoforge",
+    engineVersion?: string,
+  ) => void;
   isCreating?: boolean;
   progressMessage?: string;
 }
@@ -118,7 +123,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
   const { t } = useTranslation();
   const [serverName, setServerName] = React.useState<string>("");
   const [version, setVersion] = React.useState<string>(minecraftVersions[0]);
-  const [serverType, setServerType] = React.useState<"vanilla" | "forge" | "neoforge">("vanilla");
+  const [serverType, setServerType] = React.useState<"vanilla" | "paper" | "fabric" | "quilt" | "forge" | "neoforge">("vanilla");
   const [nameError, setNameError] = React.useState<string>("");
 
   // If creating, show progress view
@@ -237,7 +242,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
             <RadioGroup
               row
               value={serverType}
-              onChange={(e) => setServerType(e.target.value as "vanilla" | "forge" | "neoforge")}
+              onChange={(e) => setServerType(e.target.value as "vanilla" | "paper" | "fabric" | "quilt" | "forge" | "neoforge")}
             >
               <FormControlLabel
                 value="vanilla"

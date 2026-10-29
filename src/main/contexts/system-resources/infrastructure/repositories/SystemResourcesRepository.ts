@@ -10,6 +10,7 @@ import type { ISystemResourcesRepository } from "@main/contexts/system-resources
 import {
   findBundledJavaPath,
   getBundledJavaCandidates,
+  getRequiredJavaMajor,
   hasBundledJavaBinary,
 } from "@main/utils/javaRuntime";
 import type {
@@ -53,42 +54,7 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
   }
 
   getRequiredJavaVersion(minecraftVersion: string): JavaRequirement {
-    try {
-      const versionParts = minecraftVersion.split(".");
-      const major = parseInt(versionParts[0]);
-      const minor = parseInt(versionParts[1]);
-
-      // Minecraft 26.1 and later (year-based versions) -> Java 25
-      if (major >= 26) {
-        return { minVersion: 25 };
-      }
-
-      // Minecraft 1.19 and later -> Java 21
-      if (major > 1 || (major === 1 && minor >= 19)) {
-        return { minVersion: 21 };
-      }
-
-      // Minecraft 1.17 - 1.18.2 -> Java 17
-      if (major === 1 && minor >= 17 && minor <= 18) {
-        return { minVersion: 17 };
-      }
-
-      // Minecraft 1.12 - 1.16.5 -> Java 11
-      if (major === 1 && minor >= 12 && minor <= 16) {
-        return { minVersion: 11 };
-      }
-
-      // Minecraft 1.7.10 - 1.11.2 -> Java 8
-      if (major === 1 && minor >= 7 && minor <= 11) {
-        return { minVersion: 8 };
-      }
-
-      // Default to Java 21 for unknown versions
-      return { minVersion: 21 };
-    } catch (error) {
-      console.error("Error parsing Minecraft version:", error);
-      return { minVersion: 21 }; // Default to latest
-    }
+    return { minVersion: getRequiredJavaMajor(minecraftVersion) };
   }
 
   async ensureJavaForMinecraft(

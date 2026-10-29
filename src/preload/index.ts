@@ -1,7 +1,13 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 import type { TokenRequest } from "ably";
+import type {
+  AddModsResult,
+  ModItem,
+  ModsList,
+} from "../main/contexts/mods/infrastructure/ModsRepository";
 
+type EngineType = "vanilla" | "paper" | "fabric" | "quilt" | "forge" | "neoforge";
 type WorldActionResult = "done" | "canceled" | "no-world" | "invalid";
 
 // S3 provider types
@@ -203,6 +209,8 @@ const serverAPI = {
     ipcRenderer.invoke("server:edit-forge-jvm-args", serverId, minRam, maxRam),
   readForgeJvmArgs: (serverId: string): Promise<{ allArgs: string[] } | null> =>
     ipcRenderer.invoke("server:read-forge-jvm-args", serverId),
+  readLaunchJar: (serverId: string): Promise<string | null> =>
+    ipcRenderer.invoke("server:read-launch-jar", serverId),
   onStdout: (callback: (data: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, data: string): void => callback(data);
     ipcRenderer.on("server:stdout", listener);
@@ -235,9 +243,10 @@ const serverAPI = {
   createMinecraftServer: (
     serverName: string,
     version: string,
-    serverType: "vanilla" | "forge" | "neoforge",
+    serverType: EngineType,
     overwrite?: boolean,
     displayName?: string,
+    engineVersion?: string,
   ): Promise<{
     success: boolean;
     error?: string;
@@ -250,7 +259,17 @@ const serverAPI = {
       serverType,
       overwrite,
       displayName,
+      engineVersion,
     ),
+  listGameVersions: (engine: EngineType): Promise<string[]> =>
+    ipcRenderer.invoke("server:list-game-versions", engine),
+  listEngineVersions: (
+    engine: EngineType,
+    minecraftVersion: string,
+  ): Promise<{
+    versions: Array<{ id: string; label: string; beta?: boolean }>;
+    recommended: string | null;
+  }> => ipcRenderer.invoke("server:list-engine-versions", engine, minecraftVersion),
   onCreateProgress: (callback: (message: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, message: string): void =>
       callback(message);
@@ -269,7 +288,8 @@ const serverAPI = {
       id: string;
       name: string;
       version: string;
-      type: "vanilla" | "forge" | "neoforge" | "unknown";
+      type: EngineType | "unknown";
+      loaderVersion?: string;
     }>
   > => ipcRenderer.invoke("server:list-local"),
 };
@@ -353,6 +373,18 @@ const p2pAPI = {
   },
 };
 
+const modsAPI = {
+  list: (serverId: string): Promise<ModsList> => ipcRenderer.invoke("mods:list", serverId),
+  inspect: (serverId: string, filePaths: string[]): Promise<ModItem[]> =>
+    ipcRenderer.invoke("mods:inspect", serverId, filePaths),
+  add: (serverId: string, filePaths?: string[]): Promise<AddModsResult> =>
+    ipcRenderer.invoke("mods:add", serverId, filePaths),
+  remove: (serverId: string, fileName: string): Promise<boolean> =>
+    ipcRenderer.invoke("mods:remove", serverId, fileName),
+  // Path of a drag-and-dropped File, to hand to inspect/add
+  getPathForFile: (file: File): string => webUtils.getPathForFile(file),
+};
+
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
@@ -367,6 +399,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("javaAPI", javaAPI);
     contextBridge.exposeInMainWorld("notificationAPI", notificationAPI);
     contextBridge.exposeInMainWorld("p2pAPI", p2pAPI);
+    contextBridge.exposeInMainWorld("modsAPI", modsAPI);
   } catch (error) {
     console.error(error);
   }
@@ -381,4 +414,5 @@ if (process.contextIsolated) {
   win.javaAPI = javaAPI;
   win.notificationAPI = notificationAPI;
   win.p2pAPI = p2pAPI;
+  win.modsAPI = modsAPI;
 }

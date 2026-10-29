@@ -6,6 +6,7 @@ import {
   SendCommandUseCase,
   KillServerProcessUseCase,
   ReadForgeJvmArgsUseCase,
+  ReadLaunchJarUseCase,
   EditForgeJvmArgsUseCase,
   OpenServerFolderUseCase,
 } from "@main/contexts/server-runtime/application/use-cases";
@@ -18,6 +19,7 @@ export class ServerRuntimeIPCHandlers {
     private readForgeJvmArgsUseCase: ReadForgeJvmArgsUseCase,
     private editForgeJvmArgsUseCase: EditForgeJvmArgsUseCase,
     private openServerFolderUseCase: OpenServerFolderUseCase,
+    private readLaunchJarUseCase: ReadLaunchJarUseCase,
   ) {}
 
   /**
@@ -102,6 +104,13 @@ export class ServerRuntimeIPCHandlers {
       "server:read-forge-jvm-args",
       this.handleIPC("readForgeJvmArgs", async (_event, serverId: string) => {
         return await this.readForgeJvmArgsUseCase.execute(serverId);
+      }),
+    );
+
+    ipcMain.handle(
+      "server:read-launch-jar",
+      this.handleIPC("readLaunchJar", async (_event, serverId: string) => {
+        return await this.readLaunchJarUseCase.execute(serverId);
       }),
     );
 

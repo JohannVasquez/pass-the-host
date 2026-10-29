@@ -39,6 +39,7 @@ export interface StartManagedServerDependencies {
   getLocalServerPath(serverId: string): Promise<string>;
   editForgeJvmArgs(serverId: string, minRam: number, maxRam: number): Promise<boolean>;
   readForgeJvmArgs(serverId: string): Promise<{ allArgs: string[] } | null>;
+  readLaunchJar(serverId: string): Promise<string | null>;
   spawnServerProcess(
     serverId: string,
     command: string,
@@ -240,14 +241,19 @@ export class StartManagedServerUseCase {
     request: StartManagedServerRequest,
     javaPath: string,
   ): Promise<{ command: string; args: string[] }> {
-    if (request.server.type === ServerType.VANILLA) {
+    // Any engine with a launch jar (vanilla, Paper, Fabric, Quilt, old Forge) starts with -jar
+    const launchJar =
+      request.server.type === ServerType.VANILLA
+        ? ((await this.dependencies.readLaunchJar(request.serverId)) ?? "server.jar")
+        : await this.dependencies.readLaunchJar(request.serverId);
+    if (launchJar) {
       return {
         command: javaPath,
         args: [
           `-Xmx${request.ramConfig.max}G`,
           `-Xms${request.ramConfig.min}G`,
           "-jar",
-          "server.jar",
+          launchJar,
           "nogui",
         ],
       };
@@ -256,12 +262,6 @@ export class StartManagedServerUseCase {
     if (request.server.type !== ServerType.FORGE && request.server.type !== ServerType.NEOFORGE) {
       this.presenter.updateStatus(ServerStatus.STOPPED, "unsupported server type");
       throw new Error(`Tipo de server no soportado: ${request.server.type}`);
-    }
-
-    const versionNum = parseFloat(request.server.version);
-    if (request.server.type === ServerType.FORGE && versionNum < 1.17) {
-      this.presenter.updateStatus(ServerStatus.STOPPED, "unsupported forge version");
-      throw new Error("No se pudo iniciar el server Forge <= 1.16.5. No soportado.");
     }
 
     try {

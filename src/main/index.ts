@@ -5,6 +5,7 @@ import {
   SendCommandUseCase,
   KillServerProcessUseCase,
   ReadForgeJvmArgsUseCase,
+  ReadLaunchJarUseCase,
   EditForgeJvmArgsUseCase,
   OpenServerFolderUseCase,
 } from "@main/contexts/server-runtime/application/use-cases";
@@ -45,6 +46,7 @@ import { registerServerLifecycleIPCHandlers } from "@main/contexts/server-lifecy
 import { registerSystemResourcesIPCHandlers } from "@main/contexts/system-resources/infrastructure/ipc";
 import { registerAppConfigurationIPCHandlers } from "@main/contexts/app-configuration/infrastructure/ipc";
 import { registerP2PIPCHandlers } from "@main/contexts/p2p-tunnel/infrastructure/ipc";
+import { registerModsIPCHandlers } from "@main/contexts/mods/infrastructure/ipc";
 import { LoadConfigUseCase } from "@main/contexts/app-configuration/application/use-cases";
 import { TYPES as ConfigTYPES } from "@main/contexts/app-configuration/application/use-cases/types";
 import { Container } from "inversify";
@@ -342,6 +344,7 @@ if (!gotTheLock) {
       container.get(ReadForgeJvmArgsUseCase),
       container.get(EditForgeJvmArgsUseCase),
       container.get(OpenServerFolderUseCase),
+      container.get(ReadLaunchJarUseCase),
     );
     serverRuntimeIPCHandlers.register();
     const cloudStorageIPCHandlers = new CloudStorageIPCHandlers(
@@ -390,6 +393,9 @@ if (!gotTheLock) {
     // ===== P2P TUNNEL HANDLERS =====
     registerP2PIPCHandlers();
     logger.info("P2P Tunnel IPC handlers registered");
+
+    registerModsIPCHandlers();
+    logger.info("Mods IPC handlers registered");
 
     // ===== NOTIFICATION HANDLER =====
     ipcMain.handle("notification:show", async (_event, title: string, body: string) => {

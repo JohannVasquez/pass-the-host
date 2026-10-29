@@ -7,6 +7,7 @@ export enum ServerType {
   NEOFORGE = "neoforge",
   PAPER = "paper",
   FABRIC = "fabric",
+  QUILT = "quilt",
   UNKNOWN = "unknown",
 }
 
@@ -26,5 +27,5 @@ export interface Server {
 export interface CreateServerParams {
   name: string;
   version: string;
-  type: "vanilla" | "forge" | "neoforge";
+  type: "vanilla" | "paper" | "fabric" | "quilt" | "forge" | "neoforge";
 }

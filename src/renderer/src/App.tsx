@@ -190,7 +190,8 @@ function AppContent(): React.JSX.Element {
   const [pendingServerCreation, setPendingServerCreation] = React.useState<{
     name: string;
     version: string;
-    type: "vanilla" | "forge" | "neoforge";
+    type: "vanilla" | "paper" | "fabric" | "quilt" | "forge" | "neoforge";
+    engineVersion?: string;
   } | null>(null);
   const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = React.useState<boolean>(false);
   const [isEditServerModalOpen, setIsEditServerModalOpen] = React.useState<boolean>(false);
@@ -295,6 +296,7 @@ function AppContent(): React.JSX.Element {
             return true;
           },
           readForgeJvmArgs: (serverId) => window.serverAPI.readForgeJvmArgs(serverId),
+          readLaunchJar: (serverId) => window.serverAPI.readLaunchJar(serverId),
           spawnServerProcess: (serverId, command, args, workingDir) =>
             window.serverAPI.spawnServerProcess(serverId, command, args, workingDir),
         },
@@ -1357,8 +1359,9 @@ function AppContent(): React.JSX.Element {
   const handleConfirmCreateServer = async (
     serverName: string,
     version: string,
-    serverType: "vanilla" | "forge" | "neoforge",
+    serverType: "vanilla" | "paper" | "fabric" | "quilt" | "forge" | "neoforge",
     overwrite: boolean = false,
+    engineVersion?: string,
   ): Promise<void> => {
     // serverName is what the user typed; the folder and cloud key use its kebab-case id
     const serverId = toServerId(serverName);
@@ -1375,14 +1378,14 @@ function AppContent(): React.JSX.Element {
     ]);
 
     try {
-      // For Forge/NeoForge servers, ensure Java is installed first
-      if (serverType === "forge" || serverType === "neoforge") {
+      // Everything but vanilla/Paper runs an installer, so Java must exist first
+      if (serverType !== "vanilla" && serverType !== "paper") {
         setCreateServerProgress("Checking Java installation...");
         setLogs((prev) => [
           ...prev,
           {
             timestamp: new Date(),
-            message: `Checking Java installation for ${serverType === "forge" ? "Forge" : "NeoForge"}...`,
+            message: `Checking Java installation for ${serverType}...`,
             type: "info",
           },
         ]);
@@ -1408,12 +1411,13 @@ function AppContent(): React.JSX.Element {
         serverType,
         overwrite,
         serverName,
+        engineVersion,
       );
 
       // Check if server already exists
       if (!result.success && result.errorCode === "SERVER_EXISTS") {
         // Save pending creation data
-        setPendingServerCreation({ name: serverName, version, type: serverType });
+        setPendingServerCreation({ name: serverName, version, type: serverType, engineVersion });
         setIsServerExistsModalOpen(true);
         setIsCreatingServer(false);
         setCreateServerProgress("");
@@ -2286,7 +2290,9 @@ function AppContent(): React.JSX.Element {
         <CreateServerModal
           open={isCreateServerModalOpen}
           onClose={() => setIsCreateServerModalOpen(false)}
-          onConfirm={handleConfirmCreateServer}
+          onConfirm={(name, version, type, engineVersion) =>
+            handleConfirmCreateServer(name, version, type, false, engineVersion)
+          }
           isCreating={isCreatingServer}
           progressMessage={createServerProgress}
         />
@@ -2328,6 +2334,7 @@ function AppContent(): React.JSX.Element {
                 pendingServerCreation.version,
                 pendingServerCreation.type,
                 true,
+                pendingServerCreation.engineVersion,
               );
               setPendingServerCreation(null);
             }

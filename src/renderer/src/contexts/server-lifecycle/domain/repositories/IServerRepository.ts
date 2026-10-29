@@ -25,7 +25,7 @@ export interface IServerRepository {
    * @param type Server type (vanilla, forge or neoforge)
    * @returns Promise with created server
    */
-  createServer(name: string, version: string, type: "vanilla" | "forge" | "neoforge"): Promise<Server>;
+  createServer(name: string, version: string, type: "vanilla" | "paper" | "fabric" | "quilt" | "forge" | "neoforge"): Promise<Server>;
 
   /**
    * Deletes a server

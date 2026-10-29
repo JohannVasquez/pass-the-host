@@ -56,6 +56,8 @@ export class S3ServerRepository implements IServerRepository {
         return ServerType.PAPER;
       case "fabric":
         return ServerType.FABRIC;
+      case "quilt":
+        return ServerType.QUILT;
       default:
         return ServerType.UNKNOWN;
     }
