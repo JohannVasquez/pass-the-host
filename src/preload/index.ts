@@ -316,7 +316,8 @@ const p2pAPI = {
     ipcRenderer.invoke("p2p:save-turn-config", config),
   getIceServers: (): Promise<{ iceServers: RTCIceServer[] }> =>
     ipcRenderer.invoke("p2p:ice-servers"),
-  clientListen: (port: number): Promise<number> => ipcRenderer.invoke("p2p:client-listen", port),
+  clientListen: (ports: number[]): Promise<number> =>
+    ipcRenderer.invoke("p2p:client-listen", ports),
   hostConnect: (connId: string, port: number): void =>
     ipcRenderer.send("p2p:host-connect", connId, port),
   tcpWrite: (connId: string, data: Uint8Array): void =>

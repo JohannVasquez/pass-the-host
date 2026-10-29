@@ -428,6 +428,7 @@ export const fr: typeof en = {
       connecting: "Connexion…",
       disconnect: "Déconnecter",
       connected: "Connecté",
+      portBusyHint: "Le {{port}} était occupé sur ce PC : utilise cette adresse dans Minecraft. Elle restera la même la prochaine fois.",
       serverAddress: "Adresse du serveur",
       hosting: "Les amis de ce salon peuvent rejoindre ton serveur.",
       disconnected: "Connexion à l'hôte perdue.",

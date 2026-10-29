@@ -214,7 +214,7 @@ interface P2PAPI {
   getTurnConfig: () => Promise<TurnConfig | null>;
   saveTurnConfig: (config: TurnConfig | null) => Promise<void>;
   getIceServers: () => Promise<{ iceServers: RTCIceServer[] }>;
-  clientListen: (port: number) => Promise<number>;
+  clientListen: (ports: number[]) => Promise<number>;
   hostConnect: (connId: string, port: number) => void;
   tcpWrite: (connId: string, data: Uint8Array) => void;
   tcpEnd: (connId: string) => void;

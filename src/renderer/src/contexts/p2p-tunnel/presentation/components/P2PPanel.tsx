@@ -59,6 +59,8 @@ import { RoomsInfoDialog } from "@contexts/p2p-tunnel/presentation/components/Ro
 const MINECRAFT_PORT = 25565;
 const GROUP_STORAGE_KEY = "p2p.groupId";
 const AUTO_CONNECT_STORAGE_KEY = "p2p.autoConnect";
+// Reused when the Minecraft port is busy, so the friend's saved server entry keeps working
+const FALLBACK_PORT_STORAGE_KEY = "p2p.fallbackPort";
 
 type Mode = "join" | "create";
 
@@ -90,6 +92,22 @@ const readAutoConnect = (): boolean => {
   }
 };
 
+const readFallbackPort = (): number => {
+  try {
+    return Number(localStorage.getItem(FALLBACK_PORT_STORAGE_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+};
+
+const saveFallbackPort = (port: number): void => {
+  try {
+    localStorage.setItem(FALLBACK_PORT_STORAGE_KEY, String(port));
+  } catch {
+    // Without storage the port is simply picked again next time
+  }
+};
+
 const errorCode = (error: unknown): string =>
   (error instanceof Error ? error.message : String(error))
     .replace(/^Error invoking remote method '[^']+': /, "")
@@ -103,7 +121,9 @@ const CopyField: React.FC<{
   value: string;
   copyLabel: string;
   onCopy: () => void;
-}> = ({ label, value, copyLabel, onCopy }) => (
+  /** Highlights a value the user must not take for granted */
+  warning?: boolean;
+}> = ({ label, value, copyLabel, onCopy, warning = false }) => (
   <Stack
     direction="row"
     alignItems="center"
@@ -115,13 +135,16 @@ const CopyField: React.FC<{
       borderRadius: 1,
       bgcolor: surface.base,
       border: 1,
-      borderColor: surface.border,
+      borderColor: warning ? "warning.main" : surface.border,
     }}
   >
     <Typography variant="caption" color="text.secondary">
       {label}
     </Typography>
-    <Typography noWrap sx={{ fontFamily: monoFont, color: "primary.main", flexGrow: 1 }}>
+    <Typography
+      noWrap
+      sx={{ fontFamily: monoFont, color: warning ? "warning.main" : "primary.main", flexGrow: 1 }}
+    >
       {value}
     </Typography>
     <Tooltip title={copyLabel}>
@@ -433,18 +456,18 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
             "warning",
           );
       };
-      setJoined(
-        await joinServer(
-          groupId,
-          target.clientId,
-          MINECRAFT_PORT,
-          () => {
-            setJoined(null);
-            enqueueSnackbar(t("p2p.disconnected"), { variant: "warning" });
-          },
-          onNotice,
-        ),
+      const tunnel = await joinServer(
+        groupId,
+        target.clientId,
+        [MINECRAFT_PORT, readFallbackPort()],
+        () => {
+          setJoined(null);
+          enqueueSnackbar(t("p2p.disconnected"), { variant: "warning" });
+        },
+        onNotice,
       );
+      if (tunnel.port !== MINECRAFT_PORT) saveFallbackPort(tunnel.port);
+      setJoined(tunnel);
     });
 
   const handleDisconnect = (): void => {
@@ -614,7 +637,17 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
                     value={`localhost:${joined.port}`}
                     copyLabel={t("p2p.copyAddress")}
                     onCopy={() => handleCopyAddress(joined.port)}
+                    warning={joined.port !== MINECRAFT_PORT}
                   />
+                  {joined.port !== MINECRAFT_PORT && (
+                    <Typography
+                      variant="caption"
+                      color="warning.main"
+                      sx={{ display: "block", mt: 0.75 }}
+                    >
+                      {t("p2p.portBusyHint", { port: MINECRAFT_PORT })}
+                    </Typography>
+                  )}
                 </Box>
                 <Button fullWidth variant="outlined" color="warning" onClick={handleDisconnect}>
                   {t("p2p.disconnect")}

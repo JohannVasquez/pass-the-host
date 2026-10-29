@@ -424,6 +424,7 @@ export const ru: typeof en = {
       connecting: "Подключение…",
       disconnect: "Отключиться",
       connected: "Подключено",
+      portBusyHint: "Порт {{port}} был занят на этом ПК: используйте этот адрес в Minecraft. В следующий раз он останется тем же.",
       serverAddress: "Адрес сервера",
       hosting: "Друзья из этой комнаты могут зайти на ваш сервер.",
       disconnected: "Соединение с хостом потеряно.",

@@ -33,9 +33,10 @@ function listenIpv6(sender: WebContents, port: number): void {
   tcpServer.listen(port, "::1");
 }
 
-/** Friend side: local port Minecraft connects to. Falls back to a free port if the preferred one is taken. */
-export function listen(sender: WebContents, preferredPort: number): Promise<number> {
+/** Friend side: local port Minecraft connects to. Tries the preferred ports in order, then any free one. */
+export function listen(sender: WebContents, ...preferredPorts: number[]): Promise<number> {
   closeAll();
+  const candidates = [...preferredPorts.filter((port) => port > 0), 0];
   return new Promise((resolve, reject) => {
     const tcpServer = createServer((socket) => {
       const connId = randomUUID();
@@ -49,11 +50,11 @@ export function listen(sender: WebContents, preferredPort: number): Promise<numb
       resolve(port);
     });
     tcpServer.on("error", (error: NodeJS.ErrnoException) => {
-      if (error.code !== "EADDRINUSE" || preferredPort === 0) return reject(error);
-      preferredPort = 0;
-      tcpServer.listen(0, "127.0.0.1");
+      if (error.code !== "EADDRINUSE" || candidates.length === 1) return reject(error);
+      candidates.shift();
+      tcpServer.listen(candidates[0], "127.0.0.1");
     });
-    tcpServer.listen(preferredPort, "127.0.0.1");
+    tcpServer.listen(candidates[0], "127.0.0.1");
   });
 }
 

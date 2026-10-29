@@ -215,11 +215,11 @@ export interface JoinedServer {
   stop: () => void;
 }
 
-/** Friend: offer a connection to the group member `host` (their clientId), then expose it on a local TCP port for Minecraft. */
+/** Friend: offer a connection to the group member `host` (their clientId), then expose it on a local TCP port for Minecraft (the first free of `preferredPorts`, else any). */
 export async function joinServer(
   groupId: string,
   host: string,
-  preferredPort: number,
+  preferredPorts: number[],
   onDisconnected: () => void,
   onNotice: (code: DiagCode, detail?: string) => void = () => undefined,
 ): Promise<JoinedServer> {
@@ -281,14 +281,14 @@ export async function joinServer(
 
   let port: number;
   try {
-    port = await window.p2pAPI.clientListen(preferredPort);
+    port = await window.p2pAPI.clientListen(preferredPorts);
   } catch (error) {
     pc.close();
     notice("tunnel_failed", error instanceof Error ? error.message : String(error));
     throw error;
   }
   notice("joined", String(port));
-  if (port !== preferredPort) notice("port_changed", String(port));
+  if (port !== preferredPorts[0]) notice("port_changed", String(port));
   const offOpen = window.p2pAPI.onTcpOpen((connId) =>
     bridge(connId, pc.createDataChannel(connId), owned, () =>
       notice("channel_failed", "data channel error"),
