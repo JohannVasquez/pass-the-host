@@ -302,7 +302,9 @@ const javaAPI = {
   getInstalledVersions: (): Promise<Array<{ version: number; path: string }>> =>
     ipcRenderer.invoke("java:get-installed-versions"),
   getRequiredVersion: (minecraftVersion: string): Promise<number> =>
-    ipcRenderer.invoke("java:get-required-version", minecraftVersion),
+    ipcRenderer
+      .invoke("java:get-required-version", minecraftVersion)
+      .then((requirement: { minVersion: number }) => requirement.minVersion),
   onProgress: (callback: (message: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, message: string): void =>
       callback(message);

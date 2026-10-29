@@ -103,6 +103,25 @@ versionRange = "[1.21,1.22)"
     expect(result?.description).toContain("Multi");
   });
 
+  it("reads inline TOML tables (mods = [{ ... }] and [dependencies] arrays)", () => {
+    const toml = `modLoader = 'javafml'
+mods = [
+	{ modId = 'dnt', version = '1-v2.4', displayName = 'Dungeons, Taverns', description = "isn't in the main pack" },
+]
+[dependencies]
+dnt = [
+	{ modId = "minecraft", type = "required", versionRange = "[1.21,1.22)", side = "BOTH" },
+]
+`;
+    expect(parseModMetadata(entries({ "META-INF/neoforge.mods.toml": toml }))).toMatchObject({
+      id: "dnt",
+      name: "Dungeons, Taverns",
+      version: "1-v2.4",
+      minecraft: "[1.21,1.22)",
+      loaders: ["neoforge"],
+    });
+  });
+
   it("reports mods.toml as forge, or neoforge with a neoforge dependency", () => {
     const toml = (dep: string): string => `[[mods]]
 modId="m"
@@ -172,9 +191,9 @@ versionRange="[1.20.1]"
 });
 
 describe("checkModCompatibility", () => {
-  it("rejects non-mods and wrong loaders", () => {
+  it("warns on jars without metadata and rejects wrong loaders", () => {
     expect(checkModCompatibility(null, "fabric", "1.21")).toEqual({
-      status: "error",
+      status: "warning",
       reason: "not_a_mod",
     });
     expect(checkModCompatibility(meta({}), "neoforge", "1.21.1")).toMatchObject({
@@ -193,6 +212,16 @@ describe("checkModCompatibility", () => {
     expect(checkModCompatibility(forge, "neoforge", "1.20.1")).toEqual({ status: "ok" });
     expect(checkModCompatibility(forge, "neoforge", "1.21.1")).toMatchObject({
       reason: "wrong_loader",
+    });
+  });
+
+  it("only warns when the range misses the server by a patch version", () => {
+    const m = meta({ loaders: ["neoforge"], minecraft: "[1.21,1.21.1)" });
+    expect(checkModCompatibility(m, "neoforge", "1.21.1")).toEqual({
+      status: "warning",
+      reason: "other_patch",
+      required: "[1.21,1.21.1)",
+      actual: "1.21.1",
     });
   });
 

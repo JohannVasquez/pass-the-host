@@ -31,6 +31,8 @@ import {
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 import { surface } from "@renderer/theme";
+import type { ModsList } from "@preload/index.d";
+import { ModsManager } from "./ModsManager";
 
 type Field =
   | { key: string; type: "select"; options: string[] }
@@ -274,6 +276,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
   const [worldBusy, setWorldBusy] = React.useState(false);
   const [confirmAction, setConfirmAction] = React.useState<"import" | "reset" | null>(null);
   const [activeSection, setActiveSection] = React.useState("general");
+  const [modsList, setModsList] = React.useState<ModsList | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const [notice, setNotice] = React.useState<{
     severity: "success" | "warning";
@@ -286,6 +289,12 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     setError(null);
     setRegenerate(false);
     setNotice(null);
+    setModsList(null);
+    // Vanilla servers (or a failed read) simply get no mods section
+    window.modsAPI
+      .list(serverId)
+      .then(setModsList)
+      .catch(() => setModsList(null));
     Promise.all([
       window.serverAPI.readProperties(serverId),
       window.serverAPI.readWhitelist(serverId),
@@ -467,9 +476,18 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
       type: original?.[key] === "true" || original?.[key] === "false" ? "boolean" : "text",
     }));
 
+  const showMods = !!modsList && modsList.engine !== "vanilla";
+  const modsSectionId = modsList?.folder === "plugins" ? "plugins" : "mods";
   const sections = [...SECTIONS, { id: "other", fields: otherFields }].filter(
     (s) => s.fields.length > 0,
   );
+  if (showMods) {
+    // Right after "world"
+    sections.splice(sections.findIndex((s) => s.id === "world") + 1, 0, {
+      id: modsSectionId,
+      fields: [],
+    });
+  }
 
   const handleScroll = (): void => {
     const container = scrollRef.current;
@@ -575,6 +593,15 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
             </Box>
           )}
           {id === "world" && renderWorldTools()}
+          {id === modsSectionId && modsList && serverId && (
+            <ModsManager
+              serverId={serverId}
+              list={modsList}
+              isRunning={isRunning}
+              onListChange={setModsList}
+              onSaved={onSaved}
+            />
+          )}
           {toggles.length > 0 && (
             <Box
               sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1 }}

@@ -77,11 +77,7 @@ export class ModsRepository {
     for (const filePath of files) {
       const item = this.inspectFile(filePath, info);
       const reason = item.compat.status === "error" ? item.compat.reason : null;
-      if (
-        !filePath.toLowerCase().endsWith(".jar") ||
-        reason === "wrong_loader" ||
-        reason === "not_a_mod"
-      ) {
+      if (!filePath.toLowerCase().endsWith(".jar") || reason === "wrong_loader") {
         result.rejected.push(item);
         continue;
       }

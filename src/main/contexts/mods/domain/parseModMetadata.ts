@@ -136,20 +136,37 @@ interface TomlTable {
 
 /** Minimal TOML reader: tables and string/bare values, enough for mods.toml */
 function readToml(raw: string): TomlTable[] {
-  const tables: TomlTable[] = [{ name: "", values: {} }];
+  let current: TomlTable = { name: "", values: {} };
+  const tables: TomlTable[] = [current];
   const lines = raw.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (line === "" || line.startsWith("#")) continue;
     const header = line.match(/^\[{1,2}\s*([^\]]+?)\s*\]{1,2}\s*(#.*)?$/);
     if (header) {
-      tables.push({ name: header[1], values: {} });
+      current = { name: header[1], values: {} };
+      tables.push(current);
       continue;
     }
     const kv = line.match(/^([A-Za-z0-9_.\-"']+)\s*=\s*(.*)$/);
     if (!kv) continue;
     const key = kv[1].replace(/["']/g, "");
     let rest = kv[2];
+    // Inline form: mods = [ { modId = '...', ... } ] -> one table per { }
+    if (rest.startsWith("[") || rest.startsWith("{")) {
+      const depth = (s: string): number =>
+        (s.match(/[[{]/g)?.length ?? 0) - (s.match(/[\]}]/g)?.length ?? 0);
+      while (depth(rest) > 0 && i + 1 < lines.length) rest += `\n${lines[++i]}`;
+      for (const group of rest.match(/\{[^{}]*\}/g) ?? []) {
+        const values: Record<string, string> = {};
+        for (const [, k, v] of group.matchAll(/(\w+)\s*=\s*("(?:[^"\\]|\\.)*"|'[^']*'|[^,}\s]+)/g)) {
+          values[k] = v.replace(/^(["'])([\s\S]*)\1$/, "$2");
+        }
+        // [dependencies] + modid = [{...}] is the same as [[dependencies.modid]]
+        tables.push({ name: current.name === "dependencies" ? `dependencies.${key}` : key, values });
+      }
+      continue;
+    }
     const triple = rest.match(/^("""|''')/);
     let value: string;
     if (triple) {
@@ -163,7 +180,7 @@ function readToml(raw: string): TomlTable[] {
     } else {
       value = rest.replace(/\s*#.*$/, "").trim();
     }
-    tables[tables.length - 1].values[key] = value;
+    current.values[key] = value;
   }
   return tables;
 }

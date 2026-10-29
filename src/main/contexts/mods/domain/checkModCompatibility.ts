@@ -2,10 +2,10 @@ import type { ModLoader, ModMetadata } from "./parseModMetadata";
 
 export type ModCompat =
   | { status: "ok" }
-  | { status: "warning"; reason: "client_only" | "unknown_minecraft" }
+  | { status: "warning"; reason: "client_only" | "unknown_minecraft" | "not_a_mod" }
+  | { status: "warning"; reason: "other_patch"; required: string; actual: string }
   | { status: "error"; reason: "wrong_loader"; loaders: ModLoader[]; engine: string }
-  | { status: "error"; reason: "wrong_minecraft"; required: string; actual: string }
-  | { status: "error"; reason: "not_a_mod" };
+  | { status: "error"; reason: "wrong_minecraft"; required: string; actual: string };
 
 function acceptedLoaders(engine: string, mcVersion: string): ModLoader[] {
   switch (engine) {
@@ -29,7 +29,8 @@ export function checkModCompatibility(
   engine: string,
   mcVersion: string,
 ): ModCompat {
-  if (!meta) return { status: "error", reason: "not_a_mod" };
+  // Libraries like Kotlin for Forge or Essential's loader stub carry no metadata, so only warn
+  if (!meta) return { status: "warning", reason: "not_a_mod" };
   const accepted = acceptedLoaders(engine, mcVersion);
   const loader = meta.loaders.find((l) => accepted.includes(l));
   if (!loader) {
@@ -49,6 +50,11 @@ export function checkModCompatibility(
   const matches = matchesMinecraft(meta.minecraft, mcVersion, bare);
   if (matches === null) return { status: "warning", reason: "unknown_minecraft" };
   if (!matches) {
+    // Many 1.21 mods declare [1.21,1.21.1) yet run on 1.21.1: same major.minor only warns
+    const [major, minor] = versionParts(mcVersion);
+    if (matchesMinecraft(meta.minecraft, `${major}.${minor}`, bare)) {
+      return { status: "warning", reason: "other_patch", required: meta.minecraft, actual: mcVersion };
+    }
     return {
       status: "error",
       reason: "wrong_minecraft",
