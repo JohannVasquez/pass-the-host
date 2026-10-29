@@ -36,7 +36,6 @@ export interface SyncPlan {
 export const STATE_FILE = ".passthehost-mods.json";
 export const MAX_MOD_BYTES = 512 * 1024 * 1024;
 const MAX_MODS = 2000;
-const MAX_KEY = 300;
 const MANIFEST_TTL_MS = 30_000;
 const DOWNLOAD_TIMEOUT_MS = 30_000;
 const MAX_REDIRECTS = 3;
@@ -124,12 +123,6 @@ export function validateManifest(raw: unknown): ClientModManifest {
   };
 }
 
-function assertKey(key: unknown): asserts key is string {
-  if (typeof key !== "string" || key === "" || key.length > MAX_KEY) {
-    throw new ValidationError("Invalid sync folder key");
-  }
-}
-
 // ---- pure planning ----
 
 /** Mods whose file is already in the folder (by hash) are not downloaded again */
@@ -187,7 +180,8 @@ function writeState(folder: string, state: SyncState): void {
 
 async function folderJarHashes(folder: string): Promise<Map<string, string>> {
   const out = new Map<string, string>(); // fileName -> sha1
-  const entries = await fs.promises.readdir(folder, { withFileTypes: true });
+  // The default mods folder may not exist yet: nothing is present
+  const entries = await fs.promises.readdir(folder, { withFileTypes: true }).catch(() => []);
   await Promise.all(
     entries
       .filter((e) => e.isFile() && e.name.toLowerCase().endsWith(".jar"))
@@ -340,19 +334,27 @@ export async function finishFolder(
   return { removed };
 }
 
-// ---- folder memory ----
+// ---- destination folder ----
 
-export function loadFolders(file: string): Record<string, string> {
+/** The official launcher's data dir: %APPDATA%\.minecraft, ~/Library/Application Support/minecraft, ~/.minecraft */
+export function defaultMinecraftDir(platform: string, appData: string, home: string): string {
+  if (platform === "win32") return path.join(appData, ".minecraft");
+  if (platform === "darwin") return path.join(appData, "minecraft");
+  return path.join(home, ".minecraft");
+}
+
+export function loadFolder(file: string): string | null {
   try {
-    const raw = JSON.parse(fs.readFileSync(file, "utf-8")) as Record<string, unknown>;
-    return Object.fromEntries(
-      Object.entries(raw).filter(
-        (e): e is [string, string] => typeof e[1] === "string" && path.isAbsolute(e[1]),
-      ),
-    );
+    const raw = JSON.parse(fs.readFileSync(file, "utf-8")) as { folder?: unknown };
+    return typeof raw.folder === "string" && path.isAbsolute(raw.folder) ? raw.folder : null;
   } catch {
-    return {};
+    return null;
   }
+}
+
+export interface SyncFolderInfo {
+  folder: string | null;
+  isDefault: boolean;
 }
 
 // ---- service ----
@@ -416,50 +418,55 @@ export class ModSync {
     return data;
   }
 
-  async getSyncFolder(key: string): Promise<string | null> {
-    assertKey(key);
-    const folder = loadFolders(await this.foldersFile())[key];
-    return folder && fs.existsSync(folder) ? folder : null;
+  async getSyncFolder(): Promise<SyncFolderInfo> {
+    const { app } = await import("electron");
+    const custom = loadFolder(this.folderFile(app));
+    if (custom) return { folder: custom, isDefault: false };
+    const mc = defaultMinecraftDir(process.platform, app.getPath("appData"), app.getPath("home"));
+    return { folder: fs.existsSync(mc) ? path.join(mc, "mods") : null, isDefault: true };
   }
 
-  async pickSyncFolder(key: string): Promise<string | null> {
-    assertKey(key);
-    const { BrowserWindow, dialog } = await import("electron");
+  async pickSyncFolder(): Promise<string | null> {
+    const { app, BrowserWindow, dialog } = await import("electron");
     const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
     const options: Electron.OpenDialogOptions = { properties: ["openDirectory", "createDirectory"] };
     const { canceled, filePaths } = await (win
       ? dialog.showOpenDialog(win, options)
       : dialog.showOpenDialog(options));
     if (canceled || filePaths.length === 0) return null;
-    const file = await this.foldersFile();
-    fs.writeFileSync(file, JSON.stringify({ ...loadFolders(file), [key]: filePaths[0] }), "utf-8");
+    fs.writeFileSync(this.folderFile(app), JSON.stringify({ folder: filePaths[0] }), "utf-8");
     return filePaths[0];
   }
 
-  async planSync(key: string, manifest: ClientModManifest): Promise<SyncPlan> {
-    return planFolder(await this.requireFolder(key), validateManifest(manifest));
+  async resetSyncFolder(): Promise<SyncFolderInfo> {
+    const { app } = await import("electron");
+    fs.rmSync(this.folderFile(app), { force: true });
+    return this.getSyncFolder();
   }
 
-  async downloadModrinthMod(key: string, mod: ClientMod): Promise<void> {
-    return downloadModrinthModTo(await this.requireFolder(key), mod);
+  async planSync(manifest: ClientModManifest): Promise<SyncPlan> {
+    return planFolder(await this.requireFolder(), validateManifest(manifest));
   }
 
-  async writeSyncedMod(key: string, mod: ClientMod, data: Uint8Array): Promise<void> {
-    return writeSyncedModTo(await this.requireFolder(key), mod, data);
+  async downloadModrinthMod(mod: ClientMod): Promise<void> {
+    return downloadModrinthModTo(await this.requireFolder(), mod);
   }
 
-  async finishSync(key: string, manifest: ClientModManifest): Promise<{ removed: number }> {
-    return finishFolder(await this.requireFolder(key), validateManifest(manifest));
+  async writeSyncedMod(mod: ClientMod, data: Uint8Array): Promise<void> {
+    return writeSyncedModTo(await this.requireFolder(), mod, data);
   }
 
-  private async requireFolder(key: string): Promise<string> {
-    const folder = await this.getSyncFolder(key);
-    if (!folder) throw new ValidationError("No mods folder chosen for this server");
+  async finishSync(manifest: ClientModManifest): Promise<{ removed: number }> {
+    return finishFolder(await this.requireFolder(), validateManifest(manifest));
+  }
+
+  private async requireFolder(): Promise<string> {
+    const { folder } = await this.getSyncFolder();
+    if (!folder) throw new ValidationError("No mods folder configured");
     return folder;
   }
 
-  private async foldersFile(): Promise<string> {
-    const { app } = await import("electron");
-    return path.join(app.getPath("userData"), "mod-sync-folders.json");
+  private folderFile(app: Electron.App): string {
+    return path.join(app.getPath("userData"), "mod-sync-folder.json");
   }
 }

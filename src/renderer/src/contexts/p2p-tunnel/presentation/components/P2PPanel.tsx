@@ -77,6 +77,8 @@ interface P2PPanelProps {
   serverId: string | null;
   /** Writes to the console the user sees */
   onLog?: (message: string, type: "info" | "success" | "warning" | "error") => void;
+  /** Opens Settings, where the mods destination folder lives */
+  onOpenSettings?: () => void;
 }
 
 const readStoredGroup = (): string => {
@@ -166,6 +168,7 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
   serverName,
   serverId,
   onLog,
+  onOpenSettings,
 }) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
@@ -653,7 +656,12 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
                     </Typography>
                   )}
                 </Box>
-                <ModSyncCard key={joined.port} groupId={groupId} tunnel={joined} onLog={log} />
+                <ModSyncCard
+                  key={joined.port}
+                  tunnel={joined}
+                  onLog={log}
+                  onOpenSettings={onOpenSettings}
+                />
                 <Button fullWidth variant="outlined" color="warning" onClick={handleDisconnect}>
                   {t("p2p.disconnect")}
                 </Button>

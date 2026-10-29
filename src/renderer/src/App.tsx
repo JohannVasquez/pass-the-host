@@ -2126,6 +2126,7 @@ function AppContent(): React.JSX.Element {
               serverName={selectedServerName}
               serverId={selectedServer}
               onLog={appendLog}
+              onOpenSettings={() => setIsSettingsModalOpen(true)}
             />
 
             <Button

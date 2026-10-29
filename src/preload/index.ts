@@ -405,18 +405,19 @@ const modsAPI = {
   readClientMod: (serverId: string, sha1: string): Promise<Uint8Array> =>
     ipcRenderer.invoke("mods:read-client-mod", serverId, sha1),
   // Client mod sync: friend side
-  getSyncFolder: (key: string): Promise<string | null> =>
-    ipcRenderer.invoke("mods:get-sync-folder", key),
-  pickSyncFolder: (key: string): Promise<string | null> =>
-    ipcRenderer.invoke("mods:pick-sync-folder", key),
-  planSync: (key: string, manifest: ClientModManifest): Promise<SyncPlan> =>
-    ipcRenderer.invoke("mods:plan-sync", key, manifest),
-  downloadModrinthMod: (key: string, mod: ClientMod): Promise<void> =>
-    ipcRenderer.invoke("mods:download-modrinth-mod", key, mod),
-  writeSyncedMod: (key: string, mod: ClientMod, data: Uint8Array): Promise<void> =>
-    ipcRenderer.invoke("mods:write-synced-mod", key, mod, data),
-  finishSync: (key: string, manifest: ClientModManifest): Promise<{ removed: number }> =>
-    ipcRenderer.invoke("mods:finish-sync", key, manifest),
+  getSyncFolder: (): Promise<{ folder: string | null; isDefault: boolean }> =>
+    ipcRenderer.invoke("mods:get-sync-folder"),
+  pickSyncFolder: (): Promise<string | null> => ipcRenderer.invoke("mods:pick-sync-folder"),
+  resetSyncFolder: (): Promise<{ folder: string | null; isDefault: boolean }> =>
+    ipcRenderer.invoke("mods:reset-sync-folder"),
+  planSync: (manifest: ClientModManifest): Promise<SyncPlan> =>
+    ipcRenderer.invoke("mods:plan-sync", manifest),
+  downloadModrinthMod: (mod: ClientMod): Promise<void> =>
+    ipcRenderer.invoke("mods:download-modrinth-mod", mod),
+  writeSyncedMod: (mod: ClientMod, data: Uint8Array): Promise<void> =>
+    ipcRenderer.invoke("mods:write-synced-mod", mod, data),
+  finishSync: (manifest: ClientModManifest): Promise<{ removed: number }> =>
+    ipcRenderer.invoke("mods:finish-sync", manifest),
 };
 
 // Use `contextBridge` APIs to expose Electron APIs to

@@ -34,18 +34,17 @@ export function registerModsIPCHandlers(): void {
   ipcMain.handle("mods:read-client-mod", (_event, serverId: string, sha1: string) =>
     sync.readClientMod(serverId, sha1),
   );
-  ipcMain.handle("mods:get-sync-folder", (_event, key: string) => sync.getSyncFolder(key));
-  ipcMain.handle("mods:pick-sync-folder", (_event, key: string) => sync.pickSyncFolder(key));
-  ipcMain.handle("mods:plan-sync", (_event, key: string, manifest: ClientModManifest) =>
-    sync.planSync(key, manifest),
+  ipcMain.handle("mods:get-sync-folder", () => sync.getSyncFolder());
+  ipcMain.handle("mods:pick-sync-folder", () => sync.pickSyncFolder());
+  ipcMain.handle("mods:reset-sync-folder", () => sync.resetSyncFolder());
+  ipcMain.handle("mods:plan-sync", (_event, manifest: ClientModManifest) => sync.planSync(manifest));
+  ipcMain.handle("mods:download-modrinth-mod", (_event, mod: ClientMod) =>
+    sync.downloadModrinthMod(mod),
   );
-  ipcMain.handle("mods:download-modrinth-mod", (_event, key: string, mod: ClientMod) =>
-    sync.downloadModrinthMod(key, mod),
+  ipcMain.handle("mods:write-synced-mod", (_event, mod: ClientMod, data: Uint8Array) =>
+    sync.writeSyncedMod(mod, data),
   );
-  ipcMain.handle("mods:write-synced-mod", (_event, key: string, mod: ClientMod, data: Uint8Array) =>
-    sync.writeSyncedMod(key, mod, data),
-  );
-  ipcMain.handle("mods:finish-sync", (_event, key: string, manifest: ClientModManifest) =>
-    sync.finishSync(key, manifest),
+  ipcMain.handle("mods:finish-sync", (_event, manifest: ClientModManifest) =>
+    sync.finishSync(manifest),
   );
 }

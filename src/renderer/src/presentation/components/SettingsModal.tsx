@@ -16,6 +16,7 @@ import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { useTranslation } from "react-i18next";
 import { UsernameInput } from "./UsernameInput";
 import { TurnSettings } from "@contexts/p2p-tunnel/presentation/components/TurnSettings";
+import { ModsFolderSettings } from "@contexts/p2p-tunnel/presentation/components/ModsFolderSettings";
 import { PrivacySettings } from "@contexts/p2p-tunnel/presentation/components/PrivacySettings";
 import { surface } from "@renderer/theme";
 
@@ -57,6 +58,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 0.5 }}>
           <UsernameInput username={username} onSave={onSaveUsername} disabled={usernameDisabled} />
+          <ModsFolderSettings />
           <Accordion disableGutters sx={accordionSx}>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
               <Typography variant="subtitle2">{t("settings.advanced")}</Typography>

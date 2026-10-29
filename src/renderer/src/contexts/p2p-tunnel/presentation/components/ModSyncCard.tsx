@@ -25,9 +25,9 @@ const LOADER_NAMES: Record<string, string> = {
 };
 
 interface ModSyncCardProps {
-  groupId: string;
   tunnel: JoinedServer;
   onLog: (message: string, type: "info" | "success" | "warning" | "error") => void;
+  onOpenSettings?: () => void;
 }
 
 type Failure = { name: string };
@@ -35,7 +35,7 @@ type Failure = { name: string };
 /** C:\Users\me\...\mods → …\Users\me\...\mods keeps the end, where the instance is named */
 const shortPath = (path: string): string => (path.length > 38 ? `…${path.slice(-37)}` : path);
 
-export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog }) => {
+export const ModSyncCard: React.FC<ModSyncCardProps> = ({ tunnel, onLog, onOpenSettings }) => {
   const { t } = useTranslation();
   const [manifest, setManifest] = React.useState<ClientModManifest | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -47,6 +47,9 @@ export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog
   const [failures, setFailures] = React.useState<Failure[]>([]);
   const [changed, setChanged] = React.useState(false);
   const aliveRef = React.useRef(true);
+  const manifestRef = React.useRef<ClientModManifest | null>(null);
+  manifestRef.current = manifest;
+
   const onLogRef = React.useRef(onLog);
   onLogRef.current = onLog;
 
@@ -57,17 +60,17 @@ export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog
     };
   }, []);
 
-  const key = manifest ? `${groupId}:${manifest.serverName}` : null;
-
+  // Reads the folder every time: it may have changed in Settings since the last plan
   const replan = React.useCallback(
-    async (nextManifest: ClientModManifest): Promise<void> => {
-      const nextKey = `${groupId}:${nextManifest.serverName}`;
-      const remembered = await window.modsAPI.getSyncFolder(nextKey);
-      if (!aliveRef.current) return;
-      setFolder(remembered);
-      setPlan(remembered ? await window.modsAPI.planSync(nextKey, nextManifest) : null);
+    async (nextManifest: ClientModManifest): Promise<SyncPlan | null> => {
+      const { folder: current } = await window.modsAPI.getSyncFolder();
+      if (!aliveRef.current) return null;
+      setFolder(current);
+      const next = current ? await window.modsAPI.planSync(nextManifest) : null;
+      if (aliveRef.current) setPlan(next);
+      return next;
     },
-    [groupId],
+    [],
   );
 
   const load = React.useCallback(async (): Promise<void> => {
@@ -103,14 +106,7 @@ export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog
           const next = await tunnel.mods().manifest();
           if (!aliveRef.current) return;
           setManifest(next);
-          const remembered = await window.modsAPI.getSyncFolder(`${groupId}:${next.serverName}`);
-          if (!aliveRef.current) return;
-          setFolder(remembered);
-          const nextPlan = remembered
-            ? await window.modsAPI.planSync(`${groupId}:${next.serverName}`, next)
-            : null;
-          if (!aliveRef.current) return;
-          setPlan(nextPlan);
+          const nextPlan = await replan(next);
           if (!nextPlan || (nextPlan.download.length === 0 && nextPlan.remove.length === 0)) return;
           setChanged(true);
           onLogRef.current(
@@ -131,19 +127,20 @@ export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog
       clearTimeout(timer);
       unsubscribe();
     };
-  }, [tunnel, groupId, t]);
+  }, [tunnel, replan, t]);
 
-  const pickFolder = async (): Promise<void> => {
-    if (!key || !manifest) return;
-    try {
-      if (await window.modsAPI.pickSyncFolder(key)) await replan(manifest);
-    } catch {
-      setError("network");
-    }
-  };
+  // Back from Settings: pick up a folder change without rejoining
+  React.useEffect(() => {
+    const onFocus = (): void => {
+      if (manifestRef.current && manifestRef.current.mods.length > 0)
+        void replan(manifestRef.current).catch(() => undefined);
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [replan]);
 
   const sync = async (): Promise<void> => {
-    if (!key || !manifest || !plan) return;
+    if (!manifest || !plan || !folder) return;
     const queue = [...plan.download];
     const failed: Failure[] = [];
     let done = 0;
@@ -155,13 +152,9 @@ export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog
     const step = async (mod: ClientMod): Promise<void> => {
       setProgress((p) => ({ ...p, name: mod.name }));
       try {
-        if (mod.url) await window.modsAPI.downloadModrinthMod(key, mod);
+        if (mod.url) await window.modsAPI.downloadModrinthMod(mod);
         else
-          await window.modsAPI.writeSyncedMod(
-            key,
-            mod,
-            await tunnel.mods().file(mod.sha1, mod.size),
-          );
+          await window.modsAPI.writeSyncedMod(mod, await tunnel.mods().file(mod.sha1, mod.size));
       } catch {
         failed.push({ name: mod.name });
       }
@@ -178,7 +171,7 @@ export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog
         for (const mod of viaHost) await step(mod);
       };
       await Promise.all([...Array.from({ length: MODRINTH_PARALLEL }, worker), hostWorker()]);
-      const { removed } = await window.modsAPI.finishSync(key, manifest);
+      const { removed } = await window.modsAPI.finishSync(manifest);
       onLogRef.current(
         `Mods synced: ${queue.length - failed.length} downloaded, ${removed} removed${
           failed.length ? `, ${failed.length} failed` : ""
@@ -292,29 +285,33 @@ export const ModSyncCard: React.FC<ModSyncCardProps> = ({ groupId, tunnel, onLog
       {folder ? (
         <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1 }}>
           <Tooltip title={folder}>
-            <Typography noWrap variant="caption" sx={{ fontFamily: monoFont, flexGrow: 1 }}>
-              {shortPath(folder)}
+            <Typography noWrap variant="caption" color="text.secondary" sx={{ flexGrow: 1 }}>
+              {t("p2p.modSync.savedIn")}{" "}
+              <Box component="span" sx={{ fontFamily: monoFont }}>
+                {shortPath(folder)}
+              </Box>
             </Typography>
           </Tooltip>
-          <Button size="small" onClick={() => void pickFolder()} disabled={busy}>
-            {t("p2p.modSync.changeFolder")}
-          </Button>
+          {onOpenSettings && (
+            <Button size="small" onClick={onOpenSettings} disabled={busy}>
+              {t("p2p.modSync.change")}
+            </Button>
+          )}
         </Stack>
       ) : (
-        <Box sx={{ mt: 1 }}>
-          <Button
-            fullWidth
-            variant="contained"
-            size="small"
-            onClick={() => void pickFolder()}
-            disabled={busy}
-          >
-            {t("p2p.modSync.pickFolder")}
-          </Button>
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-            {t("p2p.modSync.folderHint")}
-          </Typography>
-        </Box>
+        <Alert
+          severity="warning"
+          sx={{ mt: 1, py: 0 }}
+          action={
+            onOpenSettings && (
+              <Button color="inherit" size="small" onClick={onOpenSettings}>
+                {t("p2p.modSync.openSettings")}
+              </Button>
+            )
+          }
+        >
+          {t("p2p.modSync.noFolder")}
+        </Alert>
       )}
 
       {/* A mismatch already shows its counts and the sync action in the warning above */}

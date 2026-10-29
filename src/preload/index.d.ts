@@ -265,12 +265,13 @@ interface ModsAPI {
   clientManifest: (serverId: string) => Promise<ClientModManifest>;
   modsFingerprint: (serverId: string) => Promise<string>;
   readClientMod: (serverId: string, sha1: string) => Promise<Uint8Array>;
-  getSyncFolder: (key: string) => Promise<string | null>;
-  pickSyncFolder: (key: string) => Promise<string | null>;
-  planSync: (key: string, manifest: ClientModManifest) => Promise<SyncPlan>;
-  downloadModrinthMod: (key: string, mod: ClientMod) => Promise<void>;
-  writeSyncedMod: (key: string, mod: ClientMod, data: Uint8Array) => Promise<void>;
-  finishSync: (key: string, manifest: ClientModManifest) => Promise<{ removed: number }>;
+  getSyncFolder: () => Promise<{ folder: string | null; isDefault: boolean }>;
+  pickSyncFolder: () => Promise<string | null>;
+  resetSyncFolder: () => Promise<{ folder: string | null; isDefault: boolean }>;
+  planSync: (manifest: ClientModManifest) => Promise<SyncPlan>;
+  downloadModrinthMod: (mod: ClientMod) => Promise<void>;
+  writeSyncedMod: (mod: ClientMod, data: Uint8Array) => Promise<void>;
+  finishSync: (manifest: ClientModManifest) => Promise<{ removed: number }>;
 }
 
 declare global {

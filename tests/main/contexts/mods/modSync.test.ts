@@ -14,6 +14,7 @@ import {
   validateClientMod,
   validateManifest,
   writeSyncedModTo,
+  defaultMinecraftDir,
 } from "@main/contexts/mods/infrastructure/ModSync";
 import { isModrinthCdnUrl } from "@main/contexts/mods/infrastructure/modrinthLookup";
 
@@ -184,5 +185,21 @@ describe("fingerprintDirs", () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("finds the official launcher dir per platform", () => {
+    expect(defaultMinecraftDir("win32", path.join("C:", "AppData"), "/h")).toBe(
+      path.join("C:", "AppData", ".minecraft"),
+    );
+    expect(defaultMinecraftDir("darwin", "/Users/me/Library/Application Support", "/Users/me")).toBe(
+      path.join("/Users/me/Library/Application Support", "minecraft"),
+    );
+    expect(defaultMinecraftDir("linux", "/x", "/home/me")).toBe(path.join("/home/me", ".minecraft"));
+  });
+
+  it("plans against a mods folder that does not exist yet", async () => {
+    const missing = path.join(os.tmpdir(), "pth-nonexistent-" + Date.now(), "mods");
+    const plan = await planFolder(missing, { serverName: "s", engine: "fabric", minecraftVersion: "1", mods: [mod("x")] });
+    expect(plan.download).toHaveLength(1);
   });
 });
