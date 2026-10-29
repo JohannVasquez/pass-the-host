@@ -1,4 +1,5 @@
 import { ipcMain, shell } from "electron";
+import type { ModFolder } from "@main/contexts/mods/domain/checkModCompatibility";
 import { ModsRepository } from "@main/contexts/mods/infrastructure/ModsRepository";
 
 export function registerModsIPCHandlers(): void {
@@ -17,7 +18,12 @@ export function registerModsIPCHandlers(): void {
     shell.openExternal(`https://modrinth.com/mod/${slug}`);
     return true;
   });
-  ipcMain.handle("mods:remove", (_event, serverId: string, fileName: string) =>
-    repository.remove(serverId, fileName),
+  ipcMain.handle("mods:remove", (_event, serverId: string, fileName: string, folder: ModFolder) =>
+    repository.remove(serverId, fileName, folder),
+  );
+  ipcMain.handle(
+    "mods:move",
+    (_event, serverId: string, fileNames: string[], from: ModFolder, to: ModFolder) =>
+      repository.move(serverId, fileNames, from, to),
   );
 }

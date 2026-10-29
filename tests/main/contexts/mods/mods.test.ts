@@ -4,7 +4,7 @@ import * as os from "os";
 import * as path from "path";
 import { deflateRawSync } from "zlib";
 import { parseModMetadata, ModMetadata } from "@main/contexts/mods/domain/parseModMetadata";
-import { checkModCompatibility } from "@main/contexts/mods/domain/checkModCompatibility";
+import { checkModCompatibility, targetFolder } from "@main/contexts/mods/domain/checkModCompatibility";
 import {
   metadataFromModrinth,
   ModrinthInfo,
@@ -398,5 +398,32 @@ describe("readZipEntries", () => {
       loaders: ["neoforge", "plugin"],
       side: "both",
     });
+  });
+});
+
+describe("client-only mods folder", () => {
+  it("targetFolder sends client mods apart, everything else to the loader folder", () => {
+    expect(targetFolder("client", "fabric")).toBe("client-mods");
+    expect(targetFolder("both", "fabric")).toBe("mods");
+    expect(targetFolder("server", "forge")).toBe("mods");
+    expect(targetFolder("client", "paper")).toBe("plugins");
+  });
+
+  it("client_only warns in mods/ but is ok in client-mods/", () => {
+    const client = meta({ side: "client" });
+    expect(checkModCompatibility(client, "fabric", "1.21.1")).toEqual({
+      status: "warning",
+      reason: "client_only",
+    });
+    expect(checkModCompatibility(client, "fabric", "1.21.1", "client-mods")).toEqual({
+      status: "ok",
+    });
+  });
+
+  it("still rejects a wrong loader inside client-mods/", () => {
+    expect(
+      checkModCompatibility(meta({ side: "client", loaders: ["forge"] }), "fabric", "1.21.1", "client-mods")
+        .status,
+    ).toBe("error");
   });
 });

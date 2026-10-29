@@ -24,10 +24,19 @@ function acceptedLoaders(engine: string, mcVersion: string): ModLoader[] {
   }
 }
 
+export type ModFolder = "mods" | "plugins" | "client-mods";
+
+/** Where a file with this side belongs: client-only mods are stored apart, the server never loads them */
+export function targetFolder(side: ModMetadata["side"], engine: string): ModFolder {
+  if (engine === "paper") return "plugins";
+  return side === "client" ? "client-mods" : "mods";
+}
+
 export function checkModCompatibility(
   meta: ModMetadata | null,
   engine: string,
   mcVersion: string,
+  folder: ModFolder = "mods",
 ): ModCompat {
   // Libraries like Kotlin for Forge or Essential's loader stub carry no metadata, so only warn
   if (!meta) return { status: "warning", reason: "not_a_mod" };
@@ -36,7 +45,9 @@ export function checkModCompatibility(
   if (!loader) {
     return { status: "error", reason: "wrong_loader", loaders: meta.loaders, engine };
   }
-  if (meta.side === "client") return { status: "warning", reason: "client_only" };
+  if (meta.side === "client") {
+    return folder === "client-mods" ? { status: "ok" } : { status: "warning", reason: "client_only" };
+  }
   if (!meta.minecraft) return { status: "ok" };
 
   const bare: BareStyle =

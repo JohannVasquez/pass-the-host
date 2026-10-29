@@ -56,6 +56,10 @@ const SIDE_ICONS = { client: ClientIcon, server: ServerIcon, both: BothIcon };
 const groupOf = (mod: ModItem): Group =>
   mod.compat.status === "error" ? "incompatible" : mod.compat.status === "warning" ? "warning" : "ok";
 
+// Client-only mods left in mods/ can crash a dedicated server
+const isClientInMods = (mod: ModItem): boolean =>
+  mod.folder === "mods" && mod.compat.status === "warning" && mod.compat.reason === "client_only";
+
 const displayName = (mod: ModItem): string => mod.metadata?.name || mod.fileName;
 
 interface ModsManagerProps {
@@ -120,7 +124,12 @@ export const ModsManager: React.FC<ModsManagerProps> = ({
       if (result.canceled) return;
       const { added, replaced, rejected } = result;
       const parts = [
-        added.length > 0 && tk("added", { count: added.length }),
+        added.length > 0 &&
+          `${tk("added", { count: added.length })}${
+            added.some((m) => m.folder === "client-mods")
+              ? ` (${tk("addedClientOnly", { count: added.filter((m) => m.folder === "client-mods").length })})`
+              : ""
+          }`,
         replaced.length > 0 && tk("replaced", { count: replaced.length }),
         rejected.length > 0 &&
           `${tk("rejected", { count: rejected.length })}${
@@ -148,15 +157,14 @@ export const ModsManager: React.FC<ModsManagerProps> = ({
     }
   };
 
-  const runRemove = async (mod: ModItem): Promise<void> => {
+  const runAction = async (action: () => Promise<string | null>): Promise<void> => {
     if (busy) return;
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
-      if (await window.modsAPI.remove(serverId, mod.fileName)) {
-        onSaved(`${list.folder === "plugins" ? "Plugins" : "Mods"} updated: 1 removed`);
-      }
+      const summary = await action();
+      if (summary) onSaved(`${list.folder === "plugins" ? "Plugins" : "Mods"} updated: ${summary}`);
       await refresh();
     } catch (e) {
       setError(String((e as Error)?.message ?? e));
@@ -164,6 +172,22 @@ export const ModsManager: React.FC<ModsManagerProps> = ({
       setBusy(false);
     }
   };
+
+  const runRemove = (mod: ModItem): Promise<void> =>
+    runAction(async () =>
+      (await window.modsAPI.remove(serverId, mod.fileName, mod.folder)) ? "1 removed" : null,
+    );
+
+  const runMove = (mods: ModItem[], to: ModItem["folder"]): Promise<void> =>
+    runAction(async () => {
+      const moved = await window.modsAPI.move(
+        serverId,
+        mods.map((m) => m.fileName),
+        mods[0].folder,
+        to,
+      );
+      return moved > 0 ? `${moved} moved to ${to}` : null;
+    });
 
   const handleDrop = (e: React.DragEvent): void => {
     e.preventDefault();
@@ -218,6 +242,8 @@ export const ModsManager: React.FC<ModsManagerProps> = ({
           s.toLowerCase().includes(needle),
         )),
   );
+
+  const clientInMods = list.mods.filter(isClientInMods);
 
   const problemLine = (mod: ModItem): { error: boolean; text: string } | null => {
     const c = mod.compat;
@@ -292,6 +318,16 @@ export const ModsManager: React.FC<ModsManagerProps> = ({
               {meta.version}
             </Typography>
           )}
+          {mod.folder === "client-mods" && (
+            <Button size="small" disabled={busy} onClick={() => runMove([mod], "mods")}>
+              {tk("moveToServer")}
+            </Button>
+          )}
+          {isClientInMods(mod) && (
+            <Button size="small" disabled={busy} onClick={() => runMove([mod], "client-mods")}>
+              {tk("moveToClient")}
+            </Button>
+          )}
           <IconButton
             size="small"
             disabled={busy}
@@ -327,6 +363,11 @@ export const ModsManager: React.FC<ModsManagerProps> = ({
             {meta.minecraft && (
               <Typography variant="caption" color="text.secondary">
                 {t("editServer.mods.minecraft", { version: meta.minecraft })}
+              </Typography>
+            )}
+            {mod.folder === "client-mods" && (
+              <Typography variant="caption" color="text.secondary">
+                {tk("clientStored")}
               </Typography>
             )}
           </Box>
@@ -510,6 +551,32 @@ export const ModsManager: React.FC<ModsManagerProps> = ({
                   />
                 </Box>
                 <Collapse in={isOpen}>
+                  {id === "warning" && clientInMods.length > 0 && (
+                    <Box
+                      sx={{
+                        px: 1.5,
+                        py: 0.75,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        borderTop: 1,
+                        borderColor: "divider",
+                      }}
+                    >
+                      <Typography variant="caption" sx={{ flex: 1 }}>
+                        {tk("clientOnlyBanner", { count: clientInMods.length })}
+                      </Typography>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="warning"
+                        disabled={busy}
+                        onClick={() => runMove(clientInMods, "client-mods")}
+                      >
+                        {tk("moveToClient")}
+                      </Button>
+                    </Box>
+                  )}
                   <Box
                     sx={{
                       borderTop: 1,

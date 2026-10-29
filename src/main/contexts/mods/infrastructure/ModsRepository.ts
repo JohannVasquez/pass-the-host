@@ -7,7 +7,12 @@ import {
   ModMetadata,
   parseModMetadata,
 } from "@main/contexts/mods/domain/parseModMetadata";
-import { checkModCompatibility, ModCompat } from "@main/contexts/mods/domain/checkModCompatibility";
+import {
+  checkModCompatibility,
+  ModCompat,
+  ModFolder,
+  targetFolder,
+} from "@main/contexts/mods/domain/checkModCompatibility";
 import { readZipEntries } from "@main/contexts/mods/infrastructure/readZipEntries";
 import {
   lookupModrinth,
@@ -25,6 +30,8 @@ export interface ModItem {
   side: "client" | "server" | "both";
   sideSource: "modrinth" | "jar";
   modrinth?: { slug: string; title: string };
+  /** Where the jar lives: client-mods is stored (and synced) with the server but never loaded by it */
+  folder: ModFolder;
 }
 
 export interface ModsList {
@@ -74,14 +81,16 @@ export class ModsRepository {
       files = picked;
     }
 
-    const dir = this.modsDir(serverId, info.engine);
-    await fs.promises.mkdir(dir, { recursive: true });
-    // mod id -> installed file name, kept up to date as files land
-    const byId = new Map<string, string>();
-    const taken = new Set<string>();
+    // mod id -> installed file, kept up to date as files land
+    const byId = new Map<string, { fileName: string; folder: ModFolder }>();
+    const taken: Record<ModFolder, Set<string>> = {
+      mods: new Set(),
+      plugins: new Set(),
+      "client-mods": new Set(),
+    };
     for (const mod of await this.installed(serverId, info)) {
-      taken.add(mod.fileName.toLowerCase());
-      if (mod.metadata) byId.set(mod.metadata.id, mod.fileName);
+      taken[mod.folder].add(mod.fileName.toLowerCase());
+      if (mod.metadata) byId.set(mod.metadata.id, { fileName: mod.fileName, folder: mod.folder });
     }
 
     const modrinth = await lookupModrinth(files);
@@ -94,16 +103,23 @@ export class ModsRepository {
         continue;
       }
 
+      const folder = targetFolder(item.side, info.engine);
+      const dir = this.dirOf(serverId, folder);
+      await fs.promises.mkdir(dir, { recursive: true });
+      // The same mod may sit in either folder: replace it where it is
       const previous = item.metadata ? byId.get(item.metadata.id) : undefined;
       if (previous) {
-        await fs.promises.rm(path.join(dir, previous), { force: true });
-        taken.delete(previous.toLowerCase());
+        await fs.promises.rm(path.join(this.dirOf(serverId, previous.folder), previous.fileName), {
+          force: true,
+        });
+        taken[previous.folder].delete(previous.fileName.toLowerCase());
       }
-      const fileName = uniqueName(item.fileName, taken);
+      const fileName = uniqueName(item.fileName, taken[folder]);
       await fs.promises.copyFile(filePath, path.join(dir, fileName));
-      taken.add(fileName.toLowerCase());
-      if (item.metadata) byId.set(item.metadata.id, fileName);
-      (previous ? result.replaced : result.added).push({ ...item, fileName });
+      taken[folder].add(fileName.toLowerCase());
+      if (item.metadata) byId.set(item.metadata.id, { fileName, folder });
+      const compat = checkModCompatibility(item.metadata, info.engine, info.minecraftVersion, folder);
+      (previous ? result.replaced : result.added).push({ ...item, fileName, folder, compat });
     }
 
     if (result.added.length > 0 || result.replaced.length > 0) {
@@ -112,19 +128,10 @@ export class ModsRepository {
     return result;
   }
 
-  remove(serverId: string, fileName: string): boolean {
-    // Trust boundary: the renderer must only name a plain jar inside the mods folder
-    if (
-      typeof fileName !== "string" ||
-      path.basename(fileName) !== fileName ||
-      fileName === ".." ||
-      fileName.includes("\\") ||
-      !fileName.toLowerCase().endsWith(".jar")
-    ) {
-      throw new ValidationError(`Invalid mod file name: ${fileName}`);
-    }
+  remove(serverId: string, fileName: string, folder: ModFolder): boolean {
+    assertJarName(fileName);
     const info = this.readServerInfo(serverId);
-    const target = path.join(this.modsDir(serverId, info.engine), fileName);
+    const target = path.join(this.checkedDir(serverId, info.engine, folder), fileName);
     if (!fs.existsSync(target)) {
       return false;
     }
@@ -133,18 +140,43 @@ export class ModsRepository {
     return true;
   }
 
-  private async installed(serverId: string, info: ServerInfo): Promise<ModItem[]> {
-    const dir = this.modsDir(serverId, info.engine);
-    if (!fs.existsSync(dir)) {
-      return [];
+  /** Moves jars between mods/ and client-mods/; returns how many moved */
+  move(serverId: string, fileNames: string[], from: ModFolder, to: ModFolder): number {
+    if (!Array.isArray(fileNames)) throw new ValidationError("Invalid mod file list");
+    fileNames.forEach(assertJarName);
+    const info = this.readServerInfo(serverId);
+    const source = this.checkedDir(serverId, info.engine, from);
+    const dest = this.checkedDir(serverId, info.engine, to);
+    if (from === to) throw new ValidationError("Source and destination folders are the same");
+    fs.mkdirSync(dest, { recursive: true });
+    const taken = new Set(fs.readdirSync(dest).map((n) => n.toLowerCase()));
+    let moved = 0;
+    for (const fileName of fileNames) {
+      const src = path.join(source, fileName);
+      if (!fs.existsSync(src)) continue;
+      const name = uniqueName(fileName, taken);
+      fs.renameSync(src, path.join(dest, name));
+      taken.add(name.toLowerCase());
+      moved++;
     }
-    const jars = fs
-      .readdirSync(dir, { withFileTypes: true })
-      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".jar"))
-      .map((entry) => path.join(dir, entry.name));
-    const modrinth = await lookupModrinth(jars);
+    if (moved > 0) this.markLocalChanges(serverId);
+    return moved;
+  }
+
+  private async installed(serverId: string, info: ServerInfo): Promise<ModItem[]> {
+    const folders: ModFolder[] = [this.folderName(info.engine)];
+    if (info.engine !== "paper") folders.push("client-mods");
+    const jars = folders.flatMap((folder) => {
+      const dir = this.dirOf(serverId, folder);
+      if (!fs.existsSync(dir)) return [];
+      return fs
+        .readdirSync(dir, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".jar"))
+        .map((entry) => ({ jar: path.join(dir, entry.name), folder }));
+    });
+    const modrinth = await lookupModrinth(jars.map((j) => j.jar));
     return jars
-      .map((jar) => this.inspectFile(jar, info, modrinth))
+      .map(({ jar, folder }) => this.inspectFile(jar, info, modrinth, folder))
       .sort((a, b) =>
         (a.metadata?.name ?? a.fileName).localeCompare(b.metadata?.name ?? b.fileName, undefined, {
           sensitivity: "base",
@@ -156,6 +188,7 @@ export class ModsRepository {
     filePath: string,
     info: ServerInfo,
     modrinthInfo: Map<string, ModrinthInfo>,
+    folder: ModFolder = this.folderName(info.engine),
   ): ModItem {
     let metadata: ModMetadata | null = null;
     try {
@@ -181,7 +214,8 @@ export class ModsRepository {
       fileName: path.basename(filePath),
       sizeBytes,
       metadata,
-      compat: checkModCompatibility(metadata, info.engine, info.minecraftVersion),
+      compat: checkModCompatibility(metadata, info.engine, info.minecraftVersion, folder),
+      folder,
       side,
       sideSource: known ? "modrinth" : "jar",
       ...(known && { modrinth: { slug: known.slug, title: known.title } }),
@@ -206,8 +240,15 @@ export class ModsRepository {
     return engine === "paper" ? "plugins" : "mods";
   }
 
-  private modsDir(serverId: string, engine: string): string {
-    return path.join(this.serverPath(serverId), this.folderName(engine));
+  private dirOf(serverId: string, folder: ModFolder): string {
+    return path.join(this.serverPath(serverId), folder);
+  }
+
+  // Trust boundary: the renderer only names folders this engine really has
+  private checkedDir(serverId: string, engine: string, folder: ModFolder): string {
+    const allowed: ModFolder[] = engine === "paper" ? ["plugins"] : ["mods", "client-mods"];
+    if (!allowed.includes(folder)) throw new ValidationError(`Invalid mods folder: ${folder}`);
+    return this.dirOf(serverId, folder);
   }
 
   private serverPath(serverId: string): string {
@@ -235,6 +276,19 @@ export class ModsRepository {
       ),
       "utf-8",
     );
+  }
+}
+
+// Trust boundary: the renderer must only name a plain jar
+function assertJarName(fileName: string): void {
+  if (
+    typeof fileName !== "string" ||
+    path.basename(fileName) !== fileName ||
+    fileName === ".." ||
+    fileName.includes("\\") ||
+    !fileName.toLowerCase().endsWith(".jar")
+  ) {
+    throw new ValidationError(`Invalid mod file name: ${fileName}`);
   }
 }
 

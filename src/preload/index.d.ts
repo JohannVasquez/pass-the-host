@@ -248,7 +248,13 @@ interface ModsAPI {
   list: (serverId: string) => Promise<ModsList>;
   inspect: (serverId: string, filePaths: string[]) => Promise<ModItem[]>;
   add: (serverId: string, filePaths?: string[]) => Promise<AddModsResult>;
-  remove: (serverId: string, fileName: string) => Promise<boolean>;
+  remove: (serverId: string, fileName: string, folder: ModItem["folder"]) => Promise<boolean>;
+  move: (
+    serverId: string,
+    fileNames: string[],
+    from: ModItem["folder"],
+    to: ModItem["folder"],
+  ) => Promise<number>;
   openModrinth: (slug: string) => Promise<boolean>;
   getPathForFile: (file: File) => string;
 }
