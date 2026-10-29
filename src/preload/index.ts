@@ -383,6 +383,7 @@ const modsAPI = {
     ipcRenderer.invoke("mods:add", serverId, filePaths),
   remove: (serverId: string, fileName: string): Promise<boolean> =>
     ipcRenderer.invoke("mods:remove", serverId, fileName),
+  openModrinth: (slug: string): Promise<boolean> => ipcRenderer.invoke("mods:open-modrinth", slug),
   // Path of a drag-and-dropped File, to hand to inspect/add
   getPathForFile: (file: File): string => webUtils.getPathForFile(file),
 };

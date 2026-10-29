@@ -198,14 +198,21 @@ function parseToml(
   const deps = tables.filter((t) => t.name.startsWith("dependencies."));
   const hasDep = (modId: string): boolean => deps.some((d) => d.values.modId === modId);
   const minecraft = deps.find((d) => d.values.modId === "minecraft")?.values.versionRange;
-  // ponytail: forge/neoforge mods are always "both"; the toml has no reliable side marker
+  // Heuristic: the toml has no real side marker, only these hints (Modrinth is the better source)
+  const displayTest = mod.values.displayTest;
+  const side =
+    displayTest === "IGNORE_SERVER_VERSION"
+      ? "server"
+      : displayTest === "IGNORE_ALL_VERSION" || tables[0].values.clientSideOnly === "true"
+        ? "client"
+        : "both";
   return {
     loader: neoforgeFile || hasDep("neoforge") ? "neoforge" : "forge",
     id,
     name: str(mod.values.displayName) ?? id,
     version: fixVersion(str(mod.values.version)),
     minecraft: str(minecraft),
-    side: "both",
+    side,
     description: str(mod.values.description)?.trim(),
   };
 }

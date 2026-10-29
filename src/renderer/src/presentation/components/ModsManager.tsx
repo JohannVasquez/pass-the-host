@@ -16,12 +16,15 @@ import {
 } from "@mui/material";
 import {
   CheckCircleOutline as OkIcon,
+  Computer as ClientIcon,
   DeleteOutline as DeleteIcon,
+  Dns as ServerIcon,
   ErrorOutline as ErrorIcon,
   ExpandMore as ExpandMoreIcon,
   Extension as ExtensionIcon,
   FileUpload as FileUploadIcon,
   Search as SearchIcon,
+  SyncAlt as BothIcon,
   WarningAmber as WarningIcon,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
@@ -47,6 +50,8 @@ const ENGINE_NAMES: Record<string, string> = {
   plugin: "Plugin",
 };
 const engineName = (id: string): string => ENGINE_NAMES[id] ?? id;
+
+const SIDE_ICONS = { client: ClientIcon, server: ServerIcon, both: BothIcon };
 
 const groupOf = (mod: ModItem): Group =>
   mod.compat.status === "error" ? "incompatible" : mod.compat.status === "warning" ? "warning" : "ok";
@@ -248,9 +253,35 @@ export const ModsManager: React.FC<ModsManagerProps> = ({
         sx={{ px: 1.5, py: 1, display: "flex", flexDirection: "column", gap: 0.25 }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Typography variant="body2" fontWeight={600} noWrap sx={{ flex: 1, minWidth: 0 }}>
-            {name}
-          </Typography>
+          {mod.modrinth ? (
+            <Tooltip title={tk("openModrinth")}>
+              <Box
+                component="button"
+                type="button"
+                onClick={() => window.modsAPI.openModrinth(mod.modrinth!.slug)}
+                sx={{
+                  all: "unset",
+                  boxSizing: "border-box",
+                  flex: 1,
+                  minWidth: 0,
+                  cursor: "pointer",
+                  typography: "body2",
+                  fontWeight: 600,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  "&:hover": { textDecoration: "underline" },
+                  "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main" },
+                }}
+              >
+                {name}
+              </Box>
+            </Tooltip>
+          ) : (
+            <Typography variant="body2" fontWeight={600} noWrap sx={{ flex: 1, minWidth: 0 }}>
+              {name}
+            </Typography>
+          )}
           {meta?.version && (
             <Typography
               variant="caption"
@@ -282,6 +313,17 @@ export const ModsManager: React.FC<ModsManagerProps> = ({
             {meta.loaders.map((l) => (
               <Chip key={l} size="small" variant="outlined" label={engineName(l)} />
             ))}
+            {list.folder !== "plugins" && (
+              <Tooltip title={tk(mod.sideSource === "modrinth" ? "sideModrinth" : "sideJar")}>
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  icon={React.createElement(SIDE_ICONS[mod.side], { sx: { fontSize: 14 } })}
+                  label={tk(`side.${mod.side}`)}
+                  sx={{ color: "text.secondary", borderColor: "divider" }}
+                />
+              </Tooltip>
+            )}
             {meta.minecraft && (
               <Typography variant="caption" color="text.secondary">
                 {t("editServer.mods.minecraft", { version: meta.minecraft })}
@@ -314,6 +356,16 @@ export const ModsManager: React.FC<ModsManagerProps> = ({
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }}>
           {tk("installed", { count: list.mods.length })}
+          {list.folder !== "plugins" && (
+            <Tooltip title={tk("forPlayersTip")}>
+              <span>
+                {" · "}
+                {tk("forPlayers", {
+                  count: list.mods.filter((m) => m.side !== "server").length,
+                })}
+              </span>
+            </Tooltip>
+          )}
         </Typography>
       </Box>
       {isRunning && (

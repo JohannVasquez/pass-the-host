@@ -249,6 +249,7 @@ interface ModsAPI {
   inspect: (serverId: string, filePaths: string[]) => Promise<ModItem[]>;
   add: (serverId: string, filePaths?: string[]) => Promise<AddModsResult>;
   remove: (serverId: string, fileName: string) => Promise<boolean>;
+  openModrinth: (slug: string) => Promise<boolean>;
   getPathForFile: (file: File) => string;
 }
 

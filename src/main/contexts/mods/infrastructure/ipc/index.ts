@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { ipcMain, shell } from "electron";
 import { ModsRepository } from "@main/contexts/mods/infrastructure/ModsRepository";
 
 export function registerModsIPCHandlers(): void {
@@ -11,6 +11,12 @@ export function registerModsIPCHandlers(): void {
   ipcMain.handle("mods:add", (_event, serverId: string, filePaths?: string[]) =>
     repository.add(serverId, filePaths),
   );
+  ipcMain.handle("mods:open-modrinth", (_event, slug: string) => {
+    // Trust boundary: only a plain slug may build the URL
+    if (typeof slug !== "string" || !/^[\w-]+$/.test(slug)) return false;
+    shell.openExternal(`https://modrinth.com/mod/${slug}`);
+    return true;
+  });
   ipcMain.handle("mods:remove", (_event, serverId: string, fileName: string) =>
     repository.remove(serverId, fileName),
   );

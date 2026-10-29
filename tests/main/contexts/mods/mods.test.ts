@@ -5,6 +5,11 @@ import * as path from "path";
 import { deflateRawSync } from "zlib";
 import { parseModMetadata, ModMetadata } from "@main/contexts/mods/domain/parseModMetadata";
 import { checkModCompatibility } from "@main/contexts/mods/domain/checkModCompatibility";
+import {
+  metadataFromModrinth,
+  ModrinthInfo,
+  sideFromModrinth,
+} from "@main/contexts/mods/infrastructure/modrinthLookup";
 import { readZipEntries } from "@main/contexts/mods/infrastructure/readZipEntries";
 
 const entries = (files: Record<string, string>): Map<string, Buffer> =>
@@ -356,5 +361,42 @@ describe("readZipEntries", () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("derives forge/neoforge side from displayTest and clientSideOnly", () => {
+    const side = (top: string, displayTest = ""): string | undefined =>
+      parseModMetadata(
+        entries({
+          "META-INF/mods.toml": `${top}\n[[mods]]\nmodId="m"\nversion="1"\n${displayTest}\n`,
+        }),
+      )?.side;
+    expect(side("", 'displayTest="IGNORE_SERVER_VERSION"')).toBe("server");
+    expect(side("", 'displayTest="IGNORE_ALL_VERSION"')).toBe("client");
+    expect(side("clientSideOnly = true")).toBe("client");
+    expect(side("")).toBe("both");
+  });
+
+  it("maps Modrinth client/server flags to a side and a stand-in metadata", () => {
+    const info = (clientSide: ModrinthInfo["clientSide"], serverSide: ModrinthInfo["serverSide"]) =>
+      ({
+        projectId: "p",
+        slug: "kff",
+        title: "Kotlin for Forge",
+        versionNumber: "5.0",
+        loaders: ["neoforge", "bukkit", "datapack"],
+        clientSide,
+        serverSide,
+      }) satisfies ModrinthInfo;
+    expect(sideFromModrinth(info("required", "unsupported"))).toBe("client");
+    expect(sideFromModrinth(info("unsupported", "required"))).toBe("server");
+    expect(sideFromModrinth(info("required", "required"))).toBe("both");
+    expect(sideFromModrinth(info("optional", "unknown"))).toBe("both");
+    expect(metadataFromModrinth(info("required", "required"))).toEqual({
+      id: "kff",
+      name: "Kotlin for Forge",
+      version: "5.0",
+      loaders: ["neoforge", "plugin"],
+      side: "both",
+    });
   });
 });

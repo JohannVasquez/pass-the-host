@@ -9,12 +9,22 @@ import {
 } from "@main/contexts/mods/domain/parseModMetadata";
 import { checkModCompatibility, ModCompat } from "@main/contexts/mods/domain/checkModCompatibility";
 import { readZipEntries } from "@main/contexts/mods/infrastructure/readZipEntries";
+import {
+  lookupModrinth,
+  metadataFromModrinth,
+  ModrinthInfo,
+  sideFromModrinth,
+} from "@main/contexts/mods/infrastructure/modrinthLookup";
 
 export interface ModItem {
   fileName: string;
   sizeBytes: number;
   metadata: ModMetadata | null;
   compat: ModCompat;
+  /** Who has to install it, from Modrinth when it knows the file, else from the jar itself */
+  side: "client" | "server" | "both";
+  sideSource: "modrinth" | "jar";
+  modrinth?: { slug: string; title: string };
 }
 
 export interface ModsList {
@@ -36,15 +46,16 @@ interface ServerInfo {
 }
 
 export class ModsRepository {
-  list(serverId: string): ModsList {
+  async list(serverId: string): Promise<ModsList> {
     const info = this.readServerInfo(serverId);
     const folder = this.folderName(info.engine);
-    return { ...info, folder, mods: this.installed(serverId, info) };
+    return { ...info, folder, mods: await this.installed(serverId, info) };
   }
 
-  inspect(serverId: string, filePaths: string[]): ModItem[] {
+  async inspect(serverId: string, filePaths: string[]): Promise<ModItem[]> {
     const info = this.readServerInfo(serverId);
-    return filePaths.map((filePath) => this.inspectFile(filePath, info));
+    const modrinth = await lookupModrinth(filePaths);
+    return filePaths.map((filePath) => this.inspectFile(filePath, info, modrinth));
   }
 
   async add(serverId: string, filePaths?: string[]): Promise<AddModsResult> {
@@ -68,14 +79,15 @@ export class ModsRepository {
     // mod id -> installed file name, kept up to date as files land
     const byId = new Map<string, string>();
     const taken = new Set<string>();
-    for (const mod of this.installed(serverId, info)) {
+    for (const mod of await this.installed(serverId, info)) {
       taken.add(mod.fileName.toLowerCase());
       if (mod.metadata) byId.set(mod.metadata.id, mod.fileName);
     }
 
+    const modrinth = await lookupModrinth(files);
     const result = { added: [] as ModItem[], replaced: [] as ModItem[], rejected: [] as ModItem[] };
     for (const filePath of files) {
-      const item = this.inspectFile(filePath, info);
+      const item = this.inspectFile(filePath, info, modrinth);
       const reason = item.compat.status === "error" ? item.compat.reason : null;
       if (!filePath.toLowerCase().endsWith(".jar") || reason === "wrong_loader") {
         result.rejected.push(item);
@@ -121,15 +133,18 @@ export class ModsRepository {
     return true;
   }
 
-  private installed(serverId: string, info: ServerInfo): ModItem[] {
+  private async installed(serverId: string, info: ServerInfo): Promise<ModItem[]> {
     const dir = this.modsDir(serverId, info.engine);
     if (!fs.existsSync(dir)) {
       return [];
     }
-    return fs
+    const jars = fs
       .readdirSync(dir, { withFileTypes: true })
       .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".jar"))
-      .map((entry) => this.inspectFile(path.join(dir, entry.name), info))
+      .map((entry) => path.join(dir, entry.name));
+    const modrinth = await lookupModrinth(jars);
+    return jars
+      .map((jar) => this.inspectFile(jar, info, modrinth))
       .sort((a, b) =>
         (a.metadata?.name ?? a.fileName).localeCompare(b.metadata?.name ?? b.fileName, undefined, {
           sensitivity: "base",
@@ -137,13 +152,25 @@ export class ModsRepository {
       );
   }
 
-  private inspectFile(filePath: string, info: ServerInfo): ModItem {
+  private inspectFile(
+    filePath: string,
+    info: ServerInfo,
+    modrinthInfo: Map<string, ModrinthInfo>,
+  ): ModItem {
     let metadata: ModMetadata | null = null;
     try {
       metadata = parseModMetadata(readZipEntries(filePath, MOD_METADATA_ENTRIES));
     } catch {
       // Expected case: not a zip or corrupt, reported as not_a_mod
     }
+    const known = modrinthInfo.get(filePath);
+    // Libraries (Kotlin for Forge, Essential) carry no metadata but Modrinth knows them
+    if (!metadata && known) {
+      const fallback = metadataFromModrinth(known);
+      if (fallback.loaders.length > 0) metadata = fallback;
+    }
+    const side = known ? sideFromModrinth(known) : (metadata?.side ?? "both");
+    if (metadata) metadata = { ...metadata, side };
     let sizeBytes = 0;
     try {
       sizeBytes = fs.statSync(filePath).size;
@@ -155,6 +182,9 @@ export class ModsRepository {
       sizeBytes,
       metadata,
       compat: checkModCompatibility(metadata, info.engine, info.minecraftVersion),
+      side,
+      sideSource: known ? "modrinth" : "jar",
+      ...(known && { modrinth: { slug: known.slug, title: known.title } }),
     };
   }
 
