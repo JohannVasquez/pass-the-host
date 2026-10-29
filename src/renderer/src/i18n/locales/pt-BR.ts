@@ -37,6 +37,12 @@ export const ptBR: typeof en = {
       driveNotConnected: "Entre com o Google para usar seu Drive",
       driveError: "Não foi possível conectar ao Google. Tente novamente.",
     },
+    offlineCloudServer: {
+      title: "Iniciar sem sincronizar?",
+      dontShowAgain: "Não mostrar novamente",
+      cancel: "Cancelar",
+      confirm: "Iniciar mesmo assim",
+    },
     serverControl: {
       checkingCloudTitle: "Verificando a cópia na nuvem",
       checkingCloud: "Confirmando que ninguém mais está usando este servidor e que você tem os arquivos mais recentes...",

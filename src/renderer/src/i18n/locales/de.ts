@@ -37,6 +37,12 @@ export const de: typeof en = {
       driveNotConnected: "Melde dich mit Google an, um dein Drive zu nutzen",
       driveError: "Verbindung zu Google fehlgeschlagen. Bitte versuche es erneut.",
     },
+    offlineCloudServer: {
+      title: "Ohne Synchronisierung starten?",
+      dontShowAgain: "Nicht mehr anzeigen",
+      cancel: "Abbrechen",
+      confirm: "Trotzdem starten",
+    },
     serverControl: {
       checkingCloudTitle: "Cloud-Kopie wird geprüft",
       checkingCloud: "Wir prüfen, dass niemand sonst diesen Server nutzt und du die neuesten Dateien hast...",

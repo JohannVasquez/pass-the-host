@@ -35,6 +35,12 @@ export const en = {
       driveNotConnected: "Sign in with Google to use your Drive",
       driveError: "Could not connect to Google. Please try again.",
     },
+    offlineCloudServer: {
+      title: "Start without syncing?",
+      dontShowAgain: "Don't show this again",
+      cancel: "Cancel",
+      confirm: "Start anyway",
+    },
     serverControl: {
       checkingCloudTitle: "Checking the cloud copy",
       checkingCloud: "Making sure nobody else is using this server and you have the latest files...",

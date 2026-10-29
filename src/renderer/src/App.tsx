@@ -41,6 +41,7 @@ import { TransferProgressModal } from "./presentation/components/TransferProgres
 import { ServerStatisticsModal } from "./presentation/components/ServerStatisticsModal";
 import { CreateServerModal } from "./presentation/components/CreateServerModal";
 import { ServerExistsModal } from "./presentation/components/ServerExistsModal";
+import { OfflineCloudServerModal } from "./presentation/components/OfflineCloudServerModal";
 import { DeleteServerModal } from "./presentation/components/DeleteServerModal";
 import { ShareServerModal } from "./presentation/components/ShareServerModal";
 import { EditServerModal } from "./presentation/components/EditServerModal";
@@ -120,6 +121,8 @@ function App(): React.JSX.Element {
   );
 }
 
+const OFFLINE_CLOUD_WARNING_KEY = "offlineCloudServerWarning";
+
 function AppContent(): React.JSX.Element {
   const { t, i18n } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
@@ -197,6 +200,7 @@ function AppContent(): React.JSX.Element {
   } | null>(null);
   const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = React.useState<boolean>(false);
   const [isEditServerModalOpen, setIsEditServerModalOpen] = React.useState<boolean>(false);
+  const [isOfflineCloudModalOpen, setIsOfflineCloudModalOpen] = React.useState<boolean>(false);
   const [isShareServerModalOpen, setIsShareServerModalOpen] = React.useState<boolean>(false);
   const [totalBucketSize, setTotalBucketSize] = React.useState<number>(0);
   const [selectedServerSize, setSelectedServerSize] = React.useState<number>(0);
@@ -1283,7 +1287,7 @@ function AppContent(): React.JSX.Element {
     }
   };
 
-  const handleStartStop = async (): Promise<void> => {
+  const handleStartStop = async (offlineConfirmed = false): Promise<void> => {
     if (serverStatus === ServerStatus.STOPPED) {
       if (!selectedServer) {
         appendLog("Please select a server first", "error");
@@ -1298,6 +1302,17 @@ function AppContent(): React.JSX.Element {
       if (!server) {
         appendLog("Server info not found", "error");
         updateServerStatus(ServerStatus.STOPPED, "server metadata not found");
+        return;
+      }
+
+      // A copy of a cloud server that can't sync now: its changes could clash with the cloud one
+      if (
+        !offlineConfirmed &&
+        server.cloudLocation &&
+        !selectedSyncsToCloud &&
+        localStorage.getItem(OFFLINE_CLOUD_WARNING_KEY) !== "hidden"
+      ) {
+        setIsOfflineCloudModalOpen(true);
         return;
       }
 
@@ -2141,7 +2156,7 @@ function AppContent(): React.JSX.Element {
               servers={servers}
               onSelectServer={handleSelectServer}
               onCreateServer={handleCreateServer}
-              onStartStop={handleStartStop}
+              onStartStop={() => handleStartStop()}
               onReleaseLock={handleReleaseLock}
               onSyncToR2={handleSyncToR2}
               onEditProperties={handleEditProperties}
@@ -2345,6 +2360,21 @@ function AppContent(): React.JSX.Element {
         />
 
         {/* Server Exists Modal */}
+        <OfflineCloudServerModal
+          open={isOfflineCloudModalOpen}
+          provider={
+            selectedServerInfo?.cloudLocation
+              ? PROVIDER_LABELS[selectedServerInfo.cloudLocation.provider]
+              : ""
+          }
+          onCancel={() => setIsOfflineCloudModalOpen(false)}
+          onConfirm={(dontShowAgain) => {
+            if (dontShowAgain) localStorage.setItem(OFFLINE_CLOUD_WARNING_KEY, "hidden");
+            setIsOfflineCloudModalOpen(false);
+            handleStartStop(true);
+          }}
+        />
+
         <ServerExistsModal
           open={isServerExistsModalOpen}
           serverName={pendingServerCreation?.name || ""}
