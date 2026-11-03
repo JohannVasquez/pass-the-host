@@ -93,6 +93,32 @@ const es = {
     ],
     screenshotAlt: "Diálogo para crear un servidor nuevo en Pass the host",
   },
+  gallery: {
+    title: "Así se ve",
+    subtitle: "Capturas reales de un grupo jugando: uno hostea y el resto entra por la sala.",
+    items: [
+      {
+        title: "Tus amigos entran por la sala",
+        text: "Conectados al servidor de quien hostea, con los mods del servidor ya sincronizados.",
+        alt: "Pass the host de un amigo conectado a la sala, con la dirección localhost:25565 y los mods al día",
+      },
+      {
+        title: "Mods para cada lado",
+        text: "Distingue los mods del cliente, del servidor y de ambos, y avisa si alguno no es compatible.",
+        alt: "Gestor de mods de un servidor Fabric con la lista de mods instalados",
+      },
+      {
+        title: "Todo queda en tu nube",
+        text: "Al cerrar el servidor, los cambios se suben solos para que otro lo pueda abrir.",
+        alt: "Diálogo de subida a la nube con el progreso en Pass the host",
+      },
+      {
+        title: "Quién hosteó y cuánto",
+        text: "El historial de sesiones de cada servidor, con el tiempo total de juego.",
+        alt: "Estadísticas de un servidor con el tiempo total y el historial de sesiones",
+      },
+    ],
+  },
   storage: {
     title: "Tu nube, tus datos",
     subtitle:
@@ -282,6 +308,32 @@ const en: typeof es = {
       },
     ],
     screenshotAlt: "Dialog for creating a new server in Pass the host",
+  },
+  gallery: {
+    title: "A look inside",
+    subtitle: "Real screenshots of a group playing: one hosts and the rest join through the room.",
+    items: [
+      {
+        title: "Friends join through the room",
+        text: "Connected to whoever is hosting, with the server's mods already synced.",
+        alt: "A friend's Pass the host connected to the room, with the address localhost:25565 and the mods up to date",
+      },
+      {
+        title: "Mods for each side",
+        text: "Tells client, server and both-sides mods apart, and warns when one doesn't fit.",
+        alt: "Mods manager of a Fabric server listing the installed mods",
+      },
+      {
+        title: "Everything stays in your cloud",
+        text: "When you close the server, the changes upload on their own so someone else can open it.",
+        alt: "Cloud upload dialog with its progress in Pass the host",
+      },
+      {
+        title: "Who hosted, and for how long",
+        text: "Each server's session history, with the total playtime.",
+        alt: "Server statistics with the total playtime and the session history",
+      },
+    ],
   },
   storage: {
     title: "Your cloud, your data",
