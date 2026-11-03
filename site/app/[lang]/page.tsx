@@ -49,6 +49,13 @@ const featureIcons = [
   LuChartColumn,
 ];
 
+const galleryImages = [
+  "/pass-the-host-friend-connected.png",
+  "/pass-the-host-mods.png",
+  "/pass-the-host-cloud-sync.png",
+  "/pass-the-host-statistics.png",
+];
+
 const providers = [
   "Cloudflare R2",
   "AWS S3",
@@ -122,6 +129,7 @@ export default async function PassTheHostPage({
         screenshot: [
           `${SITE_URL}/pass-the-host-home.png`,
           `${SITE_URL}/pass-the-host-create-server.png`,
+          ...galleryImages.map((src) => `${SITE_URL}${src}`),
         ],
         inLanguage: lang,
         license: "https://opensource.org/license/mit",
@@ -330,6 +338,33 @@ export default async function PassTheHostPage({
               className="w-full h-auto"
             />
           </figure>
+        </div>
+      </section>
+
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-24">
+        <h2 className="text-3xl sm:text-4xl font-bold text-[#EAEAEA]">
+          {t.gallery.title}
+        </h2>
+        <p className="mt-3 text-[#A1A1AA] max-w-2xl">{t.gallery.subtitle}</p>
+        <div className="mt-12 grid gap-10 md:grid-cols-2">
+          {t.gallery.items.map((item, i) => (
+            <figure key={item.title}>
+              <div className="overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/40">
+                <Image
+                  src={galleryImages[i]}
+                  alt={item.alt}
+                  width={3840}
+                  height={2036}
+                  sizes="(min-width: 1152px) 544px, (min-width: 768px) 50vw, 100vw"
+                  className="w-full h-auto"
+                />
+              </div>
+              <figcaption className="mt-4">
+                <h3 className="font-semibold text-[#EAEAEA]">{item.title}</h3>
+                <p className="mt-1 text-sm text-[#A1A1AA]">{item.text}</p>
+              </figcaption>
+            </figure>
+          ))}
         </div>
       </section>
 
