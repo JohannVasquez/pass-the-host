@@ -1,11 +1,21 @@
 import { ipcMain, shell } from "electron";
 import type { ModFolder } from "@main/contexts/mods/domain/checkModCompatibility";
 import { ModSync, ClientMod, ClientModManifest } from "@main/contexts/mods/infrastructure/ModSync";
+import { DatapacksRepository } from "@main/contexts/mods/infrastructure/DatapacksRepository";
 import { ModsRepository } from "@main/contexts/mods/infrastructure/ModsRepository";
 
 export function registerModsIPCHandlers(): void {
   const repository = new ModsRepository();
   const sync = new ModSync(repository);
+  const datapacks = new DatapacksRepository();
+
+  ipcMain.handle("datapacks:list", (_event, serverId: string) => datapacks.list(serverId));
+  ipcMain.handle("datapacks:add", (_event, serverId: string, filePaths?: string[]) =>
+    datapacks.add(serverId, filePaths),
+  );
+  ipcMain.handle("datapacks:remove", (_event, serverId: string, name: string) =>
+    datapacks.remove(serverId, name),
+  );
 
   ipcMain.handle("mods:list", (_event, serverId: string) => repository.list(serverId));
   ipcMain.handle("mods:inspect", (_event, serverId: string, filePaths: string[]) =>

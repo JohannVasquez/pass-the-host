@@ -17,6 +17,7 @@ import type {
   TransferProgress,
 } from "@main/contexts/cloud-storage/domain/entities";
 import { FileSystemError } from "@shared/domain/errors";
+import { withKnownTotal } from "@main/contexts/cloud-storage/domain/utils/withKnownTotal";
 
 const MANIFEST_VERSION = 1;
 const MANIFEST_ALGORITHM = "sha1" as const;
@@ -134,7 +135,8 @@ export class S3SyncService implements IS3SyncService {
     const remoteManifest = (await this.remoteRepository.readManifest(config, serverId)) ||
       this.createManifest([]);
     const diff = this.diffManifests(localManifest, remoteManifest);
-    const filesToUpload = [...diff.newFiles, ...diff.modifiedFiles].map((file) => file.path);
+    const changed = [...diff.newFiles, ...diff.modifiedFiles];
+    const filesToUpload = changed.map((file) => file.path);
     const deletedRemoteFiles = diff.deletedFiles.map((file) => file.path);
 
     await this.remoteRepository.uploadFiles(
@@ -142,7 +144,7 @@ export class S3SyncService implements IS3SyncService {
       serverId,
       filesToUpload,
       localServerPath,
-      onProgress,
+      withKnownTotal(totalSize(changed), onProgress),
     );
     await this.remoteRepository.deleteFiles(config, serverId, deletedRemoteFiles);
     await this.remoteRepository.uploadManifest(config, serverId, localManifest);
@@ -181,14 +183,15 @@ export class S3SyncService implements IS3SyncService {
 
     const localManifest = await this.buildLocalManifest(serverId);
     const diff = this.diffManifests(remoteManifest, localManifest);
-    const filesToDownload = [...diff.newFiles, ...diff.modifiedFiles].map((file) => file.path);
+    const changed = [...diff.newFiles, ...diff.modifiedFiles];
+    const filesToDownload = changed.map((file) => file.path);
 
     await this.remoteRepository.downloadFiles(
       config,
       serverId,
       filesToDownload,
       localServerPath,
-      onProgress,
+      withKnownTotal(totalSize(changed), onProgress),
     );
 
     for (const file of diff.deletedFiles) {
@@ -325,4 +328,8 @@ export class S3SyncService implements IS3SyncService {
       cursor = path.dirname(cursor);
     }
   }
+}
+
+function totalSize(files: ServerManifestFileEntry[]): number {
+  return files.reduce((sum, file) => sum + file.size, 0);
 }

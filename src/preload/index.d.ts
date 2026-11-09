@@ -1,6 +1,10 @@
 import { ElectronAPI } from "@electron-toolkit/preload";
 import type { TokenRequest } from "ably";
 import type {
+  AddDatapacksResult,
+  DatapacksList,
+} from "../main/contexts/mods/infrastructure/DatapacksRepository";
+import type {
   AddModsResult,
   ModItem,
   ModsList,
@@ -251,6 +255,9 @@ interface P2PAPI {
 }
 
 interface ModsAPI {
+  listDatapacks: (serverId: string) => Promise<DatapacksList>;
+  addDatapacks: (serverId: string, filePaths?: string[]) => Promise<AddDatapacksResult>;
+  removeDatapack: (serverId: string, name: string) => Promise<boolean>;
   list: (serverId: string) => Promise<ModsList>;
   inspect: (serverId: string, filePaths: string[]) => Promise<ModItem[]>;
   add: (serverId: string, filePaths?: string[]) => Promise<AddModsResult>;
@@ -294,6 +301,8 @@ export type {
   P2PGroup,
   P2PMember,
   TurnConfig,
+  AddDatapacksResult,
+  DatapacksList,
   AddModsResult,
   ModItem,
   ModsList,
