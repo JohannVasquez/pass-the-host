@@ -2253,7 +2253,10 @@ function AppContent(): React.JSX.Element {
             <Tabs
               value={configTab}
               onChange={(_, tab) => setConfigTab(tab)}
-              sx={{ px: 2.5, borderBottom: 1, borderColor: "divider" }}
+              variant="scrollable"
+              scrollButtons="auto"
+              allowScrollButtonsMobile
+              sx={{ px: 1, borderBottom: 1, borderColor: "divider" }}
             >
               <Tab label={t("s3Configuration.title")} />
               <Tab label={t("network.title")} />
