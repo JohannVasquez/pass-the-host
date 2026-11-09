@@ -31,8 +31,9 @@ import {
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 import { surface } from "@renderer/theme";
-import type { ModsList } from "@preload/index.d";
+import type { DatapacksList, ModsList } from "@preload/index.d";
 import { ModsManager } from "./ModsManager";
+import { DatapacksManager } from "./DatapacksManager";
 
 type Field =
   | { key: string; type: "select"; options: string[] }
@@ -277,6 +278,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
   const [confirmAction, setConfirmAction] = React.useState<"import" | "reset" | null>(null);
   const [activeSection, setActiveSection] = React.useState("general");
   const [modsList, setModsList] = React.useState<ModsList | null>(null);
+  const [datapacksList, setDatapacksList] = React.useState<DatapacksList | null>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const [notice, setNotice] = React.useState<{
     severity: "success" | "warning";
@@ -290,6 +292,11 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     setRegenerate(false);
     setNotice(null);
     setModsList(null);
+    setDatapacksList(null);
+    window.modsAPI
+      .listDatapacks(serverId)
+      .then(setDatapacksList)
+      .catch(() => setDatapacksList(null));
     // Vanilla servers (or a failed read) simply get no mods section
     window.modsAPI
       .list(serverId)
@@ -488,6 +495,11 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
       fields: [],
     });
   }
+  // Datapacks are plain vanilla: every engine gets them, right after mods/plugins (or "world")
+  sections.splice(sections.findIndex((s) => s.id === (showMods ? modsSectionId : "world")) + 1, 0, {
+    id: "datapacks",
+    fields: [],
+  });
 
   const handleScroll = (): void => {
     const container = scrollRef.current;
@@ -599,6 +611,15 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
               list={modsList}
               isRunning={isRunning}
               onListChange={setModsList}
+              onSaved={onSaved}
+            />
+          )}
+          {id === "datapacks" && datapacksList && serverId && (
+            <DatapacksManager
+              serverId={serverId}
+              list={datapacksList}
+              isRunning={isRunning}
+              onListChange={setDatapacksList}
               onSaved={onSaved}
             />
           )}

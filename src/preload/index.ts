@@ -2,6 +2,10 @@ import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { electronAPI } from "@electron-toolkit/preload";
 import type { TokenRequest } from "ably";
 import type {
+  AddDatapacksResult,
+  DatapacksList,
+} from "../main/contexts/mods/infrastructure/DatapacksRepository";
+import type {
   AddModsResult,
   ModItem,
   ModsList,
@@ -382,6 +386,12 @@ const p2pAPI = {
 };
 
 const modsAPI = {
+  listDatapacks: (serverId: string): Promise<DatapacksList> =>
+    ipcRenderer.invoke("datapacks:list", serverId),
+  addDatapacks: (serverId: string, filePaths?: string[]): Promise<AddDatapacksResult> =>
+    ipcRenderer.invoke("datapacks:add", serverId, filePaths),
+  removeDatapack: (serverId: string, name: string): Promise<boolean> =>
+    ipcRenderer.invoke("datapacks:remove", serverId, name),
   list: (serverId: string): Promise<ModsList> => ipcRenderer.invoke("mods:list", serverId),
   inspect: (serverId: string, filePaths: string[]): Promise<ModItem[]> =>
     ipcRenderer.invoke("mods:inspect", serverId, filePaths),
