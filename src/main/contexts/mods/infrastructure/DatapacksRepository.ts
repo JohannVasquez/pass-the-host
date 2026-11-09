@@ -66,21 +66,17 @@ export class DatapacksRepository {
       files = picked;
     }
 
-    const taken = new Set(
-      fs.existsSync(dir) ? fs.readdirSync(dir).map((n) => n.toLowerCase()) : [],
-    );
     const result = { added: [] as string[], rejected: [] as string[] };
     for (const filePath of files) {
-      const original = path.basename(filePath);
+      const name = path.basename(filePath);
       if (!isDatapackZip(filePath)) {
-        result.rejected.push(original);
+        result.rejected.push(name);
         continue;
       }
       await fs.promises.mkdir(dir, { recursive: true });
-      const name = uniqueName(original, taken);
+      // Same file name = same pack: replace it, a second copy would load twice
       await fs.promises.copyFile(filePath, path.join(dir, name));
-      taken.add(name.toLowerCase());
-      result.added.push(name);
+      if (!result.added.includes(name)) result.added.push(name);
     }
     if (result.added.length > 0) this.markLocalChanges(serverId);
     return result;
@@ -165,14 +161,4 @@ function isDatapackZip(filePath: string): boolean {
 function withParent<T>(show: (win: BrowserWindow) => Promise<T>): Promise<T> {
   const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
   return show(win);
-}
-
-/** "a.zip" -> "a-1.zip" -> "a-2.zip" until it doesn't collide (case-insensitive) */
-function uniqueName(fileName: string, taken: Set<string>): string {
-  if (!taken.has(fileName.toLowerCase())) return fileName;
-  const base = fileName.replace(/\.zip$/i, "");
-  for (let i = 1; ; i++) {
-    const candidate = `${base}-${i}.zip`;
-    if (!taken.has(candidate.toLowerCase())) return candidate;
-  }
 }
