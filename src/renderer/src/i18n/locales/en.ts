@@ -367,7 +367,8 @@ export const en = {
         sendTest: "Send test message",
         testSent: "Test message sent to Discord.",
         testFailed: "Could not send the test message.",
-        saveFailed: "Could not save the Discord settings.",
+        language: "Message language",
+        languageHint: "Language of the online/stopped and join/leave notices. Chat is sent as written.",
       },
       sections: {
         general: "General",

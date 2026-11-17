@@ -15,9 +15,9 @@ export class DiscordIPCHandlers {
   ) {}
 
   register(): void {
-    ipcMain.handle("discord:send-test", async (_event, url: string) => {
+    ipcMain.handle("discord:send-test", async (_event, url: string, language?: unknown) => {
       if (typeof url !== "string") return { ok: false, error: "invalid_url" };
-      return this.sendTest.execute(url);
+      return this.sendTest.execute(url, typeof language === "string" ? language : undefined);
     });
 
     ipcMain.handle(

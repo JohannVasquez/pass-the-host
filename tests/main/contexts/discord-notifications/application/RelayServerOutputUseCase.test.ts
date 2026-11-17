@@ -79,6 +79,17 @@ describe("RelayServerOutputUseCase", () => {
     expect(b.webhooks.enqueue.mock.calls[0][1].content).toContain("exit code 1");
   });
 
+  it("writes notices in the configured language, English when unset", async () => {
+    const es = setup({ webhook_url: URL_, language: "es" });
+    es.uc.onExit("s1", 0);
+    await flush();
+    expect(es.webhooks.enqueue.mock.calls[0][1].content).toBe("🔴 **Server s1** se detuvo");
+    const en = setup({ webhook_url: URL_ });
+    en.uc.onExit("s1", 0);
+    await flush();
+    expect(en.webhooks.enqueue.mock.calls[0][1].content).toBe("🔴 **Server s1** stopped");
+  });
+
   it("does not load settings for non-event lines", async () => {
     const { load, uc } = setup({ webhook_url: URL_ });
     uc.onOutput("s1", "stderr", "[01:00:00] [Server thread/INFO]: Preparing level\n");
@@ -111,5 +122,12 @@ describe("SendDiscordTestMessageUseCase", () => {
     });
     sendNow.mockResolvedValue(undefined);
     expect(await uc.execute(URL_)).toEqual({ ok: true });
+  });
+
+  it("sends the test text in the given language", async () => {
+    const sendNow = vi.fn().mockResolvedValue(undefined);
+    const uc = new SendDiscordTestMessageUseCase({ enqueue: vi.fn(), sendNow });
+    await uc.execute(URL_, "de");
+    expect(sendNow.mock.calls[0][1].content).toBe("✅ Pass the host ist mit diesem Kanal verbunden.");
   });
 });

@@ -13,6 +13,7 @@ import {
   sanitizeMentions,
   truncate,
 } from "@main/contexts/discord-notifications/domain/serverLog";
+import { discordMessages } from "@main/contexts/discord-notifications/domain/messages";
 
 const BOT_NAME = "Pass the host";
 // Served from R2 (media.jvdev.cl); Discord caches avatars, so this is fetched rarely
@@ -78,6 +79,7 @@ export class RelayServerOutputUseCase {
     if (!enabled) return;
 
     const server = this.serverName(serverId);
+    const m = discordMessages(s?.language);
     let content: string;
     let username = BOT_NAME;
     let avatar = BOT_AVATAR;
@@ -91,19 +93,19 @@ export class RelayServerOutputUseCase {
         break;
       }
       case "started":
-        content = `🟢 **${server}** is online`;
+        content = m.online(server);
         break;
       case "stopped":
         content =
           event.code !== null && event.code !== 0
-            ? `⚠️ **${server}** stopped unexpectedly (exit code ${event.code})`
-            : `🔴 **${server}** stopped`;
+            ? m.crashed(server, event.code)
+            : m.stopped(server);
         break;
       case "joined":
-        content = `➡️ **${event.player}** joined **${server}**`;
+        content = m.joined(event.player, server);
         break;
       case "left":
-        content = `⬅️ **${event.player}** left **${server}**`;
+        content = m.left(event.player, server);
         break;
     }
     this.webhooks.enqueue(url, {
@@ -124,12 +126,12 @@ export type DiscordTestResult =
 export class SendDiscordTestMessageUseCase {
   constructor(private webhooks: IDiscordWebhookRepository) {}
 
-  async execute(url: string): Promise<DiscordTestResult> {
+  async execute(url: string, language?: string): Promise<DiscordTestResult> {
     const trimmed = url.trim();
     if (!isValidWebhookUrl(trimmed)) return { ok: false, error: "invalid_url" };
     try {
       await this.webhooks.sendNow(trimmed, {
-        content: "✅ Pass the host is connected to this channel.",
+        content: discordMessages(language).test(),
         username: BOT_NAME,
         avatar_url: BOT_AVATAR,
         allowed_mentions: { parse: [] },
