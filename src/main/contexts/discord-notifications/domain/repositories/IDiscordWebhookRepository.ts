@@ -1,6 +1,7 @@
 export interface DiscordWebhookPayload {
   content: string;
   username?: string;
+  avatar_url?: string;
   allowed_mentions: { parse: [] };
 }
 
