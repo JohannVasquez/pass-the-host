@@ -34,6 +34,7 @@ import { surface } from "@renderer/theme";
 import type { DatapacksList, ModsList } from "@preload/index.d";
 import { ModsManager } from "./ModsManager";
 import { DatapacksManager } from "./DatapacksManager";
+import { DiscordSettings } from "./DiscordSettings";
 
 type Field =
   | { key: string; type: "select"; options: string[] }
@@ -500,6 +501,8 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     id: "datapacks",
     fields: [],
   });
+  // Last: the webhook settings travel with the server
+  if (serverId) sections.push({ id: "discord", fields: [] });
 
   const handleScroll = (): void => {
     const container = scrollRef.current;
@@ -613,6 +616,14 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
               onListChange={setModsList}
               onSaved={onSaved}
             />
+          )}
+          {id === "discord" && serverId && (
+            <>
+              <Typography variant="caption" color="text.secondary">
+                {t("editServer.discord.hint")}
+              </Typography>
+              <DiscordSettings serverId={serverId} />
+            </>
           )}
           {id === "datapacks" && datapacksList && serverId && (
             <DatapacksManager
