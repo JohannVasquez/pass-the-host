@@ -36,6 +36,7 @@ describe("RelayServerOutputUseCase", () => {
     expect(url).toBe(URL_);
     expect(load).toHaveBeenCalledWith("s1");
     expect(payload.username).toBe("Steve");
+    expect(payload.avatar_url).toBe("https://mc-heads.net/avatar/Steve/128");
     expect(payload.content).not.toContain("@everyone");
     expect(payload.allowed_mentions).toEqual({ parse: [] });
   });
@@ -47,6 +48,8 @@ describe("RelayServerOutputUseCase", () => {
     expect(webhooks.enqueue.mock.calls[0][1]).toMatchObject({
       username: "Pass the host",
       content: "**Clyde**: yo",
+      // Still the player's own head, only the name falls back
+      avatar_url: "https://mc-heads.net/avatar/Clyde/128",
     });
   });
 
@@ -67,6 +70,9 @@ describe("RelayServerOutputUseCase", () => {
     a.uc.onExit("s1", 0);
     await flush();
     expect(a.webhooks.enqueue.mock.calls[0][1].content).toContain("stopped");
+    expect(a.webhooks.enqueue.mock.calls[0][1].avatar_url).toBe(
+      "https://media.jvdev.cl/icon/discord-avatar.png",
+    );
     const b = setup({ webhook_url: URL_ });
     b.uc.onExit("s1", 1);
     await flush();

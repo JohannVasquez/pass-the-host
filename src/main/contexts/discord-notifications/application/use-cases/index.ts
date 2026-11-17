@@ -15,6 +15,10 @@ import {
 } from "@main/contexts/discord-notifications/domain/serverLog";
 
 const BOT_NAME = "Pass the host";
+// Served from R2 (media.jvdev.cl); Discord caches avatars, so this is fetched rarely
+const BOT_AVATAR = "https://media.jvdev.cl/icon/discord-avatar.png";
+// Skin head by player name (player names are already [A-Za-z0-9_]); unknown names get Steve
+const playerAvatar = (player: string): string => `https://mc-heads.net/avatar/${player}/128`;
 
 export class RelayServerOutputUseCase {
   private buffers = new Map<string, LineBuffer>();
@@ -76,11 +80,13 @@ export class RelayServerOutputUseCase {
     const server = this.serverName(serverId);
     let content: string;
     let username = BOT_NAME;
+    let avatar = BOT_AVATAR;
     switch (event.type) {
       case "chat": {
         const msg = sanitizeMentions(event.message);
         const name = discordUsername(event.player);
         if (name) username = name;
+        avatar = playerAvatar(event.player);
         content = truncate(name ? msg : `**${event.player}**: ${msg}`);
         break;
       }
@@ -100,7 +106,12 @@ export class RelayServerOutputUseCase {
         content = `⬅️ **${event.player}** left **${server}**`;
         break;
     }
-    this.webhooks.enqueue(url, { content, username, allowed_mentions: { parse: [] } });
+    this.webhooks.enqueue(url, {
+      content,
+      username,
+      avatar_url: avatar,
+      allowed_mentions: { parse: [] },
+    });
   }
 }
 
@@ -120,6 +131,7 @@ export class SendDiscordTestMessageUseCase {
       await this.webhooks.sendNow(trimmed, {
         content: "✅ Pass the host is connected to this channel.",
         username: BOT_NAME,
+        avatar_url: BOT_AVATAR,
         allowed_mentions: { parse: [] },
       });
       return { ok: true };
