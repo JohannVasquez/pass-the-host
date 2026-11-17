@@ -3,6 +3,7 @@ import {
   Button,
   CircularProgress,
   FormControlLabel,
+  MenuItem,
   Stack,
   Switch,
   TextField,
@@ -10,70 +11,29 @@ import {
 } from "@mui/material";
 import { useSnackbar } from "notistack";
 import { useTranslation } from "react-i18next";
+import { LANGUAGES } from "@renderer/i18n/config";
+import { isValidWebhookUrl } from "./discordWebhook";
 import { monoFont } from "@renderer/theme";
 import type { DiscordConfigData } from "@preload/index.d";
 
-const DISCORD_HOSTS = ["discord.com", "discordapp.com", "ptb.discord.com", "canary.discord.com"];
+interface DiscordSettingsProps {
+  value: DiscordConfigData;
+  onChange: (next: DiscordConfigData) => void;
+}
 
-// Same rule as the main-process relay, which re-validates before sending.
-const isValidWebhookUrl = (value: string): boolean => {
-  try {
-    const url = new URL(value);
-    return (
-      url.protocol === "https:" &&
-      DISCORD_HOSTS.includes(url.hostname) &&
-      /^\/api\/webhooks\/[^/]+\/[^/]+/.test(url.pathname)
-    );
-  } catch {
-    return false;
-  }
-};
-
-export const DiscordSettings: React.FC<{ serverId: string }> = ({ serverId }) => {
+export const DiscordSettings: React.FC<DiscordSettingsProps> = ({ value, onChange }) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
-  const [settings, setSettings] = React.useState<DiscordConfigData>({
-    webhook_url: "",
-    relay_chat: true,
-    notify_status: true,
-    notify_joins: false,
-  });
   const [sending, setSending] = React.useState(false);
 
-  React.useEffect(() => {
-    let cancelled = false;
-    window.discordAPI
-      .getSettings(serverId)
-      .then((loaded) => {
-        if (!cancelled) setSettings(loaded);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [serverId]);
-
-  const url = settings.webhook_url.trim();
+  const url = value.webhook_url.trim();
   const valid = isValidWebhookUrl(url);
   const showError = url !== "" && !valid;
-
-  const save = async (next: DiscordConfigData): Promise<void> => {
-    setSettings(next);
-    try {
-      await window.discordAPI.saveSettings(serverId, next);
-    } catch {
-      enqueueSnackbar(t("editServer.discord.saveFailed"), { variant: "error" });
-    }
-  };
-
-  const saveUrl = (): void => {
-    if (url === "" || valid) void save({ ...settings, webhook_url: url });
-  };
 
   const sendTest = async (): Promise<void> => {
     setSending(true);
     try {
-      const result = await window.discordAPI.sendTest(url);
+      const result = await window.discordAPI.sendTest(url, value.language);
       enqueueSnackbar(
         result.ok ? t("editServer.discord.testSent") : t("editServer.discord.testFailed"),
         { variant: result.ok ? "success" : "error" },
@@ -95,9 +55,9 @@ export const DiscordSettings: React.FC<{ serverId: string }> = ({ serverId }) =>
         control={
           <Switch
             size="small"
-            checked={settings[key]}
+            checked={value[key]}
             disabled={!valid}
-            onChange={(e) => void save({ ...settings, [key]: e.target.checked })}
+            onChange={(e) => onChange({ ...value, [key]: e.target.checked })}
           />
         }
         label={<Typography variant="body2">{label}</Typography>}
@@ -113,10 +73,8 @@ export const DiscordSettings: React.FC<{ serverId: string }> = ({ serverId }) =>
       <TextField
         label={t("editServer.discord.webhookUrl")}
         placeholder="https://discord.com/api/webhooks/…"
-        value={settings.webhook_url}
-        onChange={(e) => setSettings({ ...settings, webhook_url: e.target.value })}
-        onBlur={saveUrl}
-        onKeyDown={(e) => e.key === "Enter" && saveUrl()}
+        value={value.webhook_url}
+        onChange={(e) => onChange({ ...value, webhook_url: e.target.value })}
         error={showError}
         helperText={showError ? t("editServer.discord.invalidUrl") : t("editServer.discord.webhookHelp")}
         size="small"
@@ -135,6 +93,21 @@ export const DiscordSettings: React.FC<{ serverId: string }> = ({ serverId }) =>
         t("editServer.discord.notifyJoins"),
         t("editServer.discord.notifyJoinsHint"),
       )}
+      <TextField
+        select
+        size="small"
+        label={t("editServer.discord.language")}
+        helperText={t("editServer.discord.languageHint")}
+        value={value.language ?? "en"}
+        disabled={!valid}
+        onChange={(e) => onChange({ ...value, language: e.target.value })}
+      >
+        {LANGUAGES.map((l) => (
+          <MenuItem key={l.code} value={l.code}>
+            {l.name}
+          </MenuItem>
+        ))}
+      </TextField>
       <Stack direction="row" justifyContent="flex-end">
         <Button
           variant="outlined"

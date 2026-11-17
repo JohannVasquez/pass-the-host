@@ -372,7 +372,8 @@ export const ptBR: typeof en = {
         sendTest: "Enviar mensagem de teste",
         testSent: "Mensagem de teste enviada ao Discord.",
         testFailed: "Não foi possível enviar a mensagem de teste.",
-        saveFailed: "Não foi possível salvar as configurações do Discord.",
+        language: "Idioma das mensagens",
+        languageHint: "Idioma dos avisos de servidor online/parado e de entrada/saída de jogadores. O chat é enviado como foi escrito.",
       },
       sections: {
         general: "Geral",
