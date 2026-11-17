@@ -104,5 +104,8 @@ describe("helpers", () => {
     expect(discordUsername("Steve")).toBe("Steve");
     expect(discordUsername("xDiscordx")).toBeNull();
     expect(discordUsername("Clyde")).toBeNull();
+    expect(discordUsername("here")).toBeNull();
+    expect(discordUsername("Everyone")).toBeNull();
+    expect(discordUsername("hereford")).toBe("hereford");
   });
 });

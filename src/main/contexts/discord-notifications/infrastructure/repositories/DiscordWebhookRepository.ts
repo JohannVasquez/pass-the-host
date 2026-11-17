@@ -12,6 +12,8 @@ const MAX_RETRY_AFTER_MS = 60_000;
 interface Job {
   url: string;
   payload: DiscordWebhookPayload;
+  /** Test messages still try a webhook marked dead */
+  force: boolean;
   resolve: () => void;
   reject: (e: Error) => void;
 }
@@ -19,6 +21,8 @@ interface Job {
 export class DiscordWebhookRepository implements IDiscordWebhookRepository {
   private queue: Job[] = [];
   private running = false;
+  // Discord docs: stop using a webhook that answers 401/403/404, repeated invalid requests get the IP restricted
+  private dead = new Set<string>();
 
   constructor(
     private fetchFn: typeof fetch = (...a) => fetch(...a),
@@ -27,21 +31,21 @@ export class DiscordWebhookRepository implements IDiscordWebhookRepository {
   ) {}
 
   enqueue(url: string, payload: DiscordWebhookPayload): void {
-    this.push(url, payload).catch(() => {});
+    this.push(url, payload, false).catch(() => {});
   }
 
   sendNow(url: string, payload: DiscordWebhookPayload): Promise<void> {
-    return this.push(url, payload);
+    return this.push(url, payload, true);
   }
 
-  private push(url: string, payload: DiscordWebhookPayload): Promise<void> {
+  private push(url: string, payload: DiscordWebhookPayload, force: boolean): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       if (this.queue.length >= MAX_PENDING) {
         const dropped = this.queue.shift();
         dropped?.reject(new Error("Discord queue full"));
         logger.warn("Discord webhook queue full, dropping oldest message");
       }
-      this.queue.push({ url, payload, resolve, reject });
+      this.queue.push({ url, payload, force, resolve, reject });
       void this.drain();
     });
   }
@@ -52,6 +56,10 @@ export class DiscordWebhookRepository implements IDiscordWebhookRepository {
     try {
       let job: Job | undefined;
       while ((job = this.queue.shift())) {
+        if (!job.force && this.dead.has(job.url)) {
+          job.reject(new Error("Discord webhook is no longer valid"));
+          continue;
+        }
         try {
           await this.deliver(job);
           job.resolve();
@@ -80,7 +88,15 @@ export class DiscordWebhookRepository implements IDiscordWebhookRepository {
         logger.warn(`Discord webhook request failed (${reason})`);
         throw new Error("Network error contacting Discord");
       }
-      if (res.ok) return;
+      if (res.ok) {
+        this.dead.delete(job.url);
+        return;
+      }
+      if (res.status === 401 || res.status === 403 || res.status === 404) {
+        this.dead.add(job.url);
+        logger.warn(`Discord webhook rejected (HTTP ${res.status}): paused until it is changed or tested`);
+        throw new Error(`Discord responded with HTTP ${res.status}`);
+      }
       if (res.status === 429 && attempt < MAX_RETRIES) {
         await this.sleep(await this.retryAfterMs(res));
         continue;

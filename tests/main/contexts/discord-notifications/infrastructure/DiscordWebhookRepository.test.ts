@@ -51,6 +51,25 @@ describe("DiscordWebhookRepository", () => {
     await expect(repo.sendNow(URL_, payload)).rejects.toThrow(/404/);
   });
 
+  it("stops using a webhook that answered 404 until a test succeeds", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(res(404))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    const repo = new DiscordWebhookRepository(fetchFn as never, vi.fn());
+    const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 10));
+    repo.enqueue(URL_, payload);
+    await flush();
+    repo.enqueue(URL_, payload);
+    await flush();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    await repo.sendNow(URL_, payload); // the test button still tries, and revives it
+    repo.enqueue(URL_, payload);
+    await flush();
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
   it("serializes requests", async () => {
     let release!: () => void;
     const first = new Promise<Response>((r) => {

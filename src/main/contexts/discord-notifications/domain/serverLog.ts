@@ -81,5 +81,6 @@ export function isValidWebhookUrl(url: string): boolean {
 }
 
 export function discordUsername(player: string): string | null {
-  return /discord|clyde/i.test(player) ? null : player;
+  // Discord rejects these webhook names: substrings discord/clyde, exact everyone/here
+  return /discord|clyde/i.test(player) || /^(everyone|here)$/i.test(player) ? null : player;
 }
