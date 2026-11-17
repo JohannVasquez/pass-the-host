@@ -78,6 +78,23 @@ interface AppConfigData {
   };
 }
 
+interface DiscordConfigData {
+  webhook_url: string;
+  relay_chat: boolean;
+  notify_status: boolean;
+  notify_joins: boolean;
+}
+
+type DiscordTestResult =
+  | { ok: true }
+  | { ok: false; error: "invalid_url" | "failed"; detail?: string };
+
+interface DiscordAPI {
+  getSettings: (serverId: string) => Promise<DiscordConfigData>;
+  saveSettings: (serverId: string, settings: DiscordConfigData) => Promise<void>;
+  sendTest: (url: string) => Promise<DiscordTestResult>;
+}
+
 interface ConfigAPI {
   loadConfig: () => Promise<AppConfigData | null>;
   saveS3Config: (s3Config: S3ConfigType) => Promise<boolean>;
@@ -294,10 +311,13 @@ declare global {
     notificationAPI: NotificationAPI;
     p2pAPI: P2PAPI;
     modsAPI: ModsAPI;
+    discordAPI: DiscordAPI;
   }
 }
 
 export type {
+  DiscordConfigData,
+  DiscordTestResult,
   P2PGroup,
   P2PMember,
   TurnConfig,

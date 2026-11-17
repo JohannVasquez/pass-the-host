@@ -35,6 +35,23 @@ The application currently includes:
 - RAM, network, username, language, and server parameter configuration.
 - Java runtime download/management based on Minecraft version.
 
+## Discord
+
+Pass the host can relay your server to a Discord channel through a webhook.
+
+1. In Discord: Edit channel → Integrations → Webhooks → New webhook → Copy webhook URL.
+2. In the app: Edit server → Discord. Paste the URL, choose what to send and press "Send test message".
+
+The settings are per server and saved with it (in its `server_info.json`, which syncs with the server), so any friend who hosts the server posts to the same channel. This also means the webhook URL is visible to anyone with access to the server files or the bucket: treat it like a password and regenerate the webhook in Discord if it leaks.
+
+What gets sent:
+
+- Player chat messages.
+- Optional notices when the server goes online or offline.
+- Optional notices when players join or leave (off by default).
+
+`@everyone` and `@here` cannot be triggered from Minecraft chat. Leave the URL empty to disable the integration.
+
 ## How to run the project
 
 ### 1) Install dependencies
