@@ -381,6 +381,12 @@ function AppContent(): React.JSX.Element {
     serverStatus === ServerStatus.STOPPED && selectedSyncsToCloud,
   );
 
+  // The lock notice belongs to the server it was read for: the monitor only reports changes,
+  // so a free server selected next would otherwise keep showing the previous one's owner
+  React.useEffect(() => {
+    setLockedServerInfo({ username: "", startedAt: "" });
+  }, [selectedServer]);
+
   React.useEffect(() => {
     const unsubscribe = window.serverAPI.onProcessExit(({ serverId, code }) => {
       if (!selectedServer || serverId !== selectedServer) {
