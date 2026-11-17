@@ -373,7 +373,8 @@ export const de: typeof en = {
         sendTest: "Testnachricht senden",
         testSent: "Testnachricht an Discord gesendet.",
         testFailed: "Die Testnachricht konnte nicht gesendet werden.",
-        saveFailed: "Die Discord-Einstellungen konnten nicht gespeichert werden.",
+        language: "Sprache der Nachrichten",
+        languageHint: "Sprache der Hinweise zu online/gestoppt sowie Beitreten/Verlassen. Der Chat wird unverändert gesendet.",
       },
       sections: {
         general: "Allgemein",

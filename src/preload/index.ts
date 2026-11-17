@@ -126,6 +126,7 @@ interface DiscordConfigData {
   relay_chat: boolean;
   notify_status: boolean;
   notify_joins: boolean;
+  language?: string;
 }
 
 type DiscordTestResult =
@@ -161,8 +162,8 @@ const discordAPI = {
     ipcRenderer.invoke("discord:get-settings", serverId),
   saveSettings: (serverId: string, settings: DiscordConfigData): Promise<void> =>
     ipcRenderer.invoke("discord:save-settings", serverId, settings),
-  sendTest: (url: string): Promise<DiscordTestResult> =>
-    ipcRenderer.invoke("discord:send-test", url),
+  sendTest: (url: string, language?: string): Promise<DiscordTestResult> =>
+    ipcRenderer.invoke("discord:send-test", url, language),
 };
 
 interface ServerStatistics {

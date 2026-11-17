@@ -374,7 +374,8 @@ export const fr: typeof en = {
         sendTest: "Envoyer un message de test",
         testSent: "Message de test envoyé à Discord.",
         testFailed: "Impossible d'envoyer le message de test.",
-        saveFailed: "Impossible d'enregistrer les paramètres Discord.",
+        language: "Langue des messages",
+        languageHint: "Langue des notifications serveur en ligne/arrêté et arrivées/départs. Le chat est envoyé tel quel.",
       },
       sections: {
         general: "Général",

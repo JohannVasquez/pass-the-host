@@ -31,10 +31,12 @@ import {
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 import { surface } from "@renderer/theme";
-import type { DatapacksList, ModsList } from "@preload/index.d";
+import { LANGUAGES } from "@renderer/i18n/config";
+import type { DatapacksList, DiscordConfigData, ModsList } from "@preload/index.d";
 import { ModsManager } from "./ModsManager";
 import { DatapacksManager } from "./DatapacksManager";
 import { DiscordSettings } from "./DiscordSettings";
+import { isValidWebhookUrl } from "./discordWebhook";
 
 type Field =
   | { key: string; type: "select"; options: string[] }
@@ -266,7 +268,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
   onClose,
   onSaved,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [original, setOriginal] = React.useState<Record<string, string> | null>(null);
   const [values, setValues] = React.useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = React.useState(false);
@@ -274,6 +276,8 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
   const [fileMissing, setFileMissing] = React.useState(false);
   const [whitelist, setWhitelist] = React.useState<WhitelistEntry[]>([]);
   const [originalWhitelist, setOriginalWhitelist] = React.useState<WhitelistEntry[]>([]);
+  const [discord, setDiscord] = React.useState<DiscordConfigData | null>(null);
+  const [originalDiscord, setOriginalDiscord] = React.useState<DiscordConfigData | null>(null);
   const [regenerate, setRegenerate] = React.useState(false);
   const [worldBusy, setWorldBusy] = React.useState(false);
   const [confirmAction, setConfirmAction] = React.useState<"import" | "reset" | null>(null);
@@ -294,6 +298,21 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     setNotice(null);
     setModsList(null);
     setDatapacksList(null);
+    setDiscord(null);
+    setOriginalDiscord(null);
+    window.discordAPI
+      .getSettings(serverId)
+      .then((stored) => {
+        // Servers set up before the language option keep English; new setups follow the app
+        const appLanguage = LANGUAGES.some((l) => l.code === i18n.language) ? i18n.language : "en";
+        const loaded = {
+          ...stored,
+          language: stored.language ?? (stored.webhook_url ? "en" : appLanguage),
+        };
+        setDiscord(loaded);
+        setOriginalDiscord(loaded);
+      })
+      .catch(() => {});
     window.modsAPI
       .listDatapacks(serverId)
       .then(setDatapacksList)
@@ -322,16 +341,24 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     Object.entries(values).filter(([key, value]) => original?.[key] !== value),
   );
   const whitelistChanged = JSON.stringify(whitelist) !== JSON.stringify(originalWhitelist);
-  const hasChanges = Object.keys(changed).length > 0 || whitelistChanged;
+  const discordChanged = JSON.stringify(discord) !== JSON.stringify(originalDiscord);
+  const propsChanged = Object.keys(changed).length > 0 || whitelistChanged;
+  const hasChanges = propsChanged || discordChanged;
   const worldGenChanged = WORLD_GEN_KEYS.some((key) => key in changed);
   const invalidNumber = SECTIONS.some((s) =>
     s.fields.some(
       (f) => f.type === "number" && f.key in changed && !NUMBER_PATTERN.test(changed[f.key]),
     ),
   );
+  const invalidDiscord =
+    !!discord?.webhook_url.trim() && !isValidWebhookUrl(discord.webhook_url.trim());
 
   const handleSave = async (): Promise<void> => {
     if (!serverId) return;
+    if (!hasChanges) {
+      onClose();
+      return;
+    }
     setIsSaving(true);
     try {
       if (
@@ -355,7 +382,19 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
           values["level-name"],
         ]);
       }
-      onSaved(resetWorld ? "server.properties updated, world reset" : "server.properties updated");
+      if (discord && discordChanged) {
+        await window.discordAPI.saveSettings(serverId, {
+          ...discord,
+          webhook_url: discord.webhook_url.trim(),
+        });
+      }
+      if (propsChanged) {
+        onSaved(
+          resetWorld ? "server.properties updated, world reset" : "server.properties updated",
+        );
+      } else {
+        onSaved("Discord settings updated");
+      }
       onClose();
     } catch (e) {
       setError(String((e as Error)?.message ?? e));
@@ -622,7 +661,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
               <Typography variant="caption" color="text.secondary">
                 {t("editServer.discord.hint")}
               </Typography>
-              <DiscordSettings serverId={serverId} />
+              {discord && <DiscordSettings value={discord} onChange={setDiscord} />}
             </>
           )}
           {id === "datapacks" && datapacksList && serverId && (
@@ -743,7 +782,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
         <Button
           onClick={handleSave}
           variant="contained"
-          disabled={!hasChanges || invalidNumber || isSaving || worldBusy}
+          disabled={invalidNumber || invalidDiscord || isSaving || worldBusy}
         >
           {isSaving ? <CircularProgress size={20} color="inherit" /> : t("editServer.save")}
         </Button>

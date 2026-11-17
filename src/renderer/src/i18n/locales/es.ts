@@ -373,7 +373,8 @@ export const es = {
         sendTest: "Enviar mensaje de prueba",
         testSent: "Mensaje de prueba enviado a Discord.",
         testFailed: "No se pudo enviar el mensaje de prueba.",
-        saveFailed: "No se pudo guardar la configuración de Discord.",
+        language: "Idioma de los mensajes",
+        languageHint: "Idioma de los avisos de servidor en línea/detenido y de entradas/salidas. El chat se envía tal cual.",
       },
       sections: {
         general: "General",
