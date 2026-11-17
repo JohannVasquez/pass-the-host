@@ -5,6 +5,7 @@ import {
   getDefaultRelativeJavaPath,
   getJavaBinaryName,
   getRequiredJavaMajor,
+  pickJavaMajor,
   hasBundledJavaBinary,
 } from "@main/utils/javaRuntime";
 
@@ -58,5 +59,16 @@ describe("javaRuntime utilities", () => {
     expect(getRequiredJavaMajor("1.18.2")).toBe(17);
     expect(getRequiredJavaMajor("1.21.1")).toBe(21);
     expect(getRequiredJavaMajor("26.1")).toBe(25);
+  });
+
+  it("lets Mojang's declared Java raise the table but never lower it", () => {
+    // 1.17 declares 16 (no Apple Silicon build): the table's 17 wins
+    expect(pickJavaMajor("1.17.1", 16)).toBe(17);
+    expect(pickJavaMajor("1.16.5", 8)).toBe(11);
+    expect(pickJavaMajor("1.21.1", 21)).toBe(21);
+    // A future release needing a newer Java follows Mojang without an app update
+    expect(pickJavaMajor("26.3", 29)).toBe(29);
+    // Offline or unknown version: the table alone
+    expect(pickJavaMajor("1.20.4", null)).toBe(21);
   });
 });

@@ -52,3 +52,11 @@ export function getRequiredJavaMajor(minecraftVersion: string): number {
   // Unknown / pre-1.7 versions keep the previous default
   return 21;
 }
+
+/**
+ * Mojang's declared Java is a minimum (1.17 says 16, which has no Apple Silicon build), so it can
+ * only raise the table: a future version needing a newer Java works without an app update.
+ */
+export function pickJavaMajor(minecraftVersion: string, declaredByMojang: number | null): number {
+  return Math.max(getRequiredJavaMajor(minecraftVersion), declaredByMojang ?? 0);
+}
