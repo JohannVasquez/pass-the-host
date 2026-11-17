@@ -29,7 +29,7 @@ export class GetInstalledJavaVersionsUseCase {
 export class GetRequiredJavaVersionUseCase {
   constructor(private repository: ISystemResourcesRepository) {}
 
-  execute(minecraftVersion: string): JavaRequirement {
+  execute(minecraftVersion: string): Promise<JavaRequirement> {
     return this.repository.getRequiredJavaVersion(minecraftVersion);
   }
 }

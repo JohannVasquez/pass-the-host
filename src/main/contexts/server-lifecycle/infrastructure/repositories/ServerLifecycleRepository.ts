@@ -5,7 +5,7 @@ import * as fs from "fs";
 import * as https from "https";
 import { spawn } from "child_process";
 import { IServerLifecycleRepository } from "@main/contexts/server-lifecycle/domain/repositories";
-import { findBundledJavaPath, getRequiredJavaMajor } from "@main/utils/javaRuntime";
+import { findBundledJavaPath } from "@main/utils/javaRuntime";
 import {
   getFabricInstallerVersion,
   getPaperBuilds,
@@ -13,6 +13,7 @@ import {
   getUserAgent,
   httpGetText,
   listEngineVersions,
+  requiredJavaMajor,
 } from "./EngineCatalog";
 import {
   EngineType,
@@ -332,7 +333,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
       installerPath,
     );
 
-    const javaPath = this.requireJava(version);
+    const javaPath = await this.requireJava(version);
     onProgress?.("Installing Quilt server (this may take a few minutes)...");
     await this.runInstallerJar(
       javaPath,
@@ -370,7 +371,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
     await this.downloadFile(forgeUrl, forgeInstallerPath);
     onProgress?.("Forge installer downloaded successfully");
 
-    const javaPath = this.requireJava(version);
+    const javaPath = await this.requireJava(version);
     onProgress?.("Installing Forge server (this may take a few minutes)...");
     await this.runInstallerJar(
       javaPath,
@@ -415,7 +416,7 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
     await this.downloadFile(neoForgeUrl, neoForgeInstallerPath);
     onProgress?.("NeoForge installer downloaded successfully");
 
-    const javaPath = this.requireJava(version);
+    const javaPath = await this.requireJava(version);
     onProgress?.("Installing NeoForge server (this may take a few minutes)...");
     await this.runInstallerJar(
       javaPath,
@@ -432,8 +433,8 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
     return {};
   }
 
-  private requireJava(minecraftVersion: string): string {
-    const javaPath = this.getJavaPathForVersion(minecraftVersion);
+  private async requireJava(minecraftVersion: string): Promise<string> {
+    const javaPath = await this.getJavaPathForVersion(minecraftVersion);
     if (!javaPath || !fs.existsSync(javaPath)) {
       throw new FileSystemError(
         `Java not found for Minecraft ${minecraftVersion}. Please ensure Java is installed first.`,
@@ -455,9 +456,9 @@ export class ServerLifecycleRepository implements IServerLifecycleRepository {
     }
   }
 
-  private getJavaPathForVersion(minecraftVersion: string): string | null {
+  private async getJavaPathForVersion(minecraftVersion: string): Promise<string | null> {
     try {
-      const javaDir = path.join(JAVA_RUNTIME_DIR, `java${getRequiredJavaMajor(minecraftVersion)}`);
+      const javaDir = path.join(JAVA_RUNTIME_DIR, `java${await requiredJavaMajor(minecraftVersion)}`);
       return findBundledJavaPath(javaDir, fs.existsSync);
     } catch {
       return null;

@@ -2,6 +2,7 @@ import * as https from "https";
 import { NetworkError } from "@shared/domain/errors";
 
 import type { EngineType } from "@main/contexts/server-lifecycle/domain/entities";
+import { pickJavaMajor } from "@main/utils/javaRuntime";
 
 export interface EngineVersion {
   id: string;
@@ -15,6 +16,8 @@ export interface EngineVersionList {
 }
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
+// Starting a server must not hang on a slow network: the built-in table answers instead
+const JAVA_LOOKUP_TIMEOUT_MS = 5000;
 const MAX_REDIRECTS = 5;
 
 const MOJANG_MANIFEST = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
@@ -137,6 +140,32 @@ export function neoForgeMinecraftVersion(neoVersion: string): string | null {
 }
 
 const isBetaTag = (v: string): boolean => /alpha|beta/i.test(v);
+
+/** javaVersion.majorVersion from Mojang's metadata for a release, or null when unknown. */
+export async function mojangJavaMajor(mcVersion: string): Promise<number | null> {
+  const manifest = await cachedJson<{ versions: Array<{ id: string; url: string }> }>(
+    MOJANG_MANIFEST,
+  );
+  const entry = manifest.versions.find((v) => v.id === mcVersion);
+  // Only follow links that stay on Mojang's metadata host
+  if (!entry || new URL(entry.url).hostname !== "piston-meta.mojang.com") return null;
+  const info = await cachedJson<{ javaVersion?: { majorVersion?: unknown } }>(entry.url);
+  const major = info.javaVersion?.majorVersion;
+  return typeof major === "number" && Number.isInteger(major) && major >= 8 && major < 100
+    ? major
+    : null;
+}
+
+/** Java major to run a Minecraft version with: Mojang's metadata when reachable, else the built-in table. */
+export async function requiredJavaMajor(mcVersion: string): Promise<number> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), JAVA_LOOKUP_TIMEOUT_MS);
+  });
+  const declared = await Promise.race([mojangJavaMajor(mcVersion).catch(() => null), timeout]);
+  clearTimeout(timer);
+  return pickJavaMajor(mcVersion, declared);
+}
 
 export async function listGameVersions(engine: EngineType): Promise<string[]> {
   switch (engine) {
