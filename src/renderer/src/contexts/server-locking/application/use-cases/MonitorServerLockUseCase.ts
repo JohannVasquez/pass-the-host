@@ -22,6 +22,8 @@ export class MonitorServerLockUseCase {
   private readonly maxDelay: number = 300000; // 5 minutes
   private retryCount: number = 0;
   private lastLockState: boolean = false;
+  // Bumped on every start/stop: a check still in flight for the previous server is ignored
+  private generation = 0;
   private eventBus = EventBus.getInstance();
 
   constructor(
@@ -54,6 +56,7 @@ export class MonitorServerLockUseCase {
    * Stop monitoring
    */
   stop(): void {
+    this.generation++;
     if (this.intervalId) {
       clearTimeout(this.intervalId);
       this.intervalId = null;
@@ -77,8 +80,10 @@ export class MonitorServerLockUseCase {
    * Check the lock status and publish appropriate events
    */
   private async checkLock(s3Config: S3Config, serverId: string): Promise<void> {
+    const generation = this.generation;
     try {
       const result = await this.checkLockUseCase.execute(s3Config, serverId);
+      if (generation !== this.generation) return;
 
       // Reset delay on successful check
       if (this.retryCount > 0) {
@@ -113,6 +118,7 @@ export class MonitorServerLockUseCase {
         this.lastLockState = false;
       }
     } catch (error) {
+      if (generation !== this.generation) return;
       // Handle network/check errors with exponential backoff
       this.retryCount++;
 
