@@ -3,6 +3,7 @@ import {
   DISCORD_LANGUAGES,
   discordMessages,
   resolveDiscordLanguage,
+  safeNickname,
 } from "@main/contexts/discord-notifications/domain/messages";
 
 describe("discord messages", () => {
@@ -28,5 +29,22 @@ describe("discord messages", () => {
     expect(resolveDiscordLanguage("xx")).toBe("en");
     expect(resolveDiscordLanguage("pt")).toBe("en");
     expect(resolveDiscordLanguage("pt-BR")).toBe("pt-BR");
+  });
+
+  it("names who hosted in every language when a nickname is given", () => {
+    for (const lang of DISCORD_LANGUAGES) {
+      const m = discordMessages(lang);
+      for (const text of [m.online("S", "Bob"), m.stopped("S", "Bob"), m.crashed("S", 1, "Bob")]) {
+        expect(text).toContain("**Bob**");
+        expect(text).toContain("**S**");
+      }
+    }
+  });
+
+  it("safeNickname strips markdown, neutralises @ and drops empty names", () => {
+    expect(safeNickname("Jo_hn*`|")).toBe("John");
+    expect(safeNickname("@here")).toBe("@\u200bhere");
+    expect(safeNickname("  ")).toBeUndefined();
+    expect(safeNickname(null)).toBeUndefined();
   });
 });
