@@ -121,6 +121,17 @@ interface AppConfigData {
   };
 }
 
+interface DiscordConfigData {
+  webhook_url: string;
+  relay_chat: boolean;
+  notify_status: boolean;
+  notify_joins: boolean;
+}
+
+type DiscordTestResult =
+  | { ok: true }
+  | { ok: false; error: "invalid_url" | "failed"; detail?: string };
+
 const configAPI = {
   loadConfig: (): Promise<AppConfigData | null> => ipcRenderer.invoke("config:load"),
   saveS3Config: async (s3Config: S3ConfigType): Promise<boolean> => {
@@ -143,6 +154,15 @@ const configAPI = {
     const result = await ipcRenderer.invoke("config:save-language", language);
     return result.success === true;
   },
+};
+
+const discordAPI = {
+  getSettings: (serverId: string): Promise<DiscordConfigData> =>
+    ipcRenderer.invoke("discord:get-settings", serverId),
+  saveSettings: (serverId: string, settings: DiscordConfigData): Promise<void> =>
+    ipcRenderer.invoke("discord:save-settings", serverId, settings),
+  sendTest: (url: string): Promise<DiscordTestResult> =>
+    ipcRenderer.invoke("discord:send-test", url),
 };
 
 interface ServerStatistics {
@@ -446,6 +466,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld("notificationAPI", notificationAPI);
     contextBridge.exposeInMainWorld("p2pAPI", p2pAPI);
     contextBridge.exposeInMainWorld("modsAPI", modsAPI);
+    contextBridge.exposeInMainWorld("discordAPI", discordAPI);
   } catch (error) {
     console.error(error);
   }
@@ -461,4 +482,5 @@ if (process.contextIsolated) {
   win.notificationAPI = notificationAPI;
   win.p2pAPI = p2pAPI;
   win.modsAPI = modsAPI;
+  win.discordAPI = discordAPI;
 }
