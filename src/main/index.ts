@@ -46,6 +46,9 @@ import { registerServerLifecycleIPCHandlers } from "@main/contexts/server-lifecy
 import { registerSystemResourcesIPCHandlers } from "@main/contexts/system-resources/infrastructure/ipc";
 import { registerAppConfigurationIPCHandlers } from "@main/contexts/app-configuration/infrastructure/ipc";
 import { registerP2PIPCHandlers } from "@main/contexts/p2p-tunnel/infrastructure/ipc";
+import { registerDiscordIPCHandlers } from "@main/contexts/discord-notifications/infrastructure/ipc";
+import { RelayServerOutputUseCase } from "@main/contexts/discord-notifications/application/use-cases";
+import { TYPES as DiscordTYPES } from "@main/contexts/discord-notifications/application/use-cases/types";
 import { registerModsIPCHandlers } from "@main/contexts/mods/infrastructure/ipc";
 import { LoadConfigUseCase } from "@main/contexts/app-configuration/application/use-cases";
 import { TYPES as ConfigTYPES } from "@main/contexts/app-configuration/application/use-cases/types";
@@ -345,6 +348,7 @@ if (!gotTheLock) {
       container.get(EditForgeJvmArgsUseCase),
       container.get(OpenServerFolderUseCase),
       container.get(ReadLaunchJarUseCase),
+      container.get<RelayServerOutputUseCase>(DiscordTYPES.RelayServerOutputUseCase),
     );
     serverRuntimeIPCHandlers.register();
     const cloudStorageIPCHandlers = new CloudStorageIPCHandlers(
@@ -396,6 +400,9 @@ if (!gotTheLock) {
 
     registerModsIPCHandlers();
     logger.info("Mods IPC handlers registered");
+
+    registerDiscordIPCHandlers(container);
+    logger.info("Discord IPC handlers registered");
 
     // ===== NOTIFICATION HANDLER =====
     ipcMain.handle("notification:show", async (_event, title: string, body: string) => {

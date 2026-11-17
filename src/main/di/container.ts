@@ -5,6 +5,7 @@ import { configureCloudStorageContext } from "@main/contexts/cloud-storage/di/co
 import { configureServerLifecycleContainer } from "@main/contexts/server-lifecycle/di/container";
 import { configureSystemResourcesContext } from "@main/contexts/system-resources/di/container";
 import { configureAppConfigurationContext } from "@main/contexts/app-configuration/di/container";
+import { configureDiscordNotificationsContext } from "@main/contexts/discord-notifications/di/container";
 
 const mainContainer = new Container();
 
@@ -15,6 +16,7 @@ export function initializeMainContainer(): Container {
   configureServerLifecycleContainer(mainContainer);
   configureSystemResourcesContext(mainContainer);
   configureAppConfigurationContext(mainContainer);
+  configureDiscordNotificationsContext(mainContainer);
   return mainContainer;
 }
 

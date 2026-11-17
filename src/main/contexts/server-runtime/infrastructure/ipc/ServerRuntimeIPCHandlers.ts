@@ -11,6 +11,11 @@ import {
   OpenServerFolderUseCase,
 } from "@main/contexts/server-runtime/application/use-cases";
 
+export interface ServerOutputListener {
+  onOutput(serverId: string, stream: "stdout" | "stderr", chunk: string): void;
+  onExit(serverId: string, code: number | null): void;
+}
+
 export class ServerRuntimeIPCHandlers {
   constructor(
     private spawnServerProcessUseCase: SpawnServerProcessUseCase,
@@ -20,6 +25,7 @@ export class ServerRuntimeIPCHandlers {
     private editForgeJvmArgsUseCase: EditForgeJvmArgsUseCase,
     private openServerFolderUseCase: OpenServerFolderUseCase,
     private readLaunchJarUseCase: ReadLaunchJarUseCase,
+    private outputListener?: ServerOutputListener,
   ) {}
 
   /**
@@ -37,6 +43,15 @@ export class ServerRuntimeIPCHandlers {
         throw ErrorHandler.serialize(error);
       }
     };
+  }
+
+  /** The listener must never break the console/exit flow. */
+  private notify(fn: () => void): void {
+    try {
+      fn();
+    } catch {
+      /* ignore */
+    }
   }
 
   register(): void {
@@ -66,16 +81,19 @@ export class ServerRuntimeIPCHandlers {
               autoAcceptEula: true,
             },
             (data: string) => {
+              this.notify(() => this.outputListener?.onOutput(serverId, "stdout", data));
               if (!event.sender.isDestroyed()) {
                 event.sender.send("server:stdout", data);
               }
             },
             (data: string) => {
+              this.notify(() => this.outputListener?.onOutput(serverId, "stderr", data));
               if (!event.sender.isDestroyed()) {
                 event.sender.send("server:stdout", data);
               }
             },
             (code: number | null) => {
+              this.notify(() => this.outputListener?.onExit(serverId, code));
               if (!event.sender.isDestroyed()) {
                 event.sender.send("server:process-exit", { serverId, code });
               }
