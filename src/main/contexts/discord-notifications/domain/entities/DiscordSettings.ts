@@ -4,6 +4,8 @@ export interface DiscordSettings {
   relay_chat?: boolean;
   notify_status?: boolean;
   notify_joins?: boolean;
+  /** Language of the status/join notices (see domain/messages.ts) */
+  language?: string;
 }
 
 export const DEFAULT_DISCORD_SETTINGS: DiscordSettings = {

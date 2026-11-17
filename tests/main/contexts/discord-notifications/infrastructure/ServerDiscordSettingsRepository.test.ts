@@ -63,6 +63,16 @@ describe("ServerDiscordSettingsRepository", () => {
     expect(d.relay_chat).toBe(false);
   });
 
+  it("keeps a supported language and drops an unknown one", () => {
+    writeInfo("s1", {});
+    repo.save("s1", { webhook_url: "", language: "pt-BR" });
+    expect(readInfo("s1").discord.language).toBe("pt-BR");
+    expect(repo.get("s1").language).toBe("pt-BR");
+    repo.save("s1", { webhook_url: "", language: "xx" });
+    expect(readInfo("s1").discord).not.toHaveProperty("language");
+    expect(repo.get("s1").language).toBeUndefined();
+  });
+
   it("rejects path-like server ids", () => {
     for (const id of ["../x", "..", ".", "", "a/b", "a\\b"]) {
       expect(() => repo.get(id)).toThrow();

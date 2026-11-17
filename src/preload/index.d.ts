@@ -83,6 +83,7 @@ interface DiscordConfigData {
   relay_chat: boolean;
   notify_status: boolean;
   notify_joins: boolean;
+  language?: string;
 }
 
 type DiscordTestResult =
@@ -92,7 +93,7 @@ type DiscordTestResult =
 interface DiscordAPI {
   getSettings: (serverId: string) => Promise<DiscordConfigData>;
   saveSettings: (serverId: string, settings: DiscordConfigData) => Promise<void>;
-  sendTest: (url: string) => Promise<DiscordTestResult>;
+  sendTest: (url: string, language?: string) => Promise<DiscordTestResult>;
 }
 
 interface ConfigAPI {

@@ -6,6 +6,7 @@ import {
   DEFAULT_DISCORD_SETTINGS,
   DiscordSettings,
 } from "@main/contexts/discord-notifications/domain/entities";
+import { DISCORD_LANGUAGES } from "@main/contexts/discord-notifications/domain/messages";
 import { IServerDiscordSettingsRepository } from "@main/contexts/discord-notifications/domain/repositories";
 
 /** Stores the settings under the `discord` key of the server's server_info.json (synced with the server). */
@@ -50,6 +51,9 @@ export class ServerDiscordSettingsRepository implements IServerDiscordSettingsRe
         relay_chat: settings?.relay_chat === true,
         notify_status: settings?.notify_status === true,
         notify_joins: settings?.notify_joins === true,
+        ...(DISCORD_LANGUAGES.some((l) => l === settings?.language) && {
+          language: settings.language,
+        }),
       };
       fs.writeFileSync(file, JSON.stringify(info, null, 2), "utf-8");
     } catch {
