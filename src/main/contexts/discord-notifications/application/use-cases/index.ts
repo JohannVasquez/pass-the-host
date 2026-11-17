@@ -13,7 +13,10 @@ import {
   sanitizeMentions,
   truncate,
 } from "@main/contexts/discord-notifications/domain/serverLog";
-import { discordMessages } from "@main/contexts/discord-notifications/domain/messages";
+import {
+  discordMessages,
+  safeNickname,
+} from "@main/contexts/discord-notifications/domain/messages";
 
 const BOT_NAME = "Pass the host";
 // Served from R2 (media.jvdev.cl); Discord caches avatars, so this is fetched rarely
@@ -28,6 +31,8 @@ export class RelayServerOutputUseCase {
     private webhooks: IDiscordWebhookRepository,
     private loadSettings: (serverId: string) => DiscordSettings | Promise<DiscordSettings | undefined>,
     private serverName: (serverId: string) => string,
+    /** Nickname saved in the app: this PC is the one hosting, so it started/stopped the server */
+    private hostNickname: () => Promise<string | null | undefined> = async () => undefined,
   ) {}
 
   onOutput(serverId: string, stream: "stdout" | "stderr", chunk: string): void {
@@ -80,6 +85,10 @@ export class RelayServerOutputUseCase {
 
     const server = this.serverName(serverId);
     const m = discordMessages(s?.language);
+    const by =
+      event.type === "started" || event.type === "stopped"
+        ? safeNickname(await this.hostNickname().catch(() => undefined))
+        : undefined;
     let content: string;
     let username = BOT_NAME;
     let avatar = BOT_AVATAR;
@@ -93,13 +102,13 @@ export class RelayServerOutputUseCase {
         break;
       }
       case "started":
-        content = m.online(server);
+        content = m.online(server, by);
         break;
       case "stopped":
         content =
           event.code !== null && event.code !== 0
-            ? m.crashed(server, event.code)
-            : m.stopped(server);
+            ? m.crashed(server, event.code, by)
+            : m.stopped(server, by);
         break;
       case "joined":
         content = m.joined(event.player, server);

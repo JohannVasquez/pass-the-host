@@ -1,5 +1,7 @@
 import { Container } from "inversify";
 import { TYPES } from "@main/contexts/discord-notifications/application/use-cases/types";
+import { TYPES as ConfigTYPES } from "@main/contexts/app-configuration/application/use-cases/types";
+import { LoadConfigUseCase } from "@main/contexts/app-configuration/application/use-cases";
 import {
   IDiscordWebhookRepository,
   IServerDiscordSettingsRepository,
@@ -36,6 +38,9 @@ export function configureDiscordNotificationsContext(container: Container): void
         container.get<IDiscordWebhookRepository>(TYPES.IDiscordWebhookRepository),
         (serverId) => settings.get(serverId),
         (serverId) => settings.serverName(serverId),
+        async () =>
+          (await container.get<LoadConfigUseCase>(ConfigTYPES.LoadConfigUseCase).execute())?.app
+            ?.owner_name,
       );
     })
     .inSingletonScope();

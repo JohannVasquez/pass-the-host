@@ -21,6 +21,43 @@ function setup(settings: object | undefined) {
 const chatLine = "[01:00:00] [Server thread/INFO]: <Steve> hello @everyone\n";
 
 describe("RelayServerOutputUseCase", () => {
+  it("names the host from the app nickname on start and stop", async () => {
+    const webhooks = { enqueue: vi.fn(), sendNow: vi.fn() };
+    const nickname = vi.fn().mockResolvedValue("Johann_**@everyone");
+    const uc = new RelayServerOutputUseCase(
+      webhooks,
+      vi.fn().mockResolvedValue({ webhook_url: URL_, language: "es" }),
+      () => "Mi server",
+      nickname,
+    );
+    uc.onOutput("s1", "stdout", '[01:00:00] [Server thread/INFO]: Done (3.1s)! For help, type "help"\n');
+    uc.onExit("s1", 0);
+    await flush();
+    const [online, stopped] = webhooks.enqueue.mock.calls.map((c) => c[1].content);
+    // Markdown stripped and @ neutralised so a nickname can't break formatting or ping
+    expect(online).toBe("🟢 **Johann@\u200beveryone** inició **Mi server**");
+    expect(stopped).toBe("🔴 **Johann@\u200beveryone** detuvo **Mi server**");
+  });
+
+  it("keeps the plain notice when there is no nickname, and never asks for it on chat", async () => {
+    const webhooks = { enqueue: vi.fn(), sendNow: vi.fn() };
+    const nickname = vi.fn().mockResolvedValue(null);
+    const uc = new RelayServerOutputUseCase(
+      webhooks,
+      vi.fn().mockResolvedValue({ webhook_url: URL_ }),
+      () => "S",
+      nickname,
+    );
+    uc.onOutput("s1", "stdout", chatLine);
+    await flush();
+    expect(nickname).not.toHaveBeenCalled();
+    uc.onExit("s1", 1);
+    await flush();
+    expect(webhooks.enqueue.mock.calls[1][1].content).toBe(
+      "⚠️ **S** stopped unexpectedly (exit code 1)",
+    );
+  });
+
   it("does nothing when webhook is empty", async () => {
     const { webhooks, uc } = setup({ webhook_url: "" });
     uc.onOutput("s1", "stdout", chatLine);
