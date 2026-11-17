@@ -6,11 +6,11 @@ import * as https from "https";
 import * as os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
+import { requiredJavaMajor } from "@main/contexts/server-lifecycle/infrastructure/repositories/EngineCatalog";
 import type { ISystemResourcesRepository } from "@main/contexts/system-resources/domain/repositories";
 import {
   findBundledJavaPath,
   getBundledJavaCandidates,
-  getRequiredJavaMajor,
   hasBundledJavaBinary,
 } from "@main/utils/javaRuntime";
 import type {
@@ -53,8 +53,8 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
     return versions;
   }
 
-  getRequiredJavaVersion(minecraftVersion: string): JavaRequirement {
-    return { minVersion: getRequiredJavaMajor(minecraftVersion) };
+  async getRequiredJavaVersion(minecraftVersion: string): Promise<JavaRequirement> {
+    return { minVersion: await requiredJavaMajor(minecraftVersion) };
   }
 
   async ensureJavaForMinecraft(
@@ -62,7 +62,7 @@ export class SystemResourcesRepository implements ISystemResourcesRepository {
     onProgress?: (message: string) => void,
   ): Promise<JavaInstallationResult> {
     try {
-      const requiredJava = this.getRequiredJavaVersion(minecraftVersion);
+      const requiredJava = await this.getRequiredJavaVersion(minecraftVersion);
       onProgress?.(`Minecraft ${minecraftVersion} requires Java ${requiredJava.minVersion}`);
 
       if (!this.isJavaInstalled(requiredJava.minVersion)) {

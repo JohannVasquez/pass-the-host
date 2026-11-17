@@ -8,7 +8,7 @@ import {
 
 export interface ISystemResourcesRepository {
   getInstalledJavaVersions(): JavaVersion[];
-  getRequiredJavaVersion(minecraftVersion: string): JavaRequirement;
+  getRequiredJavaVersion(minecraftVersion: string): Promise<JavaRequirement>;
   ensureJavaForMinecraft(
     minecraftVersion: string,
     onProgress?: (message: string) => void,
