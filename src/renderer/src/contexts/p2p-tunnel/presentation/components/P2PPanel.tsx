@@ -308,15 +308,19 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
     };
   }, [groupId, realtimeEpoch]);
 
-  // Someone joined since the room list was fetched: refetch so the member count catches up
-  const refreshedForCount = React.useRef(0);
+  // Anyone not seen online in this room yet (a new member, or one who just opened the app):
+  // refetch the rooms so the member count is current without opening the member list
+  const seenOnline = React.useRef(new Set<string>());
   React.useEffect(() => {
-    const count = online?.length ?? 0;
-    if (selectedGroup && count > selectedGroup.memberCount && count > refreshedForCount.current) {
-      refreshedForCount.current = count;
-      refreshGroups().catch(showError);
-    }
-  }, [online, selectedGroup, refreshGroups, showError]);
+    seenOnline.current = new Set();
+  }, [groupId, realtimeEpoch]);
+  React.useEffect(() => {
+    if (!online) return;
+    const fresh = online.filter((member) => !seenOnline.current.has(member.clientId));
+    if (fresh.length === 0) return;
+    fresh.forEach((member) => seenOnline.current.add(member.clientId));
+    refreshGroups().catch(showError);
+  }, [online, refreshGroups, showError]);
 
   // Runs after the effect above, so it also enters presence for a new network
   React.useEffect(() => {
