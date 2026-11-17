@@ -55,6 +55,7 @@ import {
 } from "@contexts/p2p-tunnel/infrastructure/hostingChanges";
 import { MembersDialog } from "@contexts/p2p-tunnel/presentation/components/MembersDialog";
 import { ModSyncCard } from "@contexts/p2p-tunnel/presentation/components/ModSyncCard";
+import { localModsClient } from "@contexts/p2p-tunnel/infrastructure/modsChannel";
 import { RoomsInfoDialog } from "@contexts/p2p-tunnel/presentation/components/RoomsInfoDialog";
 
 const MINECRAFT_PORT = 25565;
@@ -180,6 +181,12 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
   const [busy, setBusy] = React.useState(false);
   const [hosting, setHosting] = React.useState(false);
   const [joined, setJoined] = React.useState<JoinedServer | null>(null);
+  // The host syncs its own client mods into its Minecraft folder, like a friend would
+  const hostMods = React.useMemo(() => {
+    if (!serverId) return null;
+    const client = localModsClient(serverId);
+    return { mods: () => client };
+  }, [serverId]);
   // Destructive room actions wait for confirmation: delete (creator) or leave (member)
   const [confirm, setConfirm] = React.useState<"delete" | "leave" | null>(null);
   const [membersOpen, setMembersOpen] = React.useState(false);
@@ -630,9 +637,19 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
             />
 
             {serverRunning ? (
-              <Alert severity={hosting ? "success" : "info"}>
-                {hosting ? t("p2p.hosting") : t("p2p.connecting")}
-              </Alert>
+              <Box>
+                <Alert severity={hosting ? "success" : "info"} sx={{ mb: 1 }}>
+                  {hosting ? t("p2p.hosting") : t("p2p.connecting")}
+                </Alert>
+                {hostMods && (
+                  <ModSyncCard
+                    key={serverId}
+                    tunnel={hostMods}
+                    onLog={log}
+                    onOpenSettings={onOpenSettings}
+                  />
+                )}
+              </Box>
             ) : joined ? (
               <Box>
                 <Alert severity="success" sx={{ mb: 1, py: 0.5 }}>

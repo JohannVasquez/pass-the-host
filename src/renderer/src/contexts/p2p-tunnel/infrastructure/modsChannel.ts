@@ -234,3 +234,22 @@ export function createModsClient(pc: RTCPeerConnection): ModsClient {
     close: () => dc.close(),
   };
 }
+
+/** Host: the same client, reading our own server's mods directly (no peer connection) */
+export function localModsClient(serverId: string): ModsClient {
+  return {
+    manifest: () => window.modsAPI.clientManifest(serverId),
+    file: (sha1) => window.modsAPI.readClientMod(serverId, sha1),
+    onChanged: (listener) => {
+      let last: string | null = null;
+      const timer = setInterval(() => {
+        window.modsAPI.modsFingerprint(serverId).then((now) => {
+          if (last !== null && now !== last) listener();
+          last = now;
+        }, () => undefined);
+      }, WATCH_INTERVAL_MS);
+      return () => clearInterval(timer);
+    },
+    close: () => undefined,
+  };
+}

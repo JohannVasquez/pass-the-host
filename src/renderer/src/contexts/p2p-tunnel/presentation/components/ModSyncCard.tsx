@@ -25,7 +25,7 @@ const LOADER_NAMES: Record<string, string> = {
 };
 
 interface ModSyncCardProps {
-  tunnel: JoinedServer;
+  tunnel: Pick<JoinedServer, "mods">;
   onLog: (message: string, type: "info" | "success" | "warning" | "error") => void;
   onOpenSettings?: () => void;
 }
