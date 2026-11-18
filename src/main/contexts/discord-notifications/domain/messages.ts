@@ -13,6 +13,8 @@ interface DiscordMessages {
   joined: (player: string, server: string) => string;
   left: (player: string, server: string) => string;
   test: () => string;
+  /** Labels of the Discord → Minecraft chat lines */
+  game: { image: string; gif: string; video: string; file: string; sticker: (name: string) => string };
 }
 
 const MESSAGES: Record<DiscordLanguage, DiscordMessages> = {
@@ -26,6 +28,13 @@ const MESSAGES: Record<DiscordLanguage, DiscordMessages> = {
     joined: (p, s) => `➡️ **${p}** joined **${s}**`,
     left: (p, s) => `⬅️ **${p}** left **${s}**`,
     test: () => "✅ Pass the host is connected to this channel.",
+    game: {
+      image: "[image]",
+      gif: "[GIF]",
+      video: "[video]",
+      file: "[file]",
+      sticker: (n) => `[sticker: ${n}]`,
+    },
   },
   es: {
     online: (s, b) => (b ? `🟢 **${b}** inició **${s}**` : `🟢 **${s}** está en línea`),
@@ -37,6 +46,13 @@ const MESSAGES: Record<DiscordLanguage, DiscordMessages> = {
     joined: (p, s) => `➡️ **${p}** entró a **${s}**`,
     left: (p, s) => `⬅️ **${p}** salió de **${s}**`,
     test: () => "✅ Pass the host está conectado a este canal.",
+    game: {
+      image: "[imagen]",
+      gif: "[GIF]",
+      video: "[video]",
+      file: "[archivo]",
+      sticker: (n) => `[sticker: ${n}]`,
+    },
   },
   "pt-BR": {
     online: (s, b) => (b ? `🟢 **${b}** iniciou **${s}**` : `🟢 **${s}** está online`),
@@ -48,6 +64,13 @@ const MESSAGES: Record<DiscordLanguage, DiscordMessages> = {
     joined: (p, s) => `➡️ **${p}** entrou em **${s}**`,
     left: (p, s) => `⬅️ **${p}** saiu de **${s}**`,
     test: () => "✅ O Pass the host está conectado a este canal.",
+    game: {
+      image: "[imagem]",
+      gif: "[GIF]",
+      video: "[vídeo]",
+      file: "[arquivo]",
+      sticker: (n) => `[figurinha: ${n}]`,
+    },
   },
   de: {
     online: (s, b) => (b ? `🟢 **${b}** hat **${s}** gestartet` : `🟢 **${s}** ist online`),
@@ -59,6 +82,13 @@ const MESSAGES: Record<DiscordLanguage, DiscordMessages> = {
     joined: (p, s) => `➡️ **${p}** ist **${s}** beigetreten`,
     left: (p, s) => `⬅️ **${p}** hat **${s}** verlassen`,
     test: () => "✅ Pass the host ist mit diesem Kanal verbunden.",
+    game: {
+      image: "[Bild]",
+      gif: "[GIF]",
+      video: "[Video]",
+      file: "[Datei]",
+      sticker: (n) => `[Sticker: ${n}]`,
+    },
   },
   fr: {
     online: (s, b) => (b ? `🟢 **${b}** a démarré **${s}**` : `🟢 **${s}** est en ligne`),
@@ -70,6 +100,13 @@ const MESSAGES: Record<DiscordLanguage, DiscordMessages> = {
     joined: (p, s) => `➡️ **${p}** a rejoint **${s}**`,
     left: (p, s) => `⬅️ **${p}** a quitté **${s}**`,
     test: () => "✅ Pass the host est connecté à ce salon.",
+    game: {
+      image: "[image]",
+      gif: "[GIF]",
+      video: "[vidéo]",
+      file: "[fichier]",
+      sticker: (n) => `[autocollant: ${n}]`,
+    },
   },
   ru: {
     online: (s, b) => (b ? `🟢 **${b}** запустил **${s}**` : `🟢 **${s}** запущен`),
@@ -81,6 +118,13 @@ const MESSAGES: Record<DiscordLanguage, DiscordMessages> = {
     joined: (p, s) => `➡️ **${p}** зашёл на **${s}**`,
     left: (p, s) => `⬅️ **${p}** покинул **${s}**`,
     test: () => "✅ Pass the host подключён к этому каналу.",
+    game: {
+      image: "[изображение]",
+      gif: "[GIF]",
+      video: "[видео]",
+      file: "[файл]",
+      sticker: (n) => `[стикер: ${n}]`,
+    },
   },
 };
 

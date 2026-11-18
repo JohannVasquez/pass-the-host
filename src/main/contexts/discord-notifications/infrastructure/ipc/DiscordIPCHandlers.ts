@@ -5,6 +5,7 @@ import {
   SaveServerDiscordSettingsUseCase,
   SendDiscordTestMessageUseCase,
 } from "@main/contexts/discord-notifications/application/use-cases";
+import { DiscordLinkService } from "@main/contexts/discord-notifications/application/DiscordLinkService";
 import { DiscordSettings } from "@main/contexts/discord-notifications/domain/entities";
 
 export class DiscordIPCHandlers {
@@ -12,6 +13,7 @@ export class DiscordIPCHandlers {
     private sendTest: SendDiscordTestMessageUseCase,
     private getSettings: GetServerDiscordSettingsUseCase,
     private saveSettings: SaveServerDiscordSettingsUseCase,
+    private links: DiscordLinkService,
   ) {}
 
   register(): void {
@@ -32,6 +34,34 @@ export class DiscordIPCHandlers {
       this.handleIPC("saveSettings", async (_, serverId: string, settings: DiscordSettings) =>
         this.saveSettings.execute(serverId, settings),
       ),
+    );
+
+    // Errors reach the renderer as the Worker's error code (Error.message)
+    ipcMain.handle(
+      "discord:start-link",
+      this.handleIPC("startLink", async (_, serverId: string) => this.links.startLink(serverId)),
+    );
+    ipcMain.handle(
+      "discord:link-state",
+      this.handleIPC("getLinkState", async (_, serverId: string) =>
+        this.links.getLinkState(serverId),
+      ),
+    );
+    ipcMain.handle(
+      "discord:list-channels",
+      this.handleIPC("listChannels", async (_, serverId: string) =>
+        this.links.listChannels(serverId),
+      ),
+    );
+    ipcMain.handle(
+      "discord:select-channel",
+      this.handleIPC("selectChannel", async (_, serverId: string, channelId: string) =>
+        this.links.selectChannel(serverId, channelId),
+      ),
+    );
+    ipcMain.handle(
+      "discord:unlink",
+      this.handleIPC("unlink", async (_, serverId: string) => this.links.unlink(serverId)),
     );
   }
 

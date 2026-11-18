@@ -12,6 +12,7 @@ import {
   offerFor,
   type Diag,
   type DiagCode,
+  type Signal,
   type SignalMessage,
 } from "@contexts/p2p-tunnel/infrastructure/signaling";
 
@@ -30,12 +31,26 @@ const CONTROL_LABEL = "control";
 const MAX_PEERS_PER_MEMBER = 2;
 const MAX_CONNECTIONS_PER_PEER = 16;
 
+// A dropped connection (network blip, new public IP) is repaired with an ICE restart, which keeps
+// the data channels and so the players' Minecraft sessions. "disconnected" often heals by itself first.
+const RECOVER_DELAY_MS = 3_000;
+// Minecraft times a player out after 30 s without traffic: past that, a fresh tunnel is as good
+const RECOVER_WINDOW_MS = 30_000;
+const RESTART_TIMEOUT_MS = 10_000;
+const RESTART_RETRY_MS = 2_000;
+// The host keeps a dropped peer while the friend may still be restarting it
+// (the last attempt starts within RECOVER_WINDOW_MS and takes up to ~25 s)
+const HOST_GRACE_MS = 60_000;
+
 const DIAG_THROTTLE_MS = 5_000;
 const DIAG_EVENT = "p2p_diag";
 
 /** What the host learns about a friend's tunnel; `from` is the friend's clientId. */
 export interface HostEvents {
   onOpened: (from: string) => void;
+  /** The connection dropped; it gets HOST_GRACE_MS to recover */
+  onInterrupted: (from: string) => void;
+  onRecovered: (from: string) => void;
   onClosed: (from: string) => void;
   onDiag: (diag: Diag) => void;
 }
@@ -45,6 +60,9 @@ interface HostPeer {
   owned: Set<string>;
   from: string;
   connected: boolean;
+  /** Pending drop of an interrupted connection */
+  grace?: ReturnType<typeof setTimeout>;
+  renegotiating?: boolean;
   /** The friend's mod sync channel, at most one */
   mods?: RTCDataChannel;
 }
@@ -62,6 +80,30 @@ window.p2pAPI.onTcpClose((connId) => {
   dataChannels.get(connId)?.close();
   dataChannels.delete(connId);
 });
+
+/** Goes to the app's log file, for diagnosing dropped tunnels afterwards. */
+const trace = (message: string): void => window.p2pAPI.log("info", message);
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** How the connection is routed (host = LAN, srflx = through NAT, relay = TURN); never addresses. */
+async function routeOf(pc: RTCPeerConnection): Promise<string> {
+  try {
+    const stats = await pc.getStats();
+    let route = "unknown";
+    stats.forEach((report) => {
+      if (report.type !== "transport" || !report.selectedCandidatePairId) return;
+      const pair = stats.get(report.selectedCandidatePairId);
+      const local = pair && stats.get(pair.localCandidateId);
+      const remote = pair && stats.get(pair.remoteCandidateId);
+      if (local && remote)
+        route = `${local.candidateType}/${local.protocol} -> ${remote.candidateType}`;
+    });
+    return route;
+  } catch {
+    return "unknown";
+  }
+}
 
 function bridge(
   connId: string,
@@ -98,49 +140,43 @@ function closePeer(pc: RTCPeerConnection, owned: Set<string>): void {
   owned.clear();
 }
 
-function waitFor(
-  pc: RTCPeerConnection,
-  event: "icegatheringstatechange" | "connectionstatechange",
-  done: () => boolean,
-  timeoutMs: number,
-  onTimeout: () => void,
-): Promise<void> {
-  if (done()) return Promise.resolve();
+/** Resolves once connected; rejects on failure or after `timeoutMs`. */
+function waitConnected(pc: RTCPeerConnection, timeoutMs: number): Promise<void> {
+  if (pc.connectionState === "connected") return Promise.resolve();
   return new Promise((resolve, reject) => {
     const finish = (error?: Error): void => {
       clearTimeout(timer);
-      pc.removeEventListener(event, check);
+      pc.removeEventListener("connectionstatechange", check);
       if (error) reject(error);
       else resolve();
     };
     const check = (): void => {
-      if (pc.connectionState === "failed") finish(new Error("p2p_connection_failed"));
-      else if (done()) finish();
+      if (pc.connectionState === "connected") finish();
+      else if (pc.connectionState === "failed" || pc.connectionState === "closed")
+        finish(new Error("p2p_connection_failed"));
     };
-    const timer = setTimeout(() => {
-      try {
-        onTimeout();
-        finish();
-      } catch (error) {
-        finish(error as Error);
-      }
-    }, timeoutMs);
-    pc.addEventListener(event, check);
+    const timer = setTimeout(() => finish(new Error("p2p_connection_failed")), timeoutMs);
+    pc.addEventListener("connectionstatechange", check);
   });
 }
 
-// Non-trickle ICE: wait for candidates so a single offer/answer message is enough
+// Non-trickle ICE: wait for the end of candidates so a single offer/answer message is enough.
+// The null candidate also ends an ICE restart's gathering, which iceGatheringState can't tell apart.
+// Called right after setLocalDescription, before any candidate event can be dispatched.
 const gatherIce = (pc: RTCPeerConnection): Promise<void> =>
-  waitFor(
-    pc,
-    "icegatheringstatechange",
-    () => pc.iceGatheringState === "complete",
-    ICE_GATHER_TIMEOUT_MS,
-    () => undefined, // send whatever candidates we have
-  );
-
-const isClosed = (pc: RTCPeerConnection): boolean =>
-  pc.connectionState === "failed" || pc.connectionState === "closed";
+  new Promise((resolve) => {
+    const done = (): void => {
+      clearTimeout(timer);
+      pc.removeEventListener("icecandidate", onCandidate);
+      resolve();
+    };
+    const onCandidate = (event: RTCPeerConnectionIceEvent): void => {
+      if (!event.candidate) done();
+    };
+    // Send whatever candidates we have
+    const timer = setTimeout(done, ICE_GATHER_TIMEOUT_MS);
+    pc.addEventListener("icecandidate", onCandidate);
+  });
 
 /** Host: answer offers addressed to us on the group's channel and pipe their data channels into the local server. */
 export async function startHosting(
@@ -158,8 +194,22 @@ export async function startHosting(
     const peer = peers.get(key);
     if (peer?.pc !== pc) return;
     peers.delete(key);
+    clearTimeout(peer.grace);
     closePeer(pc, peer.owned);
     if (peer.connected) events.onClosed(peer.from);
+  };
+
+  const answer = async (pc: RTCPeerConnection, offer: Signal): Promise<void> => {
+    // Fetched per offer: TURN credentials expire, and hosting can outlive them
+    pc.setConfiguration(await window.p2pAPI.getIceServers());
+    await pc.setRemoteDescription({ type: "offer", sdp: offer.sdp });
+    await pc.setLocalDescription(await pc.createAnswer());
+    await gatherIce(pc);
+    await channel.publish("webrtc_answer", {
+      peerId: offer.peerId,
+      sdp: pc.localDescription!.sdp,
+      ...(offer.restart && { restart: offer.restart }),
+    });
   };
 
   const onOffer = async (message: SignalMessage): Promise<void> => {
@@ -167,9 +217,34 @@ export async function startHosting(
     const from = message.clientId;
     if (!offer || !from) return;
     const key = `${from}:${offer.peerId}`;
+    const existing = peers.get(key);
+
+    // ICE restart of a connection we already have: same channels, new network path
+    if (offer.restart) {
+      if (!existing || existing.renegotiating) return;
+      existing.renegotiating = true;
+      trace(`host: ICE restart ${offer.restart} requested`);
+      try {
+        await answer(existing.pc, offer);
+      } catch (error) {
+        console.warn("P2P: failed to answer an ICE restart", error);
+        trace(`host: ICE restart ${offer.restart} failed (${(error as Error).message})`);
+      } finally {
+        existing.renegotiating = false;
+      }
+      return;
+    }
+
+    if (existing) return;
+    // A member starting over frees the slots of their connections that dropped
+    for (const [k, peer] of peers) {
+      const state = peer.pc.connectionState;
+      if (peer.from === from && (state === "disconnected" || state === "failed"))
+        dropPeer(k, peer.pc);
+    }
     const fromCount = [...peers.values()].filter((peer) => peer.from === from).length;
-    if (peers.has(key) || fromCount >= MAX_PEERS_PER_MEMBER) return;
-    // ICE servers are set below; creating the connection first reserves the slot
+    if (fromCount >= MAX_PEERS_PER_MEMBER) return;
+    // ICE servers are set in answer(); creating the connection first reserves the slot
     const pc = new RTCPeerConnection();
     const owned = new Set<string>();
     const peer: HostPeer = { pc, owned, from, connected: false };
@@ -188,22 +263,30 @@ export async function startHosting(
       bridge(dc.label, dc, owned);
     };
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "connected" && !peer.connected) {
-        peer.connected = true;
-        events.onOpened(from);
+      const state = pc.connectionState;
+      trace(`host: peer connection ${state}`);
+      if (state === "connected") {
+        void routeOf(pc).then((route) => trace(`host: peer route ${route}`));
+        if (!peer.connected) {
+          peer.connected = true;
+          events.onOpened(from);
+        } else if (peer.grace) {
+          events.onRecovered(from);
+        }
+        clearTimeout(peer.grace);
+        peer.grace = undefined;
+      } else if (state === "closed" || (state === "failed" && !peer.connected)) {
+        dropPeer(key, pc);
+      } else if ((state === "disconnected" || state === "failed") && peer.connected && !peer.grace) {
+        // Keep the channels (and the players' sockets) while the friend restarts ICE
+        events.onInterrupted(from);
+        peer.grace = setTimeout(() => {
+          if (pc.connectionState !== "connected") dropPeer(key, pc);
+        }, HOST_GRACE_MS);
       }
-      if (isClosed(pc)) dropPeer(key, pc);
     };
     try {
-      // Fetched per offer: TURN credentials expire, and hosting can outlive them
-      pc.setConfiguration(await window.p2pAPI.getIceServers());
-      await pc.setRemoteDescription({ type: "offer", sdp: offer.sdp });
-      await pc.setLocalDescription(await pc.createAnswer());
-      await gatherIce(pc);
-      await channel.publish("webrtc_answer", {
-        peerId: offer.peerId,
-        sdp: pc.localDescription!.sdp,
-      });
+      await answer(pc, offer);
       // An offer that never connects would otherwise hold its slot forever
       setTimeout(() => {
         if (pc.connectionState === "new" || pc.connectionState === "connecting") dropPeer(key, pc);
@@ -224,7 +307,10 @@ export async function startHosting(
   return () => {
     channel.unsubscribe("webrtc_offer", onOffer);
     channel.unsubscribe(DIAG_EVENT, onDiag);
-    for (const { pc, owned } of peers.values()) closePeer(pc, owned);
+    for (const { pc, owned, grace } of peers.values()) {
+      clearTimeout(grace);
+      closePeer(pc, owned);
+    }
     peers.clear();
     window.p2pAPI.closeAll();
   };
@@ -237,7 +323,10 @@ export interface JoinedServer {
   stop: () => void;
 }
 
-/** Friend: offer a connection to the group member `host` (their clientId), then expose it on a local TCP port for Minecraft (the first free of `preferredPorts`, else any). */
+/**
+ * Friend: offer a connection to the group member `host` (their clientId), then expose it on a local TCP port for Minecraft (the first free of `preferredPorts`, else any).
+ * A dropped connection is repaired in place when possible; `onDisconnected` only fires once it can't be.
+ */
 export async function joinServer(
   groupId: string,
   host: string,
@@ -265,36 +354,41 @@ export async function joinServer(
   // An offer needs at least one data channel to carry an application section
   pc.createDataChannel(CONTROL_LABEL);
 
-  try {
-    await pc.setLocalDescription(await pc.createOffer());
+  /** One offer/answer round over Ably: the first one (restart 0) or an ICE restart. */
+  const negotiate = async (restart: number, timeoutMs: number): Promise<void> => {
+    await pc.setLocalDescription(await pc.createOffer({ iceRestart: restart > 0 }));
     await gatherIce(pc);
 
     let onAnswer: (sdp: string) => void = () => undefined;
     const answer = new Promise<string>((resolve) => (onAnswer = resolve));
     const listener = (message: SignalMessage): void => {
-      const sdp = answerFrom(message, host, peerId);
+      const sdp = answerFrom(message, host, peerId, restart);
       if (sdp !== null) onAnswer(sdp);
     };
     await channel.subscribe("webrtc_answer", listener);
-    await channel.publish("webrtc_offer", { peerId, sdp: pc.localDescription!.sdp, to: host });
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("p2p_host_not_found")), ANSWER_TIMEOUT_MS),
-    );
-    // Signaling is done once answered; the channel stays attached for presence
-    const sdp = await Promise.race([answer, timeout]).finally(() =>
-      channel.unsubscribe("webrtc_answer", listener),
-    );
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await channel.publish("webrtc_offer", {
+        peerId,
+        sdp: pc.localDescription!.sdp,
+        to: host,
+        ...(restart > 0 && { restart }),
+      });
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("p2p_host_not_found")), timeoutMs);
+      });
+      // Signaling is done once answered; the channel stays attached for presence
+      const sdp = await Promise.race([answer, timeout]);
+      await pc.setRemoteDescription({ type: "answer", sdp });
+    } finally {
+      clearTimeout(timer);
+      channel.unsubscribe("webrtc_answer", listener);
+    }
+  };
 
-    await pc.setRemoteDescription({ type: "answer", sdp });
-    await waitFor(
-      pc,
-      "connectionstatechange",
-      () => pc.connectionState === "connected",
-      CONNECT_TIMEOUT_MS,
-      () => {
-        throw new Error("p2p_connection_failed");
-      },
-    );
+  try {
+    await negotiate(0, ANSWER_TIMEOUT_MS);
+    await waitConnected(pc, CONNECT_TIMEOUT_MS);
   } catch (error) {
     pc.close();
     notice("tunnel_failed", error instanceof Error ? error.message : String(error));
@@ -311,6 +405,7 @@ export async function joinServer(
   }
   notice("joined", String(port));
   if (port !== preferredPorts[0]) notice("port_changed", String(port));
+  void routeOf(pc).then((route) => trace(`friend: route ${route}`));
   const offOpen = window.p2pAPI.onTcpOpen((connId) =>
     bridge(connId, pc.createDataChannel(connId), owned, () =>
       notice("channel_failed", "data channel error"),
@@ -318,17 +413,53 @@ export async function joinServer(
   );
   let modsClient: ModsClient | null = null;
   const mods = (): ModsClient => (modsClient ??= createModsClient(pc));
+  let stopped = false;
   const stop = (): void => {
+    stopped = true;
     offOpen();
     pc.onconnectionstatechange = null;
     closePeer(pc, owned);
     window.p2pAPI.closeAll();
   };
-  pc.onconnectionstatechange = () => {
-    if (!isClosed(pc)) return;
+  const giveUp = (): void => {
+    if (stopped) return;
     stop();
     notice("tunnel_closed", String(port));
     onDisconnected();
+  };
+
+  let recovering = false;
+  let restarts = 0;
+  const recover = async (): Promise<void> => {
+    if (recovering || stopped) return;
+    recovering = true;
+    notice("reconnecting");
+    const deadline = Date.now() + RECOVER_WINDOW_MS;
+    await sleep(RECOVER_DELAY_MS);
+    while (!stopped && pc.connectionState !== "connected" && Date.now() < deadline) {
+      restarts += 1;
+      trace(`friend: ICE restart ${restarts}`);
+      try {
+        await negotiate(restarts, RESTART_TIMEOUT_MS);
+        await waitConnected(pc, RESTART_TIMEOUT_MS);
+      } catch (error) {
+        trace(`friend: ICE restart ${restarts} failed (${(error as Error).message})`);
+        // Signaling may be down too: don't spin while it comes back
+        await sleep(RESTART_RETRY_MS);
+      }
+    }
+    recovering = false;
+    if (stopped) return;
+    if (pc.connectionState === "connected") {
+      notice("recovered");
+      void routeOf(pc).then((route) => trace(`friend: route ${route}`));
+    } else giveUp();
+  };
+  pc.onconnectionstatechange = () => {
+    const state = pc.connectionState;
+    trace(`friend: connection ${state}`);
+    if (state === "closed") giveUp();
+    else if (state === "disconnected" || state === "failed") void recover();
   };
   return { port, mods, stop };
 }

@@ -1,4 +1,5 @@
 import { Container } from "inversify";
+import { shell } from "electron";
 import { TYPES } from "@main/contexts/discord-notifications/application/use-cases/types";
 import { TYPES as ConfigTYPES } from "@main/contexts/app-configuration/application/use-cases/types";
 import { LoadConfigUseCase } from "@main/contexts/app-configuration/application/use-cases";
@@ -10,6 +11,14 @@ import {
   DiscordWebhookRepository,
   ServerDiscordSettingsRepository,
 } from "@main/contexts/discord-notifications/infrastructure/repositories";
+import { DiscordLinkService } from "@main/contexts/discord-notifications/application/DiscordLinkService";
+import { DiscordBridge } from "@main/contexts/discord-notifications/application/DiscordBridge";
+import { SendCommandUseCase } from "@main/contexts/server-runtime/application/use-cases";
+import {
+  API_URL,
+  api,
+  deviceToken,
+} from "@main/contexts/p2p-tunnel/infrastructure/DeviceSession";
 import {
   GetServerDiscordSettingsUseCase,
   RelayServerOutputUseCase,
@@ -29,6 +38,36 @@ export function configureDiscordNotificationsContext(container: Container): void
     .inSingletonScope();
 
   container
+    .bind<DiscordLinkService>(TYPES.DiscordLinkService)
+    .toDynamicValue(
+      () =>
+        new DiscordLinkService(
+          container.get<IServerDiscordSettingsRepository>(TYPES.IServerDiscordSettingsRepository),
+          api,
+          (url) => shell.openExternal(url),
+        ),
+    )
+    .inSingletonScope();
+
+  container
+    .bind<DiscordBridge>(TYPES.DiscordBridge)
+    .toDynamicValue(() => {
+      const settings = container.get<IServerDiscordSettingsRepository>(
+        TYPES.IServerDiscordSettingsRepository,
+      );
+      return new DiscordBridge({
+        loadSettings: (serverId) => settings.get(serverId),
+        serverVersion: (serverId) => settings.serverVersion(serverId),
+        // Resolved per message: the server-runtime context is registered independently
+        sendCommand: (serverId, command) =>
+          container.get(SendCommandUseCase).execute(serverId, command),
+        apiUrl: API_URL,
+        deviceToken,
+      });
+    })
+    .inSingletonScope();
+
+  container
     .bind<RelayServerOutputUseCase>(TYPES.RelayServerOutputUseCase)
     .toDynamicValue(() => {
       const settings = container.get<IServerDiscordSettingsRepository>(
@@ -41,6 +80,7 @@ export function configureDiscordNotificationsContext(container: Container): void
         async () =>
           (await container.get<LoadConfigUseCase>(ConfigTYPES.LoadConfigUseCase).execute())?.app
             ?.owner_name,
+        (serverId, event) => container.get<DiscordBridge>(TYPES.DiscordBridge).onLifecycle(serverId, event),
       );
     })
     .inSingletonScope();

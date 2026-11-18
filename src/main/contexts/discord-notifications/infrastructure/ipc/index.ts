@@ -5,6 +5,7 @@ import {
   SaveServerDiscordSettingsUseCase,
   SendDiscordTestMessageUseCase,
 } from "@main/contexts/discord-notifications/application/use-cases";
+import { DiscordLinkService } from "@main/contexts/discord-notifications/application/DiscordLinkService";
 import { DiscordIPCHandlers } from "./DiscordIPCHandlers";
 
 export function registerDiscordIPCHandlers(container: Container): void {
@@ -12,5 +13,6 @@ export function registerDiscordIPCHandlers(container: Container): void {
     container.get<SendDiscordTestMessageUseCase>(TYPES.SendDiscordTestMessageUseCase),
     container.get<GetServerDiscordSettingsUseCase>(TYPES.GetServerDiscordSettingsUseCase),
     container.get<SaveServerDiscordSettingsUseCase>(TYPES.SaveServerDiscordSettingsUseCase),
+    container.get<DiscordLinkService>(TYPES.DiscordLinkService),
   ).register();
 }

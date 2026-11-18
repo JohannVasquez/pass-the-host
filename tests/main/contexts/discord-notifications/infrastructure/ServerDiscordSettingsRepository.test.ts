@@ -10,6 +10,11 @@ vi.mock("@shared/infrastructure/logger", () => ({
 }));
 
 import { ServerDiscordSettingsRepository } from "@main/contexts/discord-notifications/infrastructure/repositories";
+import {
+  toRendererSettings,
+  withStoredLink,
+  withoutLink,
+} from "@main/contexts/discord-notifications/domain/entities";
 
 const infoPath = (id: string) => path.join(root, "servers", id, "server_info.json");
 const writeInfo = (id: string, info: object) => {
@@ -26,7 +31,7 @@ describe("ServerDiscordSettingsRepository", () => {
 
   it("returns defaults when there is no discord key or no file", () => {
     writeInfo("s1", { name: "Mine" });
-    const defaults = { webhook_url: "", relay_chat: true, notify_status: true, notify_joins: false };
+    const defaults = { webhook_url: "", relay_chat: true, notify_status: true, notify_joins: false, relay_to_game: false };
     expect(repo.get("s1")).toEqual(defaults);
     expect(repo.get("missing")).toEqual(defaults);
   });
@@ -83,5 +88,39 @@ describe("ServerDiscordSettingsRepository", () => {
   it("throws when the server does not exist", () => {
     expect(() => repo.save("ghost", {})).toThrow();
     expect(fs.existsSync(path.join(root, "servers", "ghost"))).toBe(false);
+  });
+});
+
+describe("Discord link settings", () => {
+  const repo = new ServerDiscordSettingsRepository();
+  const link = { link_id: "abc_-1", link_secret: "sec_-1", channel_id: "123", channel_name: "chat", guild_name: "G" };
+
+  it("keeps well-formed link fields and drops malformed ones", () => {
+    writeInfo("s1", { name: "Mine", version: "1.21.4" });
+    repo.save("s1", { ...link, channel_id: "12a", link_id: "bad id!", relay_to_game: true });
+    const saved = readInfo("s1").discord;
+    expect(saved).toMatchObject({ link_secret: "sec_-1", channel_name: "chat", relay_to_game: true });
+    expect(saved.channel_id).toBeUndefined();
+    expect(saved.link_id).toBeUndefined();
+    expect(repo.serverVersion("s1")).toBe("1.21.4");
+  });
+
+  it("strips the secret for the renderer and ignores renderer link edits", () => {
+    const stored = { ...link, link_webhook_id: "77" };
+    expect(toRendererSettings(stored)).not.toHaveProperty("link_secret");
+    const merged = withStoredLink({ webhook_url: "x", link_id: "evil", link_secret: "evil", relay_to_game: true }, stored);
+    expect(merged).toMatchObject({ ...stored, relay_to_game: true, webhook_url: "x" });
+    // Renderer can't clear the link either
+    expect(withStoredLink({}, stored).link_secret).toBe("sec_-1");
+  });
+
+  it("unlink clears the webhook only when the link created it", () => {
+    const mine = "https://discord.com/api/webhooks/77/tok";
+    expect(withoutLink({ ...link, link_webhook_id: "77", webhook_url: mine }).webhook_url).toBe("");
+    const manual = "https://discord.com/api/webhooks/5/tok";
+    const kept = withoutLink({ ...link, link_webhook_id: "77", webhook_url: manual });
+    expect(kept.webhook_url).toBe(manual);
+    expect(kept.link_secret).toBeUndefined();
+    expect(kept.relay_to_game).toBe(false);
   });
 });

@@ -9,6 +9,24 @@ import {
 import { DISCORD_LANGUAGES } from "@main/contexts/discord-notifications/domain/messages";
 import { IServerDiscordSettingsRepository } from "@main/contexts/discord-notifications/domain/repositories";
 
+const text = (v: unknown, max: number, re?: RegExp): string | undefined =>
+  typeof v === "string" && v.length > 0 && v.length <= max && (!re || re.test(v)) ? v : undefined;
+const TOKEN_RE = /^[A-Za-z0-9_-]+$/;
+const SNOWFLAKE_RE = /^\d{1,25}$/;
+
+/** Link fields are only kept when well-formed; the link_secret is a secret, never log it */
+export function linkFields(s: DiscordSettings | undefined): DiscordSettings {
+  const clean: DiscordSettings = {
+    link_id: text(s?.link_id, 64, TOKEN_RE),
+    link_secret: text(s?.link_secret, 128, TOKEN_RE),
+    guild_name: text(s?.guild_name, 100),
+    channel_id: text(s?.channel_id, 25, SNOWFLAKE_RE),
+    channel_name: text(s?.channel_name, 100),
+    link_webhook_id: text(s?.link_webhook_id, 25, SNOWFLAKE_RE),
+  };
+  return Object.fromEntries(Object.entries(clean).filter(([, v]) => v !== undefined));
+}
+
 /** Stores the settings under the `discord` key of the server's server_info.json (synced with the server). */
 export class ServerDiscordSettingsRepository implements IServerDiscordSettingsRepository {
   private infoPath(serverId: string): string {
@@ -51,6 +69,8 @@ export class ServerDiscordSettingsRepository implements IServerDiscordSettingsRe
         relay_chat: settings?.relay_chat === true,
         notify_status: settings?.notify_status === true,
         notify_joins: settings?.notify_joins === true,
+        ...(settings?.relay_to_game === true && { relay_to_game: true }),
+        ...linkFields(settings),
         ...(DISCORD_LANGUAGES.some((l) => l === settings?.language) && {
           language: settings.language,
         }),
@@ -58,6 +78,15 @@ export class ServerDiscordSettingsRepository implements IServerDiscordSettingsRe
       fs.writeFileSync(file, JSON.stringify(info, null, 2), "utf-8");
     } catch {
       throw new FileSystemError("Failed to save Discord settings");
+    }
+  }
+
+  serverVersion(serverId: string): string | undefined {
+    try {
+      const v = this.read(this.infoPath(serverId))?.version;
+      return typeof v === "string" && v.trim() ? v.trim() : undefined;
+    } catch {
+      return undefined;
     }
   }
 
