@@ -1,6 +1,10 @@
 import { ipcMain } from "electron";
 import { logger } from "@shared/infrastructure/logger";
-import { api, forgetDevice } from "@main/contexts/p2p-tunnel/infrastructure/DeviceSession";
+import {
+  api,
+  API_URL,
+  forgetDevice,
+} from "@main/contexts/p2p-tunnel/infrastructure/DeviceSession";
 import * as tunnel from "@main/contexts/p2p-tunnel/infrastructure/TcpTunnel";
 import {
   getIceServers,
@@ -50,6 +54,18 @@ export function registerP2PIPCHandlers(): void {
     api("/me", { method: "PUT", body: { name } }),
   );
   ipcMain.handle("p2p:ably-token", () => api("/ably-auth"));
+  ipcMain.handle(
+    "p2p:realtime-mode",
+    async () => (await api<{ realtime: "ably" | "do" }>("/config")).realtime,
+  );
+  // A fresh one-minute ticket per (re)connection; the device token itself never leaves main
+  ipcMain.handle("p2p:room-url", async (_e, groupId: string) => {
+    if (!UUID.test(groupId)) throw new Error("group_not_found");
+    const { ticket } = await api<{ ticket: string }>(`/rooms/${groupId}/ticket`, {
+      method: "POST",
+    });
+    return `${API_URL.replace(/^http/, "ws")}/api/rooms/${groupId}/ws?ticket=${encodeURIComponent(ticket)}`;
+  });
   ipcMain.handle("p2p:ice-servers", () => getIceServers());
   ipcMain.handle("p2p:get-turn-config", () => loadTurnConfig());
   ipcMain.handle("p2p:save-turn-config", (_e, config: TurnConfig | null) => saveTurnConfig(config));

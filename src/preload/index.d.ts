@@ -279,6 +279,10 @@ interface P2PAPI {
   listMembers: (groupId: string) => Promise<P2PMember[]>;
   setDisplayName: (name: string) => Promise<void>;
   getAblyToken: () => Promise<TokenRequest>;
+  /** Which realtime backend rooms use, decided by the API */
+  getRealtimeMode: () => Promise<"ably" | "do">;
+  /** WebSocket URL (with a short-lived ticket) for the room's RoomHub */
+  getRoomUrl: (groupId: string) => Promise<string>;
   getTurnConfig: () => Promise<TurnConfig | null>;
   saveTurnConfig: (config: TurnConfig | null) => Promise<void>;
   getIceServers: () => Promise<{ iceServers: RTCIceServer[] }>;

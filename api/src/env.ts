@@ -10,6 +10,9 @@ export type AppEnv = {
     DISCORD_CLIENT_SECRET: string
     DISCORD_BOT_TOKEN: string
     DISCORD_GATEWAY: DurableObjectNamespace
+    ROOM_HUB: DurableObjectNamespace<import('./roomHub').RoomHub>
+    /** 'ably' (default) or 'do': which realtime backend the app uses */
+    REALTIME?: string
   }
   Variables: { jwtPayload: { sub: string } }
 }

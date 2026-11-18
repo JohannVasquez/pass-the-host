@@ -1,4 +1,4 @@
-import { channelName, getRealtime } from "@contexts/p2p-tunnel/infrastructure/Realtime";
+import { roomChannel } from "@contexts/p2p-tunnel/infrastructure/Realtime";
 
 export interface PresenceState {
   name: string;
@@ -25,12 +25,12 @@ export function watchPresence(
   onChange: (online: OnlineMember[]) => void,
   onError: (error: unknown) => void,
 ): NetworkPresence {
-  const realtime = getRealtime();
-  const channel = realtime.channels.get(channelName(groupId));
-  const presence = channel.presence;
+  // Leaving the network view is the last use of its channel (hosting stops with it)
+  const channel = roomChannel(groupId, { detachOnRelease: true });
   let left = false;
 
   const sync = async (): Promise<void> => {
+    const { presence, clientId } = await channel;
     const members = await presence.get();
     if (left) return;
     // The same user may have the app open twice: merge their connections
@@ -44,24 +44,29 @@ export function watchPresence(
         clientId: member.clientId,
         name: state.name,
         hosting: state.hosting || (previous?.hosting ?? false),
-        isYou: member.clientId === realtime.auth.clientId,
+        isYou: member.clientId === clientId(),
       });
     }
     onChange([...byUser.values()]);
   };
 
   const listener = (): void => void sync().catch(onError);
-  presence.subscribe(listener).catch(onError);
+  channel.then(({ presence }) => presence.subscribe(listener)).catch(onError);
 
   return {
-    set: (state) => presence.update(state).then(sync).catch(onError),
+    set: (state) =>
+      void channel
+        .then(({ presence }) => presence.update(state))
+        .then(sync)
+        .catch(onError),
     leave: () => {
       left = true;
-      presence.unsubscribe(listener);
-      // Leaving the network view is the last use of its channel (hosting stops with it)
-      presence
-        .leave()
-        .then(() => channel.detach())
+      channel
+        .then(async ({ presence, release }) => {
+          presence.unsubscribe(listener);
+          await presence.leave();
+          release();
+        })
         .catch(() => undefined);
     },
   };

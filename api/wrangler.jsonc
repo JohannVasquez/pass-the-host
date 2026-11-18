@@ -10,9 +10,15 @@
     { "name": "JOIN_LIMITER", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } },
     { "name": "DISCORD_LIMITER", "namespace_id": "1003", "simple": { "limit": 10, "period": 60 } }
   ],
-  "vars": { "DISCORD_CLIENT_ID": "1564167068503376006" },
-  "durable_objects": { "bindings": [{ "name": "DISCORD_GATEWAY", "class_name": "DiscordGateway" }] },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DiscordGateway"] }],
+  "vars": { "DISCORD_CLIENT_ID": "1564167068503376006", "REALTIME": "ably" },
+  "durable_objects": { "bindings": [
+      { "name": "DISCORD_GATEWAY", "class_name": "DiscordGateway" },
+      { "name": "ROOM_HUB", "class_name": "RoomHub" }
+    ] },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["DiscordGateway"] },
+    { "tag": "v2", "new_sqlite_classes": ["RoomHub"] }
+  ],
   "d1_databases": [
     {
       "binding": "DB",
