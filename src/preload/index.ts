@@ -127,7 +127,23 @@ interface DiscordConfigData {
   notify_status: boolean;
   notify_joins: boolean;
   language?: string;
+  /** Linked through the Pass the host bot (set by the link handlers only; the secret never reaches the renderer) */
+  link_id?: string;
+  guild_name?: string;
+  channel_id?: string;
+  channel_name?: string;
+  /** Relay the linked channel's messages into the game */
+  relay_to_game?: boolean;
 }
+
+type DiscordLinkState = {
+  status: "none" | "pending" | "linked";
+  guildName?: string;
+  channelId?: string;
+  channelName?: string;
+};
+
+type DiscordChannel = { id: string; name: string; category?: string };
 
 type DiscordTestResult =
   | { ok: true }
@@ -164,6 +180,16 @@ const discordAPI = {
     ipcRenderer.invoke("discord:save-settings", serverId, settings),
   sendTest: (url: string, language?: string): Promise<DiscordTestResult> =>
     ipcRenderer.invoke("discord:send-test", url, language),
+  startLink: (serverId: string): Promise<DiscordLinkState> =>
+    ipcRenderer.invoke("discord:start-link", serverId),
+  getLinkState: (serverId: string): Promise<DiscordLinkState> =>
+    ipcRenderer.invoke("discord:link-state", serverId),
+  listChannels: (serverId: string): Promise<DiscordChannel[]> =>
+    ipcRenderer.invoke("discord:list-channels", serverId),
+  selectChannel: (serverId: string, channelId: string): Promise<DiscordConfigData> =>
+    ipcRenderer.invoke("discord:select-channel", serverId, channelId),
+  unlink: (serverId: string): Promise<DiscordConfigData> =>
+    ipcRenderer.invoke("discord:unlink", serverId),
 };
 
 interface ServerStatistics {

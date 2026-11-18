@@ -37,7 +37,11 @@ The application currently includes:
 
 ## Discord
 
-Pass the host can relay your server to a Discord channel through a webhook.
+Pass the host can relay your server to a Discord channel, and bring that channel's chat into the game.
+
+**Connect Discord (recommended):** in Edit server → Discord press "Connect Discord", authorize the Pass the host bot for your Discord server in the browser, then pick a channel. The app creates the webhook for you, and while the Minecraft server is online, messages written in that channel appear in the game chat as `[Discord] Name: message` (links are clickable, attachments and stickers show as labels). "Unlink" removes the connection and the webhook it created.
+
+**Advanced (webhook only):**
 
 1. In Discord: Edit channel → Integrations → Webhooks → New webhook → Copy webhook URL.
 2. In the app: Edit server → Discord. Paste the URL, choose what to send and press "Send test message".

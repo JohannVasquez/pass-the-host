@@ -344,6 +344,22 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
     Object.entries(values).filter(([key, value]) => original?.[key] !== value),
   );
   const whitelistChanged = JSON.stringify(whitelist) !== JSON.stringify(originalWhitelist);
+  // Link changes are saved server-side already: fold them into both copies so they are not "unsaved edits"
+  const applyDiscordLink = (next: DiscordConfigData): void => {
+    const merge = (d: DiscordConfigData | null): DiscordConfigData | null =>
+      d && {
+        ...d,
+        webhook_url: next.webhook_url,
+        link_id: next.link_id,
+        guild_name: next.guild_name,
+        channel_id: next.channel_id,
+        channel_name: next.channel_name,
+        relay_to_game: next.relay_to_game,
+      };
+    setDiscord(merge);
+    setOriginalDiscord(merge);
+  };
+
   const discordChanged = JSON.stringify(discord) !== JSON.stringify(originalDiscord);
   const propsChanged = Object.keys(changed).length > 0 || whitelistChanged;
   const hasChanges = propsChanged || discordChanged;
@@ -679,7 +695,14 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
               <Typography variant="caption" color="text.secondary">
                 {t("editServer.discord.hint")}
               </Typography>
-              {discord && <DiscordSettings value={discord} onChange={setDiscord} />}
+              {discord && (
+                <DiscordSettings
+                  value={discord}
+                  onChange={setDiscord}
+                  serverId={serverId}
+                  onLinkChange={applyDiscordLink}
+                />
+              )}
             </>
           )}
           {id === "datapacks" && datapacksList && serverId && (

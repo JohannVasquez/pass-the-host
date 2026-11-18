@@ -7,8 +7,12 @@
   "observability": { "enabled": true },
   "ratelimits": [
     { "name": "SIGNUP_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } },
-    { "name": "JOIN_LIMITER", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } }
+    { "name": "JOIN_LIMITER", "namespace_id": "1002", "simple": { "limit": 10, "period": 60 } },
+    { "name": "DISCORD_LIMITER", "namespace_id": "1003", "simple": { "limit": 10, "period": 60 } }
   ],
+  "vars": { "DISCORD_CLIENT_ID": "1564167068503376006" },
+  "durable_objects": { "bindings": [{ "name": "DISCORD_GATEWAY", "class_name": "DiscordGateway" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DiscordGateway"] }],
   "d1_databases": [
     {
       "binding": "DB",
