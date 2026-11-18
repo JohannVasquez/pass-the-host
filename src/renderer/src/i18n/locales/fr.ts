@@ -66,7 +66,9 @@ export const fr: typeof en = {
       cloudCopyNotSynced:
         "Ce serveur est enregistré dans {{provider}}, mais il n'est pas synchronisé pour le moment. Si tu joues, tes modifications restent sur ce PC et pourraient entrer en conflit avec la copie du cloud.",
       openServerFolder: "Dossier du serveur",
-      editProperties: "Modifier",
+      serverSettings: "Paramètres du serveur",
+      mods: "Mods",
+      plugins: "Plugins",
       deleteServer: "Supprimer",
       share: "Partager",
       cloudNotConfigured: "Configure le stockage cloud avant d'utiliser les contrôles du serveur",
@@ -137,8 +139,8 @@ export const fr: typeof en = {
       failed: "Échec de l'installation de rclone",
     },
     configuration: {
-      title: "Configuration",
-      summary: "Cloud · Réseau · RAM",
+      title: "Cloud, réseau et RAM",
+      summary: "Tous les serveurs",
       cloudSyncOff: "Synchro cloud désactivée",
       stopToEdit: "Arrête le serveur pour modifier la configuration.",
     },
@@ -260,7 +262,7 @@ export const fr: typeof en = {
       overwrite: "Écraser",
     },
     editServer: {
-      title: "Modifier le serveur",
+      title: "Paramètres du serveur",
       save: "Enregistrer les modifications",
       cancel: "Annuler",
       datapacks: {

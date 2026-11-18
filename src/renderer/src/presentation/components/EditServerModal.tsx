@@ -255,6 +255,8 @@ interface EditServerModalProps {
   serverName?: string | null;
   /** Anything but stopped: world files are in use */
   isRunning: boolean;
+  /** Section to scroll to once it exists ("mods" maps to mods/plugins) */
+  initialSection?: string | null;
   onClose: () => void;
   /** Files on disk changed (the message goes to the console) */
   onSaved: (message: string) => void;
@@ -265,6 +267,7 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
   serverId,
   serverName,
   isRunning,
+  initialSection,
   onClose,
   onSaved,
 }) => {
@@ -557,6 +560,21 @@ export const EditServerModal: React.FC<EditServerModalProps> = ({
       ?.querySelector(`[data-section="${id}"]`)
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  const scrolledInitial = React.useRef(false);
+  React.useEffect(() => {
+    if (!open) scrolledInitial.current = false;
+  }, [open]);
+  React.useEffect(() => {
+    if (!open || !initialSection || scrolledInitial.current) return;
+    if (initialSection === "mods" && !showMods) return;
+    scrolledInitial.current = true;
+    // Wait a frame so the section is rendered
+    requestAnimationFrame(() =>
+      scrollToSection(initialSection === "mods" ? modsSectionId : initialSection),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, modsList, initialSection]);
 
   const renderWorldTools = (): React.ReactNode => {
     const disabled = isRunning || worldBusy || isSaving;

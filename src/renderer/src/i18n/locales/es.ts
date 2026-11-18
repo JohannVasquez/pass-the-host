@@ -64,7 +64,9 @@ export const es = {
       cloudCopyNotSynced:
         "Este servidor está guardado en {{provider}}, pero ahora no se está sincronizando. Si juegas, tus cambios quedan solo en este PC y podrían chocar con la copia de la nube.",
       openServerFolder: "Carpeta del servidor",
-      editProperties: "Editar",
+      serverSettings: "Ajustes del servidor",
+      mods: "Mods",
+      plugins: "Plugins",
       deleteServer: "Eliminar",
       share: "Compartir",
       cloudNotConfigured:
@@ -138,8 +140,8 @@ export const es = {
       failed: "Error al instalar rclone",
     },
     configuration: {
-      title: "Configuración",
-      summary: "Nube · Red · RAM",
+      title: "Nube, red y RAM",
+      summary: "Todos los servidores",
       cloudSyncOff: "Sincronización desactivada",
       stopToEdit: "Detén el servidor para editar la configuración.",
     },
@@ -262,7 +264,7 @@ export const es = {
       overwrite: "Sobrescribir",
     },
     editServer: {
-      title: "Editar servidor",
+      title: "Ajustes del servidor",
       save: "Guardar cambios",
       cancel: "Cancelar",
       datapacks: {

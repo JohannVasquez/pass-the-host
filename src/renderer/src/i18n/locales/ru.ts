@@ -66,7 +66,9 @@ export const ru: typeof en = {
       cloudCopyNotSynced:
         "Этот сервер сохранён в {{provider}}, но сейчас не синхронизируется. Если вы будете играть, изменения останутся на этом ПК и могут конфликтовать с копией в облаке.",
       openServerFolder: "Папка сервера",
-      editProperties: "Изменить",
+      serverSettings: "Настройки сервера",
+      mods: "Моды",
+      plugins: "Плагины",
       deleteServer: "Удалить",
       share: "Поделиться",
       cloudNotConfigured: "Настройте облачное хранилище, прежде чем управлять сервером",
@@ -136,8 +138,8 @@ export const ru: typeof en = {
       failed: "Не удалось установить rclone",
     },
     configuration: {
-      title: "Настройки",
-      summary: "Облако · Сеть · RAM",
+      title: "Облако, сеть и RAM",
+      summary: "Все серверы",
       cloudSyncOff: "Синхронизация выключена",
       stopToEdit: "Остановите сервер, чтобы изменить настройки.",
     },
@@ -259,7 +261,7 @@ export const ru: typeof en = {
       overwrite: "Перезаписать",
     },
     editServer: {
-      title: "Настроить сервер",
+      title: "Настройки сервера",
       save: "Сохранить изменения",
       cancel: "Отмена",
       datapacks: {

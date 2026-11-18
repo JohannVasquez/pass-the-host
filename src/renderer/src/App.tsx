@@ -201,6 +201,7 @@ function AppContent(): React.JSX.Element {
   } | null>(null);
   const [isDeleteServerModalOpen, setIsDeleteServerModalOpen] = React.useState<boolean>(false);
   const [isEditServerModalOpen, setIsEditServerModalOpen] = React.useState<boolean>(false);
+  const [editServerSection, setEditServerSection] = React.useState<string | null>(null);
   const [isOfflineCloudModalOpen, setIsOfflineCloudModalOpen] = React.useState<boolean>(false);
   const [isShareServerModalOpen, setIsShareServerModalOpen] = React.useState<boolean>(false);
   const [totalBucketSize, setTotalBucketSize] = React.useState<number>(0);
@@ -1807,7 +1808,7 @@ function AppContent(): React.JSX.Element {
 
   // Edits are made on the local copy, so it must be the latest one: otherwise saving would
   // upload an old world over a friend's progress
-  const handleEditProperties = async (): Promise<void> => {
+  const handleEditProperties = async (section?: string): Promise<void> => {
     if (selectedServer && selectedSyncsToCloud && serverStatus === ServerStatus.STOPPED) {
       // Blocks the UI while rclone checks, so nobody starts the server under the dialog
       setIsCheckingCloud(true);
@@ -1844,6 +1845,7 @@ function AppContent(): React.JSX.Element {
         setIsCheckingCloud(false);
       }
     }
+    setEditServerSection(section ?? null);
     setIsEditServerModalOpen(true);
   };
 
@@ -2166,7 +2168,8 @@ function AppContent(): React.JSX.Element {
               onStartStop={() => handleStartStop()}
               onReleaseLock={handleReleaseLock}
               onSyncToR2={handleSyncToR2}
-              onEditProperties={handleEditProperties}
+              onEditProperties={() => handleEditProperties()}
+              onOpenMods={() => handleEditProperties("mods")}
               onOpenServerFolder={handleOpenServerFolder}
               onDeleteServer={handleDeleteServer}
               onShare={
@@ -2451,7 +2454,11 @@ function AppContent(): React.JSX.Element {
           serverId={selectedServer}
           serverName={selectedServerName}
           isRunning={serverStatus !== ServerStatus.STOPPED}
-          onClose={() => setIsEditServerModalOpen(false)}
+          initialSection={editServerSection}
+          onClose={() => {
+            setIsEditServerModalOpen(false);
+            setEditServerSection(null);
+          }}
           onSaved={handleServerFilesEdited}
         />
 

@@ -66,7 +66,9 @@ export const ptBR: typeof en = {
       cloudCopyNotSynced:
         "Este servidor está salvo em {{provider}}, mas não está sincronizando agora. Se você jogar, suas mudanças ficam só neste PC e podem entrar em conflito com a cópia na nuvem.",
       openServerFolder: "Pasta do servidor",
-      editProperties: "Editar",
+      serverSettings: "Configurações do servidor",
+      mods: "Mods",
+      plugins: "Plugins",
       deleteServer: "Excluir",
       share: "Compartilhar",
       cloudNotConfigured:
@@ -138,8 +140,8 @@ export const ptBR: typeof en = {
       failed: "Falha ao instalar o rclone",
     },
     configuration: {
-      title: "Configuração",
-      summary: "Nuvem · Rede · RAM",
+      title: "Nuvem, rede e RAM",
+      summary: "Todos os servidores",
       cloudSyncOff: "Sincronização desativada",
       stopToEdit: "Pare o servidor para editar a configuração.",
     },
@@ -261,7 +263,7 @@ export const ptBR: typeof en = {
       overwrite: "Substituir",
     },
     editServer: {
-      title: "Editar servidor",
+      title: "Configurações do servidor",
       save: "Salvar alterações",
       cancel: "Cancelar",
       datapacks: {

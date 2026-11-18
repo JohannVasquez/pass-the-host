@@ -64,7 +64,9 @@ export const en = {
       cloudCopyNotSynced:
         "This server is saved in {{provider}}, but it isn't syncing right now. If you play it, your changes stay on this PC and could clash with the cloud copy.",
       openServerFolder: "Server folder",
-      editProperties: "Edit",
+      serverSettings: "Server settings",
+      mods: "Mods",
+      plugins: "Plugins",
       deleteServer: "Delete",
       share: "Share",
       cloudNotConfigured: "Please configure cloud storage settings before using server controls",
@@ -134,8 +136,8 @@ export const en = {
       failed: "Failed to install rclone",
     },
     configuration: {
-      title: "Configuration",
-      summary: "Cloud · Network · RAM",
+      title: "Cloud, network & RAM",
+      summary: "All servers",
       cloudSyncOff: "Cloud sync off",
       stopToEdit: "Stop the server to edit the configuration.",
     },
@@ -257,7 +259,7 @@ export const en = {
       overwrite: "Overwrite",
     },
     editServer: {
-      title: "Edit server",
+      title: "Server settings",
       save: "Save changes",
       cancel: "Cancel",
       datapacks: {
