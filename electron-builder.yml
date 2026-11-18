@@ -31,6 +31,10 @@ appx:
   languages:
     - en-US
     - es-ES
+    - pt-BR
+    - de-DE
+    - fr-FR
+    - ru-RU
 mac:
   icon: resources/icon.icns
   entitlementsInherit: build/entitlements.mac.plist
