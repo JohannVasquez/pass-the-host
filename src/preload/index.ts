@@ -379,6 +379,8 @@ const p2pAPI = {
   tcpPause: (connId: string): void => ipcRenderer.send("p2p:tcp-pause", connId),
   tcpResume: (connId: string): void => ipcRenderer.send("p2p:tcp-resume", connId),
   closeAll: (): void => ipcRenderer.send("p2p:close-all"),
+  log: (level: "info" | "success" | "warning" | "error", message: string): void =>
+    ipcRenderer.send("p2p:log", level, message),
   onTcpOpen: (callback: (connId: string) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, connId: string): void => callback(connId);
     ipcRenderer.on("p2p:tcp-open", listener);
