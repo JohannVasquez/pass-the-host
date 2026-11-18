@@ -4,7 +4,7 @@ import {
   writeSecureJson,
 } from "@main/contexts/p2p-tunnel/infrastructure/SecureStore";
 
-const API_URL =
+export const API_URL =
   import.meta.env.MAIN_VITE_API_URL ?? "https://pass-the-host-api.johannvasquez101.workers.dev";
 const SESSION_FILE = "p2p-session";
 
@@ -24,7 +24,7 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
 let registering: Promise<string> | null = null;
 
 /** Each install identifies itself with a token the API issues on first use; there is no login. */
-function deviceToken(): Promise<string> {
+export function deviceToken(): Promise<string> {
   const saved = readSecureJson<DeviceSession>(SESSION_FILE);
   if (saved) return Promise.resolve(saved.token);
   // Calls racing on first launch share one registration instead of creating several users
@@ -42,9 +42,16 @@ export const forgetDevice = (): void => removeSecureJson(SESSION_FILE);
 
 export async function api<T>(
   path: string,
-  { method = "GET", body }: { method?: string; body?: unknown } = {},
+  {
+    method = "GET",
+    body,
+    headers: extra,
+  }: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
 ): Promise<T> {
-  const headers: Record<string, string> = { Authorization: `Bearer ${await deviceToken()}` };
+  const headers: Record<string, string> = {
+    ...extra,
+    Authorization: `Bearer ${await deviceToken()}`,
+  };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   try {
     return await request<T>(path, {

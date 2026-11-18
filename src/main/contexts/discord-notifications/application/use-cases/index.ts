@@ -1,5 +1,9 @@
 import { logger } from "@shared/infrastructure/logger";
-import { DiscordSettings } from "@main/contexts/discord-notifications/domain/entities";
+import {
+  DiscordSettings,
+  toRendererSettings,
+  withStoredLink,
+} from "@main/contexts/discord-notifications/domain/entities";
 import {
   IDiscordWebhookRepository,
   IServerDiscordSettingsRepository,
@@ -33,6 +37,8 @@ export class RelayServerOutputUseCase {
     private serverName: (serverId: string) => string,
     /** Nickname saved in the app: this PC is the one hosting, so it started/stopped the server */
     private hostNickname: () => Promise<string | null | undefined> = async () => undefined,
+    /** The server is playable ("Done" line) or gone; fires whether or not a webhook is set */
+    private onLifecycle: (serverId: string, event: "online" | "stopped") => void = () => undefined,
   ) {}
 
   onOutput(serverId: string, stream: "stdout" | "stderr", chunk: string): void {
@@ -55,6 +61,7 @@ export class RelayServerOutputUseCase {
         this.handleLines(serverId, lines);
       }
       this.dispatch(serverId, { type: "stopped", code });
+      this.onLifecycle(serverId, "stopped");
     } catch (e) {
       logger.error("Discord relay failed", e);
     }
@@ -63,7 +70,9 @@ export class RelayServerOutputUseCase {
   private handleLines(serverId: string, lines: string[]): void {
     for (const line of lines) {
       const event = parseServerLine(line);
-      if (event) this.dispatch(serverId, event);
+      if (!event) continue;
+      this.dispatch(serverId, event);
+      if (event.type === "started") this.onLifecycle(serverId, "online");
     }
   }
 
@@ -155,8 +164,9 @@ export class SendDiscordTestMessageUseCase {
 export class GetServerDiscordSettingsUseCase {
   constructor(private settings: IServerDiscordSettingsRepository) {}
 
+  /** Renderer-safe: the link secret never leaves the main process */
   execute(serverId: string): DiscordSettings {
-    return this.settings.get(serverId);
+    return toRendererSettings(this.settings.get(serverId));
   }
 }
 
@@ -164,6 +174,7 @@ export class SaveServerDiscordSettingsUseCase {
   constructor(private settings: IServerDiscordSettingsRepository) {}
 
   execute(serverId: string, settings: DiscordSettings): void {
-    this.settings.save(serverId, settings);
+    // The renderer can't change the link, only the link handlers can
+    this.settings.save(serverId, withStoredLink(settings ?? {}, this.settings.get(serverId)));
   }
 }

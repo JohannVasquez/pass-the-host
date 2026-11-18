@@ -48,6 +48,7 @@
     "inversify": "^7.11.0",
     "inversify-inject-decorators": "^3.1.0",
     "ms": "^2.1.3",
+    "node-emoji": "2.2.0",
     "notistack": "^3.0.2",
     "react-i18next": "^16.6.6",
     "reflect-metadata": "^0.2.2"

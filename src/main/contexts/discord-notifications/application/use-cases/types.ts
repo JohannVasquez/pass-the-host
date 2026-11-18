@@ -5,4 +5,6 @@ export const TYPES = {
   IServerDiscordSettingsRepository: Symbol.for("IServerDiscordSettingsRepository"),
   GetServerDiscordSettingsUseCase: Symbol.for("GetServerDiscordSettingsUseCase"),
   SaveServerDiscordSettingsUseCase: Symbol.for("SaveServerDiscordSettingsUseCase"),
+  DiscordLinkService: Symbol.for("DiscordLinkService"),
+  DiscordBridge: Symbol.for("DiscordBridge"),
 };

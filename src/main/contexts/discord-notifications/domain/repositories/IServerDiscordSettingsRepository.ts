@@ -7,4 +7,6 @@ export interface IServerDiscordSettingsRepository {
   save(serverId: string, settings: DiscordSettings): void;
   /** Display name from server_info.json, falling back to the id. */
   serverName(serverId: string): string;
+  /** Minecraft version from server_info.json (e.g. "1.21.4"), if known. */
+  serverVersion(serverId: string): string | undefined;
 }
