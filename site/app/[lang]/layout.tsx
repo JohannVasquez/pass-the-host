@@ -128,6 +128,9 @@ export default async function RootLayout({
               <Link href={`/${lang}/privacy`} className="hover:text-[#EAEAEA]">
                 {t.footer.privacy}
               </Link>
+              <Link href={`/${lang}/terms`} className="hover:text-[#EAEAEA]">
+                {t.footer.terms}
+              </Link>
               <a
                 href={GITHUB_URL}
                 aria-label="GitHub"

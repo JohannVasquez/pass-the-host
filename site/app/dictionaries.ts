@@ -25,6 +25,7 @@ const es = {
     madeBy: "Hecho por",
     license: "Código abierto bajo licencia MIT.",
     privacy: "Política de privacidad",
+    terms: "Términos de servicio",
   },
   hero: {
     badge: "Gratis y de código abierto",
@@ -173,7 +174,7 @@ const es = {
     title: "Política de privacidad — Pass the host",
     description:
       "Política de privacidad de Pass the host: qué datos usa la app, con quién se comparten y cómo borrarlos.",
-    updated: "Última actualización: 26 de octubre de 2026",
+    updated: "Última actualización: 18 de noviembre de 2026",
     intro:
       "Pass the host es una aplicación de escritorio de código abierto para gestionar servidores de Minecraft compartidos entre amigos. Esta política explica qué datos trata la app, dónde quedan y cómo borrarlos.",
     sections: [
@@ -198,8 +199,12 @@ const es = {
         p: "Para conectarte al servidor de un amigo, los dos equipos se conectan directamente (WebRTC). Para lograrlo intercambian sus direcciones IP públicas y locales, que quedan visibles para la otra persona de la sala. Comparte el código de tu sala solo con gente de confianza. El tráfico del juego va directo entre ustedes y no pasa por los servidores de Pass the host. Si configuras un servidor TURN propio, el tráfico puede pasar por ese servidor, y sus credenciales se guardan solo en tu computador.",
       },
       {
+        h: "Discord",
+        p: "Si conectas Discord a un servidor, el chat de los jugadores, sus entradas y salidas y los avisos de inicio y cierre se publican en el canal que elegiste. Para mostrar la cabeza de la skin de cada jugador, Discord carga su imagen desde mc-heads.net a partir del nombre del jugador. Si vinculas el bot \"Pass the host\", los mensajes de ese canal (nombre de quien escribe, texto, enlaces a adjuntos y nombres de stickers) pasan en tiempo real por el servidor de Pass the host hacia la app de quien hostea, y no se guardan. En el servidor de Pass the host se guarda solo el vínculo: el servidor y el canal de Discord (identificador y nombre), el identificador del webhook que creó el bot, una huella del secreto del vínculo y la fecha. Puedes borrarlo con \"Desconectar Discord\" en los ajustes del servidor, que también elimina el webhook, o quitando el bot de tu servidor de Discord.",
+      },
+      {
         h: "Proveedores",
-        p: "Cloudflare aloja el servidor y la base de datos de Salas (en Estados Unidos) y registra tu dirección IP para prevenir abusos y diagnosticar errores. Ably procesa los mensajes de conexión y presencia. Pass the host no vende tus datos, no muestra publicidad y no recopila analíticas.",
+        p: "Cloudflare aloja el servidor y la base de datos de Salas (en Estados Unidos) y registra tu dirección IP para prevenir abusos y diagnosticar errores. Ably procesa los mensajes de conexión y presencia. Discord recibe los mensajes que se publican en el canal que conectas. Pass the host no vende tus datos, no muestra publicidad y no recopila analíticas.",
       },
       {
         h: "Conservación y borrado",
@@ -213,6 +218,59 @@ const es = {
     revokeTitle: "Revocar acceso",
     revokeText: "Puedes quitarle el acceso a la app cuando quieras desde",
     contactTitle: "Contacto",
+  },
+  terms: {
+    title: "Términos de servicio — Pass the host",
+    description: "Términos de servicio de Pass the host: uso de la app, de las Salas y del bot de Discord.",
+    updated: "Última actualización: 18 de noviembre de 2026",
+    intro: "Pass the host es una aplicación de escritorio gratuita y de código abierto (licencia MIT) para gestionar servidores de Minecraft compartidos entre amigos, junto con su servicio de Salas y el bot de Discord \"Pass the host\". Al usarlos aceptas estos términos.",
+    sections: [
+      {
+        h: "Uso aceptable",
+        p: "No uses la app, las Salas ni el bot para spam, acoso, contenido ilegal o para atacar o sobrecargar el servicio. Debes respetar también las condiciones de Minecraft (EULA de Mojang), de Discord y de los proveedores de nube que conectes.",
+      },
+      {
+        h: "Bot de Discord",
+        p: "El bot solo actúa en el servidor y el canal de Discord que vinculas desde la app. Puedes desvincularlo desde los ajustes del servidor o quitar el bot de tu servidor de Discord cuando quieras. Podemos desactivar vínculos que se usen para abusos.",
+      },
+      {
+        h: "Tu contenido",
+        p: "Tus mundos y archivos son tuyos y se guardan en tu equipo y en el almacenamiento en la nube que tú configures. Tú eres responsable de tener respaldos.",
+      },
+      {
+        h: "Sin garantías",
+        p: "El servicio se entrega \"tal cual\", sin garantía de disponibilidad ni de funcionamiento continuo. En la medida que la ley lo permita, no respondemos por pérdidas de mundos, datos o tiempo de juego.",
+      },
+      {
+        h: "Sin afiliación",
+        p: "Pass the host no está afiliado a Mojang, Microsoft ni Discord.",
+      },
+      {
+        h: "Cambios",
+        p: "Podemos actualizar estos términos; la fecha de arriba indica la última versión.",
+      },
+    ],
+    contactTitle: "Contacto",
+  },
+  discord: {
+    title: "Conectar Discord — Pass the host",
+    description: "Cómo conectar el bot de Pass the host a tu servidor de Discord para unir el chat de Minecraft y Discord.",
+    intro: "El bot \"Pass the host\" une el chat de tu servidor de Minecraft con un canal de Discord: lo que se escribe en el juego llega al canal, y lo que se escribe en el canal llega al juego. Se conecta desde la app, no desde aquí.",
+    sections: [
+      {
+        h: "1. Abre los ajustes del servidor",
+        p: "En Pass the host, selecciona tu servidor y presiona \"Ajustes del servidor\" → Discord.",
+      },
+      {
+        h: "2. Presiona \"Conectar Discord\"",
+        p: "Se abre la página de Discord para agregar el bot. Elige tu servidor de Discord y autoriza.",
+      },
+      {
+        h: "3. Elige el canal",
+        p: "De vuelta en la app, elige el canal. El bot crea ahí su webhook y, mientras alguien hostea el servidor, los mensajes van en ambas direcciones.",
+      },
+    ],
+    privacyNote: "Qué datos usa el bot:",
   },
 };
 
@@ -241,6 +299,7 @@ const en: typeof es = {
     madeBy: "Made by",
     license: "Open source under the MIT license.",
     privacy: "Privacy policy",
+    terms: "Terms of service",
   },
   hero: {
     badge: "Free and open source",
@@ -389,7 +448,7 @@ const en: typeof es = {
     title: "Privacy policy — Pass the host",
     description:
       "Pass the host privacy policy: what data the app uses, who it is shared with and how to delete it.",
-    updated: "Last updated: October 26, 2026",
+    updated: "Last updated: November 18, 2026",
     intro:
       "Pass the host is an open-source desktop application for managing Minecraft servers shared among friends. This policy explains what data the app handles, where it ends up and how to delete it.",
     sections: [
@@ -414,8 +473,12 @@ const en: typeof es = {
         p: "To connect to a friend's server, both computers connect directly (WebRTC). To do so they exchange their public and local IP addresses, which become visible to the other person in the room. Only share your room code with people you trust. Game traffic goes directly between you and does not go through the Pass the host servers. If you set up your own TURN server, traffic may go through it, and its credentials are stored only on your computer.",
       },
       {
+        h: "Discord",
+        p: "If you connect Discord to a server, player chat, joins and leaves, and start and stop notices are posted to the channel you chose. To show each player's skin head, Discord loads the image from mc-heads.net using the player's name. If you link the \"Pass the host\" bot, that channel's messages (the author's name, the text, links to attachments and sticker names) go through the Pass the host server in real time to the app of whoever is hosting, and are not stored. The Pass the host server stores only the link: the Discord server and channel (identifier and name), the identifier of the webhook the bot created, a fingerprint of the link secret and the date. You can delete it with \"Disconnect Discord\" in the server settings, which also removes the webhook, or by removing the bot from your Discord server.",
+      },
+      {
         h: "Providers",
-        p: "Cloudflare hosts the Rooms server and database (in the United States) and logs your IP address to prevent abuse and diagnose errors. Ably processes the connection and presence messages. Pass the host does not sell your data, show ads or collect analytics.",
+        p: "Cloudflare hosts the Rooms server and database (in the United States) and logs your IP address to prevent abuse and diagnose errors. Ably processes the connection and presence messages. Discord receives the messages posted to the channel you connect. Pass the host does not sell your data, show ads or collect analytics.",
       },
       {
         h: "Retention and deletion",
@@ -429,6 +492,59 @@ const en: typeof es = {
     revokeTitle: "Revoking access",
     revokeText: "You can remove the app's access at any time from",
     contactTitle: "Contact",
+  },
+  terms: {
+    title: "Terms of service — Pass the host",
+    description: "Pass the host terms of service: using the app, Rooms and the Discord bot.",
+    updated: "Last updated: November 18, 2026",
+    intro: "Pass the host is a free, open-source (MIT license) desktop application for managing Minecraft servers shared among friends, together with its Rooms service and the \"Pass the host\" Discord bot. By using them you accept these terms.",
+    sections: [
+      {
+        h: "Acceptable use",
+        p: "Don't use the app, Rooms or the bot for spam, harassment, illegal content, or to attack or overload the service. You must also follow the terms of Minecraft (Mojang's EULA), Discord and the cloud providers you connect.",
+      },
+      {
+        h: "Discord bot",
+        p: "The bot only acts in the Discord server and channel you link from the app. You can unlink it from the server settings or remove the bot from your Discord server at any time. We may disable links used for abuse.",
+      },
+      {
+        h: "Your content",
+        p: "Your worlds and files are yours and are stored on your computer and in the cloud storage you set up. You are responsible for keeping backups.",
+      },
+      {
+        h: "No warranty",
+        p: "The service is provided \"as is\", with no guarantee of availability or uninterrupted operation. To the extent the law allows, we are not liable for lost worlds, data or playtime.",
+      },
+      {
+        h: "No affiliation",
+        p: "Pass the host is not affiliated with Mojang, Microsoft or Discord.",
+      },
+      {
+        h: "Changes",
+        p: "We may update these terms; the date above shows the latest version.",
+      },
+    ],
+    contactTitle: "Contact",
+  },
+  discord: {
+    title: "Connect Discord — Pass the host",
+    description: "How to connect the Pass the host bot to your Discord server to bridge Minecraft and Discord chat.",
+    intro: "The \"Pass the host\" bot bridges your Minecraft server's chat with a Discord channel: what is written in the game reaches the channel, and what is written in the channel reaches the game. You connect it from the app, not from here.",
+    sections: [
+      {
+        h: "1. Open the server settings",
+        p: "In Pass the host, select your server and press \"Server settings\" → Discord.",
+      },
+      {
+        h: "2. Press \"Connect Discord\"",
+        p: "Discord's page to add the bot opens. Pick your Discord server and authorize.",
+      },
+      {
+        h: "3. Pick the channel",
+        p: "Back in the app, pick the channel. The bot creates its webhook there and, while someone hosts the server, messages flow both ways.",
+      },
+    ],
+    privacyNote: "What data the bot uses:",
   },
 };
 
