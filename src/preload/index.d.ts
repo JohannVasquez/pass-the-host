@@ -84,7 +84,23 @@ interface DiscordConfigData {
   notify_status: boolean;
   notify_joins: boolean;
   language?: string;
+  /** Linked through the Pass the host bot (set by the link handlers only; the secret never reaches the renderer) */
+  link_id?: string;
+  guild_name?: string;
+  channel_id?: string;
+  channel_name?: string;
+  /** Relay the linked channel's messages into the game */
+  relay_to_game?: boolean;
 }
+
+type DiscordLinkState = {
+  status: "none" | "pending" | "linked";
+  guildName?: string;
+  channelId?: string;
+  channelName?: string;
+};
+
+type DiscordChannel = { id: string; name: string; category?: string };
 
 type DiscordTestResult =
   | { ok: true }
@@ -94,6 +110,13 @@ interface DiscordAPI {
   getSettings: (serverId: string) => Promise<DiscordConfigData>;
   saveSettings: (serverId: string, settings: DiscordConfigData) => Promise<void>;
   sendTest: (url: string, language?: string) => Promise<DiscordTestResult>;
+  /** Creates a link, opens Discord's authorization page in the browser and saves the link on the server */
+  startLink: (serverId: string) => Promise<DiscordLinkState>;
+  getLinkState: (serverId: string) => Promise<DiscordLinkState>;
+  listChannels: (serverId: string) => Promise<DiscordChannel[]>;
+  /** Saves the channel, the webhook the bot created there and turns on relay_to_game */
+  selectChannel: (serverId: string, channelId: string) => Promise<DiscordConfigData>;
+  unlink: (serverId: string) => Promise<DiscordConfigData>;
 }
 
 interface ConfigAPI {
