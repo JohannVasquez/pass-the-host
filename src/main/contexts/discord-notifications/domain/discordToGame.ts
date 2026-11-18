@@ -33,6 +33,14 @@ export function usesNewClickEvent(version?: string): boolean {
   return minor > 21 || (minor === 21 && patch >= 5);
 }
 
+/** `execute if entity` exists since 1.13 (the command rework); unparsable versions are treated as new. */
+export function supportsExecuteIf(version?: string): boolean {
+  const m = /^(\d+)\.(\d+)/.exec(version ?? "");
+  if (!m) return true;
+  const [major, minor] = [Number(m[1]), Number(m[2])];
+  return major > 1 || minor >= 13;
+}
+
 /** One line of plain text: no control chars (newline -> space), no § formatting codes */
 function clean(s: string): string {
   return (
@@ -138,5 +146,7 @@ export function discordToGame(
   }
 
   if (!shown) return null;
-  return `tellraw @a ${JSON.stringify(parts)}`;
+  const tellraw = `tellraw @a ${JSON.stringify(parts)}`;
+  // With nobody online a bare tellraw prints "No player was found" to the console for every message
+  return supportsExecuteIf(opts.minecraftVersion) ? `execute if entity @a run ${tellraw}` : tellraw;
 }

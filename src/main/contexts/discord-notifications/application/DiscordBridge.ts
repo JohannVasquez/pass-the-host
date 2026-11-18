@@ -161,6 +161,15 @@ export class DiscordBridge {
       language: s.language,
       minecraftVersion: this.deps.serverVersion(serverId),
     });
-    if (cmd) this.deps.sendCommand(serverId, cmd).catch((e) => logger.warn("Discord relay to game failed", e instanceof Error ? e.message : ""));
+    if (!cmd) return;
+    // Logged without the text: enough to tell whether Discord messages reach the server
+    this.deps
+      .sendCommand(serverId, cmd)
+      .then((sent) =>
+        sent === false
+          ? logger.warn(`Discord message not delivered to ${serverId}: server not running`)
+          : logger.info(`Discord message relayed to ${serverId}`),
+      )
+      .catch((e) => logger.warn("Discord relay to game failed", e instanceof Error ? e.message : ""));
   }
 }

@@ -1,13 +1,30 @@
 import { describe, it, expect } from "vitest";
-import { discordToGame, usesNewClickEvent } from "@main/contexts/discord-notifications/domain/discordToGame";
+import {
+  discordToGame,
+  supportsExecuteIf,
+  usesNewClickEvent,
+} from "@main/contexts/discord-notifications/domain/discordToGame";
 
+const TELLRAW = /^(?:execute if entity @a run )?tellraw @a /;
 const parts = (cmd: string | null) => {
-  expect(cmd?.startsWith("tellraw @a ")).toBe(true);
-  return JSON.parse((cmd as string).slice("tellraw @a ".length)) as Record<string, never>[];
+  expect(cmd).toMatch(TELLRAW);
+  return JSON.parse((cmd as string).replace(TELLRAW, "")) as Record<string, never>[];
 };
 const visible = (cmd: string | null) => parts(cmd).map((p) => p.text).join("");
 
 describe("discordToGame", () => {
+  it("runs only with players online from 1.13, so an empty server logs nothing", () => {
+    expect(discordToGame({ author: "Ever", content: "hola" }, { minecraftVersion: "1.21.11" })).toMatch(
+      /^execute if entity @a run tellraw @a \[/,
+    );
+    expect(discordToGame({ author: "Ever", content: "hola" }, { minecraftVersion: "1.12.2" })).toMatch(
+      /^tellraw @a \[/,
+    );
+    expect(supportsExecuteIf("1.13")).toBe(true);
+    expect(supportsExecuteIf("1.8.9")).toBe(false);
+    expect(supportsExecuteIf("26.3")).toBe(true);
+  });
+
   it("builds prefix, author and content", () => {
     const p = parts(discordToGame({ author: "Ever", content: "hola" }));
     expect(p.map((x) => x.text)).toEqual(["[Discord] ", "Ever", ": ", "hola"]);
