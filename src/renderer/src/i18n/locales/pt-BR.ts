@@ -561,7 +561,7 @@ export const ptBR: typeof en = {
       portBusyHint: "A {{port}} estava ocupada neste PC: use este endereço no Minecraft. Ele continua o mesmo da próxima vez.",
       serverAddress: "Endereço do servidor",
       hosting: "Seus amigos da sala podem entrar no seu servidor.",
-      disconnected: "A conexão com o host foi perdida.",
+      reconnecting: "A conexão com o host foi perdida. Reconectando…",
       modsFolder: {
         title: "Pasta de mods",
         notFound: "Não encontramos o .minecraft neste computador: escolha a pasta mods da sua instância.",

@@ -556,7 +556,7 @@ export const en = {
       portBusyHint: "{{port}} was busy on this PC: use this address in Minecraft. It stays the same next time.",
       serverAddress: "Server address",
       hosting: "Friends in this room can join your server.",
-      disconnected: "Lost the connection to the host.",
+      reconnecting: "Lost the connection to the host. Reconnecting…",
       modsFolder: {
         title: "Mods folder",
         notFound: "We couldn't find .minecraft on this computer: choose your instance's mods folder.",

@@ -562,7 +562,7 @@ export const es = {
       portBusyHint: "El {{port}} estaba ocupado en este PC: usa esta dirección en Minecraft. Se mantendrá la próxima vez.",
       serverAddress: "Dirección del servidor",
       hosting: "Tus amigos de la sala pueden unirse a tu servidor.",
-      disconnected: "Se perdió la conexión con el host.",
+      reconnecting: "Se perdió la conexión con el host. Reconectando…",
       modsFolder: {
         title: "Carpeta de mods",
         notFound: "No encontramos .minecraft en este equipo: elige la carpeta mods de tu instancia.",

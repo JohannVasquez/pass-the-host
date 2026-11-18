@@ -59,6 +59,8 @@ import { localModsClient } from "@contexts/p2p-tunnel/infrastructure/modsChannel
 import { RoomsInfoDialog } from "@contexts/p2p-tunnel/presentation/components/RoomsInfoDialog";
 
 const MINECRAFT_PORT = 25565;
+// Reconnecting to a host whose tunnel dropped: quick at first, then once a minute while they host
+const RETRY_DELAYS_MS = [2_000, 5_000, 15_000, 30_000, 60_000];
 const GROUP_STORAGE_KEY = "p2p.groupId";
 const AUTO_CONNECT_STORAGE_KEY = "p2p.autoConnect";
 // Reused when the Minecraft port is busy, so the friend's saved server entry keeps working
@@ -204,9 +206,12 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
   onlineRef.current = online;
   const onLogRef = React.useRef(onLog);
   onLogRef.current = onLog;
+  // Shown in the app's console and kept in the log file, so a dropped tunnel can be diagnosed later
   const log = React.useCallback(
-    (message: string, type: "info" | "success" | "warning" | "error"): void =>
-      onLogRef.current?.(`[P2P] ${message}`, type),
+    (message: string, type: "info" | "success" | "warning" | "error"): void => {
+      onLogRef.current?.(`[P2P] ${message}`, type);
+      window.p2pAPI.log(type, message);
+    },
     [],
   );
   const nameOf = (clientId: string): string =>
@@ -356,6 +361,9 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
     });
     startHosting(groupId, serverPort, serverId, {
       onOpened: (from) => log(`${nameOf(from)} connected to your server through the room`, "info"),
+      onInterrupted: (from) =>
+        log(`${nameOf(from)}'s connection dropped, waiting for it to recover`, "warning"),
+      onRecovered: (from) => log(`${nameOf(from)}'s connection recovered`, "success"),
       onClosed: (from) => log(`${nameOf(from)}'s connection to your server closed`, "warning"),
       onDiag: ({ from, code, detail }) => {
         const name = nameOf(from);
@@ -450,45 +458,56 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
     enqueueSnackbar(t("p2p.addressCopied"), { variant: "success" });
   };
 
+  // A tunnel that couldn't be repaired in place: reconnect to that host while they keep hosting.
+  // Cleared by a manual disconnect, a successful connection, another room or our own server starting.
+  const [retry, setRetry] = React.useState<{ hostId: string; attempt: number } | null>(null);
+
   // Only the chosen host's answer is accepted, so joining needs presence to know who hosts
+  const connectTo = async (target: OnlineMember): Promise<void> => {
+    const hostName = target.name;
+    let port = 0;
+    const onNotice = (code: DiagCode, detail?: string): void => {
+      if (code === "joined") {
+        port = Number(detail);
+        log(`Connected to ${hostName}'s server. In Minecraft, use localhost:${detail}`, "success");
+      } else if (code === "port_changed")
+        log(`Port ${MINECRAFT_PORT} was busy, so the tunnel uses localhost:${detail}`, "warning");
+      else if (code === "tunnel_failed")
+        log(`Couldn't connect to ${hostName}'s server${detail ? ` (${detail})` : ""}`, "error");
+      else if (code === "reconnecting")
+        log(`The connection to ${hostName} dropped, trying to recover it`, "warning");
+      else if (code === "recovered") log(`The connection to ${hostName} recovered`, "success");
+      else if (code === "tunnel_closed")
+        log(
+          `Lost the connection to ${hostName}. Reconnecting while they keep hosting; localhost:${port} is refused until then`,
+          "warning",
+        );
+    };
+    const tunnel = await joinServer(
+      groupId,
+      target.clientId,
+      [MINECRAFT_PORT, readFallbackPort()],
+      () => {
+        setJoined(null);
+        setRetry({ hostId: target.clientId, attempt: 0 });
+        enqueueSnackbar(t("p2p.reconnecting"), { variant: "warning" });
+      },
+      onNotice,
+    );
+    if (tunnel.port !== MINECRAFT_PORT) saveFallbackPort(tunnel.port);
+    setRetry(null);
+    setJoined(tunnel);
+  };
+
   const handleConnect = (): Promise<void> =>
     run(async () => {
       const target = hosts[0];
       if (!target) throw new Error("p2p_host_not_found");
-      const hostName = target.name;
-      let port = 0;
-      const onNotice = (code: DiagCode, detail?: string): void => {
-        if (code === "joined") {
-          port = Number(detail);
-          log(
-            `Connected to ${hostName}'s server. In Minecraft, use localhost:${detail}`,
-            "success",
-          );
-        } else if (code === "port_changed")
-          log(`Port ${MINECRAFT_PORT} was busy, so the tunnel uses localhost:${detail}`, "warning");
-        else if (code === "tunnel_failed")
-          log(`Couldn't connect to ${hostName}'s server${detail ? ` (${detail})` : ""}`, "error");
-        else if (code === "tunnel_closed")
-          log(
-            `Lost the connection to ${hostName}. Minecraft at localhost:${port} will be refused until you reconnect`,
-            "warning",
-          );
-      };
-      const tunnel = await joinServer(
-        groupId,
-        target.clientId,
-        [MINECRAFT_PORT, readFallbackPort()],
-        () => {
-          setJoined(null);
-          enqueueSnackbar(t("p2p.disconnected"), { variant: "warning" });
-        },
-        onNotice,
-      );
-      if (tunnel.port !== MINECRAFT_PORT) saveFallbackPort(tunnel.port);
-      setJoined(tunnel);
+      await connectTo(target);
     });
 
   const handleDisconnect = (): void => {
+    setRetry(null);
     joined?.stop();
     setJoined(null);
   };
@@ -518,9 +537,32 @@ export const P2PPanel: React.FC<P2PPanelProps> = ({
     void connectRef.current();
   }, [autoConnect, hostSession, joined, busy, serverActive]);
 
+  // Reconnect with backoff while the same host is still hosting
+  const connectToRef = React.useRef(connectTo);
+  connectToRef.current = connectTo;
+  const retryHostOnline = retry !== null && hosts.some((h) => h.clientId === retry.hostId);
+  React.useEffect(() => {
+    if (!retry || !retryHostOnline || joined || busy || serverActive) return undefined;
+    const delay = RETRY_DELAYS_MS[Math.min(retry.attempt, RETRY_DELAYS_MS.length - 1)];
+    const timer = setTimeout(() => {
+      const target = onlineRef.current?.find((m) => m.clientId === retry.hostId && m.hosting);
+      if (!target) return;
+      log(`Reconnecting to ${target.name} (attempt ${retry.attempt + 1})`, "info");
+      setBusy(true);
+      connectToRef
+        .current(target)
+        .catch(() => setRetry((r) => r && { ...r, attempt: r.attempt + 1 }))
+        .finally(() => setBusy(false));
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [retry, retryHostOnline, joined, busy, serverActive, log]);
+
+  React.useEffect(() => setRetry(null), [groupId]);
+
   // Our own server is starting: free the Minecraft port the tunnel may hold
   React.useEffect(() => {
     if (!serverActive) return;
+    setRetry(null);
     setJoined((current) => {
       current?.stop();
       return null;
