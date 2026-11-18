@@ -14,6 +14,17 @@ describe("signaling", () => {
     expect(answerFrom({ clientId: "host", data }, "host", "p2")).toBeNull();
   });
 
+  it("matches an ICE restart answer to its own restart only", () => {
+    const restart2 = { peerId: "p1", sdp: "restart-2", restart: 2 };
+    expect(answerFrom({ clientId: "host", data: restart2 }, "host", "p1", 2)).toBe("restart-2");
+    // A late answer to an earlier restart, or to the first offer, must not be applied
+    expect(answerFrom({ clientId: "host", data: restart2 }, "host", "p1", 3)).toBeNull();
+    expect(answerFrom({ clientId: "host", data: restart2 }, "host", "p1")).toBeNull();
+    expect(
+      answerFrom({ clientId: "host", data: { peerId: "p1", sdp: "first" } }, "host", "p1", 1),
+    ).toBeNull();
+  });
+
   it("accepts only well-formed offers addressed to this host", () => {
     const data = { peerId: "p1", sdp: "offer-sdp", to: "host" };
     expect(offerFor({ clientId: "friend", data }, "host")).toEqual(data);

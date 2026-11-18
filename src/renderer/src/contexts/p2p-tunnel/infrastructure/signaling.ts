@@ -11,6 +11,8 @@ export interface Signal {
   sdp: string;
   /** clientId of the host an offer is meant for */
   to?: string;
+  /** ICE restart number on an existing connection (`peerId`); absent on the first offer */
+  restart?: number;
 }
 
 const isSignal = (data: unknown): data is Signal =>
@@ -20,9 +22,20 @@ const isSignal = (data: unknown): data is Signal =>
 export const offerFor = (message: SignalMessage, self: string): Signal | null =>
   isSignal(message.data) && (message.data.to ?? self) === self ? message.data : null;
 
-/** The answer SDP to our offer, only when the host we offered to sent it: the peerId alone is public. */
-export const answerFrom = (message: SignalMessage, host: string, peerId: string): string | null =>
-  message.clientId === host && isSignal(message.data) && message.data.peerId === peerId
+/**
+ * The answer SDP to our offer, only when the host we offered to sent it: the peerId alone is public.
+ * `restart` picks the answer to that ICE restart, so a late answer to an earlier one is ignored.
+ */
+export const answerFrom = (
+  message: SignalMessage,
+  host: string,
+  peerId: string,
+  restart = 0,
+): string | null =>
+  message.clientId === host &&
+  isSignal(message.data) &&
+  message.data.peerId === peerId &&
+  (message.data.restart ?? 0) === restart
     ? message.data.sdp
     : null;
 
@@ -33,6 +46,8 @@ export const DIAG_CODES = [
   "tunnel_failed",
   "tunnel_closed",
   "channel_failed",
+  "reconnecting",
+  "recovered",
 ] as const;
 export type DiagCode = (typeof DIAG_CODES)[number];
 export const DIAG_DETAIL_MAX = 200;

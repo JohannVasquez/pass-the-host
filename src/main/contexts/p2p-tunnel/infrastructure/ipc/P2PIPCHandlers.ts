@@ -1,4 +1,5 @@
 import { ipcMain } from "electron";
+import { logger } from "@shared/infrastructure/logger";
 import { api, forgetDevice } from "@main/contexts/p2p-tunnel/infrastructure/DeviceSession";
 import * as tunnel from "@main/contexts/p2p-tunnel/infrastructure/TcpTunnel";
 import {
@@ -9,6 +10,8 @@ import {
 } from "@main/contexts/p2p-tunnel/infrastructure/TurnConfig";
 
 const UUID = /^[0-9a-f-]{36}$/i;
+const LOG_LEVELS = { info: "info", success: "info", warning: "warn", error: "error" } as const;
+const LOG_MAX = 500;
 
 export function registerP2PIPCHandlers(): void {
   ipcMain.handle("p2p:list-groups", () => api("/groups"));
@@ -60,4 +63,9 @@ export function registerP2PIPCHandlers(): void {
   ipcMain.on("p2p:tcp-pause", (_e, connId: string) => tunnel.pause(connId));
   ipcMain.on("p2p:tcp-resume", (_e, connId: string) => tunnel.resume(connId));
   ipcMain.on("p2p:close-all", () => tunnel.closeAll());
+  // Tunnel events from the renderer, so a dropped connection can be diagnosed afterwards
+  ipcMain.on("p2p:log", (_e, level: unknown, message: unknown) => {
+    const method = LOG_LEVELS[level as keyof typeof LOG_LEVELS];
+    if (method && typeof message === "string") logger[method](`[P2P] ${message.slice(0, LOG_MAX)}`);
+  });
 }

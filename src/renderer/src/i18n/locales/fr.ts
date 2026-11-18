@@ -563,7 +563,7 @@ export const fr: typeof en = {
       portBusyHint: "Le {{port}} était occupé sur ce PC : utilise cette adresse dans Minecraft. Elle restera la même la prochaine fois.",
       serverAddress: "Adresse du serveur",
       hosting: "Les amis de ce salon peuvent rejoindre ton serveur.",
-      disconnected: "Connexion à l'hôte perdue.",
+      reconnecting: "Connexion à l'hôte perdue. Reconnexion…",
       modsFolder: {
         title: "Dossier des mods",
         notFound: "Nous n'avons pas trouvé .minecraft sur cet ordinateur : choisis le dossier mods de ton instance.",

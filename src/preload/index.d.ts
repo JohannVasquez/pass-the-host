@@ -266,6 +266,8 @@ interface P2PAPI {
   tcpPause: (connId: string) => void;
   tcpResume: (connId: string) => void;
   closeAll: () => void;
+  /** Writes a tunnel event to the app's log file */
+  log: (level: "info" | "success" | "warning" | "error", message: string) => void;
   onTcpOpen: (callback: (connId: string) => void) => () => void;
   onTcpData: (callback: (connId: string, data: Uint8Array<ArrayBuffer>) => void) => () => void;
   onTcpError: (callback: (connId: string, message: string) => void) => () => void;
