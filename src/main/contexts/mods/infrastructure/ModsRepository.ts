@@ -5,6 +5,7 @@ import { ValidationError } from "@shared/domain/errors";
 import {
   MOD_METADATA_ENTRIES,
   ModMetadata,
+  nestedJarPaths,
   parseModMetadata,
 } from "@main/contexts/mods/domain/parseModMetadata";
 import {
@@ -13,6 +14,10 @@ import {
   ModFolder,
   targetFolder,
 } from "@main/contexts/mods/domain/checkModCompatibility";
+import {
+  checkModRelations,
+  ModRelationIssue,
+} from "@main/contexts/mods/domain/checkModRelations";
 import { readZipEntries } from "@main/contexts/mods/infrastructure/readZipEntries";
 import {
   lookupModrinth,
@@ -21,11 +26,22 @@ import {
   sideFromModrinth,
 } from "@main/contexts/mods/infrastructure/modrinthLookup";
 
+export type ModWarning = { key: string; dismissed: boolean } & (
+  | { reason: "compat"; compat: Exclude<ModCompat, { status: "ok" }> }
+  | ModRelationIssue
+);
+
+type CompatIssue = { reason: "compat"; compat: Exclude<ModCompat, { status: "ok" }> };
+
+const DISMISSED_FILE = ".passthehost-dismissed-warnings.json";
+
 export interface ModItem {
   fileName: string;
   sizeBytes: number;
   metadata: ModMetadata | null;
   compat: ModCompat;
+  /** Every problem to show, compat ones included; each can be dismissed per server */
+  warnings: ModWarning[];
   /** Who has to install it, from Modrinth when it knows the file, else from the jar itself */
   side: "client" | "server" | "both";
   sideSource: "modrinth" | "jar";
@@ -62,7 +78,66 @@ export class ModsRepository {
   async list(serverId: string): Promise<ModsList> {
     const info = this.readServerInfo(serverId);
     const folder = this.folderName(info.engine);
-    return { ...info, serverName: info.name ?? serverId, folder, mods: await this.installed(serverId, info) };
+    const mods = await this.installed(serverId, info);
+    // client-mods/ jars aren't loaded by the server, so they take no part in relations
+    const issues = checkModRelations(
+      mods.filter((m) => m.folder !== "client-mods"),
+      info.engine,
+      info.minecraftVersion,
+    );
+    const dismissed = this.readDismissed(serverId);
+    for (const mod of mods) {
+      const relations = (issues.get(mod.fileName) ?? []).map((i) => this.warn(mod.metadata, mod.fileName, i));
+      mod.warnings = [...mod.warnings, ...relations].map((w) => ({ ...w, dismissed: dismissed.has(w.key) }));
+    }
+    return { ...info, serverName: info.name ?? serverId, folder, mods };
+  }
+
+  dismissWarning(serverId: string, key: string): boolean {
+    if (typeof key !== "string" || key.length < 1 || key.length > 300) {
+      throw new ValidationError("Invalid warning key");
+    }
+    const keys = this.readDismissed(serverId);
+    keys.add(key);
+    // Lives in the server folder so the cloud upload carries it to friends; not a mod change
+    fs.writeFileSync(this.dismissedPath(serverId), JSON.stringify([...keys]), "utf-8");
+    return true;
+  }
+
+  restoreWarnings(serverId: string): boolean {
+    fs.rmSync(this.dismissedPath(serverId), { force: true });
+    return true;
+  }
+
+  private dismissedPath(serverId: string): string {
+    return path.join(this.serverPath(serverId), DISMISSED_FILE);
+  }
+
+  private readDismissed(serverId: string): Set<string> {
+    try {
+      const raw: unknown = JSON.parse(fs.readFileSync(this.dismissedPath(serverId), "utf-8"));
+      return new Set(Array.isArray(raw) ? raw.filter((k): k is string => typeof k === "string") : []);
+    } catch {
+      return new Set(); // missing or corrupt: nothing dismissed
+    }
+  }
+
+  // Stable across restarts and across updates of the same mod id
+  private warn(
+    metadata: ModMetadata | null,
+    fileName: string,
+    issue: ModRelationIssue | CompatIssue,
+  ): ModWarning {
+    const target =
+      issue.reason === "compat"
+        ? ""
+        : issue.reason === "duplicate"
+          ? issue.otherFile
+          : issue.reason === "breaks"
+            ? issue.other
+            : issue.dependency;
+    const reason = issue.reason === "compat" ? issue.compat.reason : issue.reason;
+    return { key: `${metadata?.id ?? fileName}|${reason}|${target}`, dismissed: false, ...issue };
   }
 
   async inspect(serverId: string, filePaths: string[]): Promise<ModItem[]> {
@@ -125,7 +200,8 @@ export class ModsRepository {
       taken[folder].add(fileName.toLowerCase());
       if (item.metadata) byId.set(item.metadata.id, { fileName, folder });
       const compat = checkModCompatibility(item.metadata, info.engine, info.minecraftVersion, folder);
-      (previous ? result.replaced : result.added).push({ ...item, fileName, folder, compat });
+      const warnings = this.compatWarnings(item.metadata, fileName, compat);
+      (previous ? result.replaced : result.added).push({ ...item, fileName, folder, compat, warnings });
     }
 
     if (result.added.length > 0 || result.replaced.length > 0) {
@@ -203,8 +279,11 @@ export class ModsRepository {
     sha1?: string,
   ): ModItem {
     let metadata: ModMetadata | null = null;
+    let nested: ModMetadata[] = [];
     try {
-      metadata = parseModMetadata(readZipEntries(filePath, MOD_METADATA_ENTRIES));
+      const entries = readZipEntries(filePath, MOD_METADATA_ENTRIES);
+      metadata = parseModMetadata(entries);
+      nested = this.nestedMods(filePath, entries);
     } catch {
       // Expected case: not a zip or corrupt, reported as not_a_mod
     }
@@ -214,19 +293,26 @@ export class ModsRepository {
       const fallback = metadataFromModrinth(known);
       if (fallback.loaders.length > 0) metadata = fallback;
     }
+    // A wrapper jar (Kotlin for Forge) holds its real mod one level down
+    metadata ??= nested[0] ?? null;
     const side = known ? sideFromModrinth(known) : (metadata?.side ?? "both");
-    if (metadata) metadata = { ...metadata, side };
+    // Nested ids also count for jars whose metadata came from Modrinth (Kotlin for Forge wraps its mod)
+    const nestedIds = nested.flatMap((m) => [m.id, ...m.provides]);
+    if (metadata) metadata = { ...metadata, side, provides: [...new Set([...metadata.provides, ...nestedIds])] };
     let sizeBytes = 0;
     try {
       sizeBytes = fs.statSync(filePath).size;
     } catch {
       // Unreadable file: size stays 0, the metadata is null too
     }
+    const fileName = path.basename(filePath);
+    const compat = checkModCompatibility(metadata, info.engine, info.minecraftVersion, folder);
     return {
-      fileName: path.basename(filePath),
+      fileName,
       sizeBytes,
       metadata,
-      compat: checkModCompatibility(metadata, info.engine, info.minecraftVersion, folder),
+      compat,
+      warnings: this.compatWarnings(metadata, fileName, compat),
       folder,
       side,
       sideSource: known ? "modrinth" : "jar",
@@ -234,6 +320,31 @@ export class ModsRepository {
       ...(sha1 && { sha1 }),
       ...(known?.downloadUrl && { downloadUrl: known.downloadUrl }),
     };
+  }
+
+  private compatWarnings(metadata: ModMetadata | null, fileName: string, compat: ModCompat): ModWarning[] {
+    return compat.status === "ok" ? [] : [this.warn(metadata, fileName, { reason: "compat", compat })];
+  }
+
+  /** Jar-in-jar: bundled mods (Fabric API's modules), which satisfy other mods' dependencies */
+  private nestedMods(filePath: string, entries: Map<string, Buffer>): ModMetadata[] {
+    const paths = nestedJarPaths(entries);
+    if (paths.length === 0) return [];
+    const mods: ModMetadata[] = [];
+    try {
+      // ponytail: one level deep, jars nested inside nested jars aren't read
+      for (const data of readZipEntries(filePath, paths).values()) {
+        try {
+          const inner = parseModMetadata(readZipEntries(data, MOD_METADATA_ENTRIES));
+          if (inner) mods.push(inner);
+        } catch {
+          // A broken nested jar must not break the listing
+        }
+      }
+    } catch {
+      // Same for an unreadable outer archive
+    }
+    return mods;
   }
 
   private readServerInfo(serverId: string): ServerInfo {

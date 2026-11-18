@@ -23,7 +23,8 @@ import {
   CloudDone as CloudDoneIcon,
   CloudOff as CloudOffIcon,
   CloudUpload as CloudUploadIcon,
-  Edit as EditIcon,
+  SettingsOutlined as SettingsIcon,
+  Extension as ExtensionIcon,
   Add as AddIcon,
   FolderOpen as FolderOpenIcon,
   DeleteForever as DeleteForeverIcon,
@@ -37,6 +38,14 @@ import DnsOutlinedIcon from "@mui/icons-material/DnsOutlined";
 import { ServerStatus } from "@renderer/domain/entities/ServerStatus";
 import { Server, ServerType } from "@renderer/domain/entities/Server";
 import { PROVIDER_LABELS } from "@renderer/domain/entities/ServerConfig";
+
+const modsLabelTypes = [
+  ServerType.FORGE,
+  ServerType.NEOFORGE,
+  ServerType.FABRIC,
+  ServerType.QUILT,
+  ServerType.PAPER,
+];
 
 const TYPE_LABELS: Record<ServerType, string> = {
   [ServerType.VANILLA]: "Vanilla",
@@ -65,6 +74,7 @@ interface ServerControlPanelProps {
   onReleaseLock: () => void;
   onSyncToR2: () => void;
   onEditProperties: () => void;
+  onOpenMods?: () => void;
   onOpenServerFolder: () => void;
   onDeleteServer: () => void;
   /** Only passed when sharing applies (Google Drive connected): the button is hidden otherwise */
@@ -96,6 +106,7 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
   onReleaseLock,
   onSyncToR2,
   onEditProperties,
+  onOpenMods,
   onOpenServerFolder,
   onDeleteServer,
   onShare,
@@ -232,12 +243,6 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
       icon: <FolderOpenIcon fontSize="small" />,
       label: t("serverControl.openServerFolder"),
       onClick: onOpenServerFolder,
-      disabled: false,
-    },
-    {
-      icon: <EditIcon fontSize="small" />,
-      label: t("serverControl.editProperties"),
-      onClick: onEditProperties,
       disabled: false,
     },
     {
@@ -441,6 +446,31 @@ export const ServerControlPanel: React.FC<ServerControlPanelProps> = ({
           >
             {isRunning ? t("serverControl.stop") : t("serverControl.start")}
           </Button>
+
+          <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+            <Button
+              variant="outlined"
+              color="inherit"
+              startIcon={<SettingsIcon />}
+              onClick={onEditProperties}
+              sx={{ flex: 1, height: 36, borderColor: surface.border }}
+            >
+              {t("serverControl.serverSettings")}
+            </Button>
+            {onOpenMods && current && modsLabelTypes.includes(current.type) && (
+              <Button
+                variant="outlined"
+                color="inherit"
+                startIcon={<ExtensionIcon />}
+                onClick={onOpenMods}
+                sx={{ height: 36, borderColor: surface.border }}
+              >
+                {current.type === ServerType.PAPER
+                  ? t("serverControl.plugins")
+                  : t("serverControl.mods")}
+              </Button>
+            )}
+          </Box>
 
           {lockOwner && (
             <Box

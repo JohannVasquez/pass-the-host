@@ -426,6 +426,10 @@ const modsAPI = {
     from: ModItem["folder"],
     to: ModItem["folder"],
   ): Promise<number> => ipcRenderer.invoke("mods:move", serverId, fileNames, from, to),
+  dismissWarning: (serverId: string, key: string): Promise<boolean> =>
+    ipcRenderer.invoke("mods:dismiss-warning", serverId, key),
+  restoreWarnings: (serverId: string): Promise<boolean> =>
+    ipcRenderer.invoke("mods:restore-warnings", serverId),
   openModrinth: (slug: string): Promise<boolean> => ipcRenderer.invoke("mods:open-modrinth", slug),
   // Path of a drag-and-dropped File, to hand to inspect/add
   getPathForFile: (file: File): string => webUtils.getPathForFile(file),

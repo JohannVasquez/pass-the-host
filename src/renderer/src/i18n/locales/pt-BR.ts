@@ -66,7 +66,9 @@ export const ptBR: typeof en = {
       cloudCopyNotSynced:
         "Este servidor está salvo em {{provider}}, mas não está sincronizando agora. Se você jogar, suas mudanças ficam só neste PC e podem entrar em conflito com a cópia na nuvem.",
       openServerFolder: "Pasta do servidor",
-      editProperties: "Editar",
+      serverSettings: "Configurações do servidor",
+      mods: "Mods",
+      plugins: "Plugins",
       deleteServer: "Excluir",
       share: "Compartilhar",
       cloudNotConfigured:
@@ -138,8 +140,8 @@ export const ptBR: typeof en = {
       failed: "Falha ao instalar o rclone",
     },
     configuration: {
-      title: "Configuração",
-      summary: "Nuvem · Rede · RAM",
+      title: "Nuvem, rede e RAM",
+      summary: "Todos os servidores",
       cloudSyncOff: "Sincronização desativada",
       stopToEdit: "Pare o servidor para editar a configuração.",
     },
@@ -261,7 +263,7 @@ export const ptBR: typeof en = {
       overwrite: "Substituir",
     },
     editServer: {
-      title: "Editar servidor",
+      title: "Configurações do servidor",
       save: "Salvar alterações",
       cancel: "Cancelar",
       datapacks: {
@@ -320,6 +322,16 @@ export const ptBR: typeof en = {
         addedClientOnly_one: "{{count}} guardado só para jogadores",
         addedClientOnly_other: "{{count}} guardados só para jogadores",
         unknownMinecraft: "Não foi possível ler a versão do Minecraft exigida",
+        missingDependency: "Requer {{dependency}}, que não está instalado",
+        missingDependencyVersion: "Requer {{dependency}} {{required}}, que não está instalado",
+        dependencyVersion: "Requer {{dependency}} {{required}}, mas a versão {{actual}} está instalada",
+        duplicate: "Duplicado: também está em {{otherFile}}",
+        breaks: "Declara ser incompatível com {{other}}",
+        conflicts: "Pode ter problemas com {{other}}",
+        dismiss: "Não mostrar novamente",
+        dismissedCount_one: "{{count}} aviso oculto",
+        dismissedCount_other: "{{count}} avisos ocultos",
+        restoreDismissed: "Mostrar novamente",
         side: { client: "Cliente", server: "Servidor", both: "Ambos" },
         sideModrinth: "Segundo o Modrinth",
         sideJar: "Segundo o arquivo do mod",

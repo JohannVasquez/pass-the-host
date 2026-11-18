@@ -286,6 +286,8 @@ interface ModsAPI {
     from: ModItem["folder"],
     to: ModItem["folder"],
   ) => Promise<number>;
+  dismissWarning: (serverId: string, key: string) => Promise<boolean>;
+  restoreWarnings: (serverId: string) => Promise<boolean>;
   openModrinth: (slug: string) => Promise<boolean>;
   getPathForFile: (file: File) => string;
   clientManifest: (serverId: string) => Promise<ClientModManifest>;

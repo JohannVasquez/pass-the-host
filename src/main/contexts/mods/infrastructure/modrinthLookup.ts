@@ -79,6 +79,8 @@ export function metadataFromModrinth(info: ModrinthInfo): ModMetadata {
     version: info.versionNumber,
     loaders,
     side: sideFromModrinth(info),
+    dependencies: [],
+    provides: [],
   };
 }
 
