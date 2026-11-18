@@ -1,7 +1,8 @@
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { z } from 'zod'
 import { getPrisma } from './db'
 import type { AppEnv } from './env'
+import { roomStub } from './rooms'
 
 const createBody = z.object({ name: z.string().trim().min(1).max(50) })
 const joinBody = z.object({ code: z.string().max(32) })
@@ -13,6 +14,11 @@ const groupSelect = {
   createdAt: true,
   _count: { select: { members: true } }
 } as const
+
+// Cuts the removed member's live room sockets now instead of when they next reconnect.
+// Best effort: the membership change already happened, and tickets check it anyway.
+const kickFromRoom = (c: Context<AppEnv>, groupId: string, userId?: string): void =>
+  c.executionCtx.waitUntil(roomStub(c.env, groupId).kick(userId).catch((error) => console.warn('room kick failed', error)))
 
 // 32 symbols without look-alikes (0/O, 1/I); 12 of them give ~10^18 codes
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -113,6 +119,7 @@ groups.delete('/:id/membership', async (c) => {
   // The creator deletes the room instead; leaving would orphan it
   if (group.ownerId === userId) return c.json({ error: 'owner_cannot_leave' }, 409)
   await prisma.groupMember.deleteMany({ where: { userId, groupId } })
+  kickFromRoom(c, groupId, userId)
   return c.body(null, 204)
 })
 
@@ -146,6 +153,7 @@ groups.delete('/:id/members/:userId', async (c) => {
       prisma.serverGroup.update({ where: { id: groupId }, data: { inviteCode } })
     ])
   )
+  kickFromRoom(c, groupId, memberId)
   return c.body(null, 204)
 })
 
@@ -160,5 +168,6 @@ groups.delete('/:id', async (c) => {
     prisma.groupMember.deleteMany({ where: { groupId } }),
     prisma.serverGroup.delete({ where: { id: groupId } })
   ])
+  kickFromRoom(c, groupId)
   return c.body(null, 204)
 })
