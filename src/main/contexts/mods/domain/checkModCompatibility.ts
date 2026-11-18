@@ -7,7 +7,7 @@ export type ModCompat =
   | { status: "error"; reason: "wrong_loader"; loaders: ModLoader[]; engine: string }
   | { status: "error"; reason: "wrong_minecraft"; required: string; actual: string };
 
-function acceptedLoaders(engine: string, mcVersion: string): ModLoader[] {
+export function acceptedLoaders(engine: string, mcVersion: string): ModLoader[] {
   switch (engine) {
     case "fabric":
       return ["fabric"];

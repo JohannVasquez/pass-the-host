@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { deflateRawSync } from "zlib";
-import { parseModMetadata, ModMetadata } from "@main/contexts/mods/domain/parseModMetadata";
+import { parseModMetadata, nestedJarPaths, ModMetadata } from "@main/contexts/mods/domain/parseModMetadata";
 import { checkModCompatibility, targetFolder } from "@main/contexts/mods/domain/checkModCompatibility";
 import {
   metadataFromModrinth,
@@ -21,6 +21,8 @@ const meta = (over: Partial<ModMetadata>): ModMetadata => ({
   version: "1",
   loaders: ["fabric"],
   side: "both",
+  dependencies: [],
+  provides: [],
   ...over,
 });
 
@@ -44,6 +46,8 @@ describe("parseModMetadata", () => {
       minecraft: ">=1.21 || 1.20.x",
       side: "client",
       description: undefined,
+      dependencies: [],
+      provides: [],
     });
   });
 
@@ -397,7 +401,73 @@ describe("readZipEntries", () => {
       version: "5.0",
       loaders: ["neoforge", "plugin"],
       side: "both",
+      dependencies: [],
+      provides: [],
     });
+  });
+});
+
+describe("parseModMetadata dependencies", () => {
+  it("reads fabric depends/breaks/provides and drops platform ids", () => {
+    const result = parseModMetadata(
+      entries({
+        "fabric.mod.json": JSON.stringify({
+          id: "a",
+          version: "1",
+          provides: ["a-alias"],
+          depends: { minecraft: "1.21", fabricloader: ">=0.15", lib: [">=1", "2.x"] },
+          breaks: { bad: "*" },
+          conflicts: { meh: "<2" },
+        }),
+      }),
+    );
+    expect(result?.provides).toEqual(["a-alias"]);
+    expect(result?.dependencies).toEqual([
+      { id: "lib", range: ">=1 || 2.x", kind: "required", loader: "fabric" },
+      { id: "bad", range: "*", kind: "breaks", loader: "fabric" },
+      { id: "meh", range: "<2", kind: "conflicts", loader: "fabric" },
+    ]);
+  });
+
+  it("reads neoforge types and forge mandatory", () => {
+    const toml = (deps: string): string =>
+      `modLoader="javafml"\n[[mods]]\nmodId="m"\nversion="1"\n[[mods]]\nmodId="m2"\n${deps}`;
+    const neo = parseModMetadata(
+      entries({
+        "META-INF/neoforge.mods.toml": toml(
+          `[[dependencies.m]]\nmodId="r"\ntype="required"\nversionRange="[1,2)"\n[[dependencies.m]]\nmodId="x"\ntype="incompatible"\n[[dependencies.m]]\nmodId="o"\ntype="optional"\n[[dependencies.m]]\nmodId="neoforge"\ntype="required"\n`,
+        ),
+      }),
+    );
+    expect(neo?.dependencies).toEqual([
+      { id: "r", range: "[1,2)", kind: "required", loader: "neoforge" },
+      { id: "x", range: undefined, kind: "breaks", loader: "neoforge" },
+    ]);
+    expect(neo?.provides).toEqual(["m2"]);
+    const forge = parseModMetadata(
+      entries({
+        "META-INF/mods.toml": toml(`[[dependencies.m]]\nmodId="f"\nmandatory=true\n[[dependencies.m]]\nmodId="g"\nmandatory=false\n`),
+      }),
+    );
+    expect(forge?.dependencies.map((d) => d.id)).toEqual(["f"]);
+  });
+
+  it("reads plugin.yml block and inline depend lists, lowercased", () => {
+    const block = parseModMetadata(
+      entries({ "plugin.yml": "name: P\nversion: 1\ndepend:\n  - Vault\n  - 'WorldEdit'\nsoftdepend:\n  - X\n" }),
+    );
+    expect(block?.dependencies.map((d) => d.id)).toEqual(["vault", "worldedit"]);
+    const inline = parseModMetadata(entries({ "plugin.yml": "name: P\ndepend: [Vault, Essentials]\n" }));
+    expect(inline?.dependencies.map((d) => d.id)).toEqual(["vault", "essentials"]);
+  });
+
+  it("lists nested jars", () => {
+    expect(
+      nestedJarPaths(entries({ "fabric.mod.json": '{"id":"a","jars":[{"file":"META-INF/jars/x.jar"}]}' })),
+    ).toEqual(["META-INF/jars/x.jar"]);
+    expect(
+      nestedJarPaths(entries({ "META-INF/jarjar/metadata.json": '{"jars":[{"path":"META-INF/jarjar/y.jar"}]}' })),
+    ).toEqual(["META-INF/jarjar/y.jar"]);
   });
 });
 

@@ -6,12 +6,16 @@ const EOCD_SIG = 0x06054b50;
 const CENTRAL_SIG = 0x02014b50;
 const LOCAL_SIG = 0x04034b50;
 
-/** Reads the wanted entries of a zip/jar without loading the whole file. Missing names are omitted. */
-export function readZipEntries(filePath: string, wanted: string[]): Map<string, Buffer> {
-  const fd = fs.openSync(filePath, "r");
+/** Reads the wanted entries of a zip/jar (a path on disk, or its bytes) without loading the whole file. Missing names are omitted. */
+export function readZipEntries(source: string | Buffer, wanted: string[]): Map<string, Buffer> {
+  const fd = typeof source === "string" ? fs.openSync(source, "r") : -1;
   try {
-    const size = fs.fstatSync(fd).size;
+    const size = typeof source === "string" ? fs.fstatSync(fd).size : source.length;
     const readAt = (position: number, length: number): Buffer => {
+      if (typeof source !== "string") {
+        if (position + length > size) throw new Error("Unexpected end of zip file");
+        return source.subarray(position, position + length);
+      }
       const buf = Buffer.alloc(length);
       let done = 0;
       while (done < length) {
@@ -64,6 +68,6 @@ export function readZipEntries(filePath: string, wanted: string[]): Map<string, 
     }
     return result;
   } finally {
-    fs.closeSync(fd);
+    if (fd !== -1) fs.closeSync(fd);
   }
 }

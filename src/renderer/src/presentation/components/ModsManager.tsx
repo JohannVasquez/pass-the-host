@@ -53,12 +53,18 @@ const engineName = (id: string): string => ENGINE_NAMES[id] ?? id;
 
 const SIDE_ICONS = { client: ClientIcon, server: ServerIcon, both: BothIcon };
 
-const groupOf = (mod: ModItem): Group =>
-  mod.compat.status === "error" ? "incompatible" : mod.compat.status === "warning" ? "warning" : "ok";
+type Warning = ModItem["warnings"][number];
+const isCompatError = (w: Warning): boolean => w.reason === "compat" && w.compat.status === "error";
+
+const groupOf = (mod: ModItem): Group => {
+  const active = mod.warnings.filter((w) => !w.dismissed);
+  return active.some(isCompatError) ? "incompatible" : active.length > 0 ? "warning" : "ok";
+};
 
 // Client-only mods left in mods/ can crash a dedicated server
 const isClientInMods = (mod: ModItem): boolean =>
-  mod.folder === "mods" && mod.compat.status === "warning" && mod.compat.reason === "client_only";
+  mod.folder === "mods" &&
+  mod.warnings.some((w) => !w.dismissed && w.reason === "compat" && w.compat.reason === "client_only");
 
 const displayName = (mod: ModItem): string => mod.metadata?.name || mod.fileName;
 
@@ -245,9 +251,25 @@ export const ModsManager: React.FC<ModsManagerProps> = ({
 
   const clientInMods = list.mods.filter(isClientInMods);
 
-  const problemLine = (mod: ModItem): { error: boolean; text: string } | null => {
-    const c = mod.compat;
-    if (c.status === "ok") return null;
+  const dismissedCount = list.mods.reduce((n, m) => n + m.warnings.filter((w) => w.dismissed).length, 0);
+
+  const problemLine = (w: Warning): { error: boolean; text: string } => {
+    if (w.reason === "missing_dependency")
+      return {
+        error: false,
+        text: w.required
+          ? tk("missingDependencyVersion", { dependency: w.dependency, required: w.required })
+          : tk("missingDependency", { dependency: w.dependency }),
+      };
+    if (w.reason === "dependency_version")
+      return {
+        error: false,
+        text: tk("dependencyVersion", { dependency: w.dependency, required: w.required, actual: w.actual }),
+      };
+    if (w.reason === "duplicate") return { error: false, text: tk("duplicate", { otherFile: w.otherFile }) };
+    if (w.reason === "breaks")
+      return { error: false, text: tk(w.soft ? "conflicts" : "breaks", { other: w.other }) };
+    const c = w.compat;
     if (c.status === "error") {
       const text =
         c.reason === "wrong_loader"
@@ -271,7 +293,7 @@ export const ModsManager: React.FC<ModsManagerProps> = ({
 
   const renderRow = (mod: ModItem): React.ReactNode => {
     const meta = mod.metadata;
-    const problem = problemLine(mod);
+    const problems = mod.warnings.filter((w) => !w.dismissed);
     const name = displayName(mod);
     return (
       <Box
@@ -372,19 +394,37 @@ export const ModsManager: React.FC<ModsManagerProps> = ({
             )}
           </Box>
         )}
-        {problem && (
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.5,
-              color: problem.error ? "error.main" : "warning.main",
-            }}
-          >
-            {problem.error ? <ErrorIcon sx={{ fontSize: 14 }} /> : <WarningIcon sx={{ fontSize: 14 }} />}
-            <Typography variant="caption">{problem.text}</Typography>
-          </Box>
-        )}
+        {problems.map((w) => {
+          const problem = problemLine(w);
+          return (
+            <Box
+              key={w.key}
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.5,
+                color: problem.error ? "error.main" : "warning.main",
+              }}
+            >
+              {problem.error ? <ErrorIcon sx={{ fontSize: 14 }} /> : <WarningIcon sx={{ fontSize: 14 }} />}
+              <Typography variant="caption">{problem.text}</Typography>
+              <Button
+                size="small"
+                color="inherit"
+                disabled={busy}
+                sx={{ minWidth: 0, py: 0, ml: "auto", color: "text.secondary" }}
+                onClick={() =>
+                  runAction(async () => {
+                    await window.modsAPI.dismissWarning(serverId, w.key);
+                    return null;
+                  })
+                }
+              >
+                {tk("dismiss")}
+              </Button>
+            </Box>
+          );
+        })}
       </Box>
     );
   };
@@ -409,6 +449,24 @@ export const ModsManager: React.FC<ModsManagerProps> = ({
           )}
         </Typography>
       </Box>
+      {dismissedCount > 0 && (
+        <Typography variant="caption" color="text.secondary">
+          {tk("dismissedCount", { count: dismissedCount })} ·{" "}
+          <Button
+            size="small"
+            disabled={busy}
+            sx={{ minWidth: 0, py: 0 }}
+            onClick={() =>
+              runAction(async () => {
+                await window.modsAPI.restoreWarnings(serverId);
+                return null;
+              })
+            }
+          >
+            {tk("restoreDismissed")}
+          </Button>
+        </Typography>
+      )}
       {isRunning && (
         <Typography variant="caption" color="text.secondary">
           {t("editServer.mods.restartCaption")}

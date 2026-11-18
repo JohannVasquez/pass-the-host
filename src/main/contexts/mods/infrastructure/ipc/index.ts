@@ -24,6 +24,12 @@ export function registerModsIPCHandlers(): void {
   ipcMain.handle("mods:add", (_event, serverId: string, filePaths?: string[]) =>
     repository.add(serverId, filePaths),
   );
+  ipcMain.handle("mods:dismiss-warning", (_event, serverId: string, key: string) =>
+    repository.dismissWarning(serverId, key),
+  );
+  ipcMain.handle("mods:restore-warnings", (_event, serverId: string) =>
+    repository.restoreWarnings(serverId),
+  );
   ipcMain.handle("mods:open-modrinth", (_event, slug: string) => {
     // Trust boundary: only a plain slug may build the URL
     if (typeof slug !== "string" || !/^[\w-]+$/.test(slug)) return false;
