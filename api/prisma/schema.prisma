@@ -36,3 +36,17 @@ model GroupMember {
 
   @@unique([userId, groupId])
 }
+
+model DiscordLink {
+  id             String    @id @default(uuid())
+  secretHash     String
+  createdBy      String
+  state          String?   @unique
+  stateExpiresAt DateTime?
+  guildId        String
+  guildName      String
+  channelId      String
+  channelName    String
+  webhookId      String?
+  createdAt      DateTime  @default(now())
+}
