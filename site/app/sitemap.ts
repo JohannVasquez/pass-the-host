@@ -6,6 +6,8 @@ const BASE_URL = "https://passthehost.jvdev.cl";
 const pages = [
   { path: "", changeFrequency: "monthly", priority: 1 },
   { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
+  { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
+  { path: "/discord", changeFrequency: "yearly", priority: 0.3 },
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
