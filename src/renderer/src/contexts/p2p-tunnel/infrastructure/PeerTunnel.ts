@@ -1,4 +1,4 @@
-import { channelName, getRealtime } from "@contexts/p2p-tunnel/infrastructure/Realtime";
+import { roomChannel } from "@contexts/p2p-tunnel/infrastructure/Realtime";
 import {
   createModsClient,
   MODS_LABEL,
@@ -16,7 +16,7 @@ import {
   type SignalMessage,
 } from "@contexts/p2p-tunnel/infrastructure/signaling";
 
-// Signaling over Ably (one channel per group), then each TCP connection rides its own WebRTC data channel.
+// Signaling over the room's realtime channel (Ably or the RoomHub), then each TCP connection rides its own WebRTC data channel.
 // The TCP sockets live in the main process; bytes cross over IPC keyed by connId (= data channel label).
 
 // 16 KiB messages cap SCTP at ~0.6 MB/s here; 64 KiB measured ~75 MB/s and stays under the 256 KiB limit
@@ -185,8 +185,7 @@ export async function startHosting(
   serverId: string,
   events: HostEvents,
 ): Promise<() => void> {
-  const realtime = getRealtime();
-  const channel = realtime.channels.get(channelName(groupId));
+  const channel = await roomChannel(groupId);
   // Keyed by sender + peerId: a member can't take over another member's peer
   const peers = new Map<string, HostPeer>();
 
@@ -199,7 +198,7 @@ export async function startHosting(
     if (peer.connected) events.onClosed(peer.from);
   };
 
-  const answer = async (pc: RTCPeerConnection, offer: Signal): Promise<void> => {
+  const answer = async (pc: RTCPeerConnection, offer: Signal, to: string): Promise<void> => {
     // Fetched per offer: TURN credentials expire, and hosting can outlive them
     pc.setConfiguration(await window.p2pAPI.getIceServers());
     await pc.setRemoteDescription({ type: "offer", sdp: offer.sdp });
@@ -208,12 +207,14 @@ export async function startHosting(
     await channel.publish("webrtc_answer", {
       peerId: offer.peerId,
       sdp: pc.localDescription!.sdp,
+      // Lets the RoomHub deliver it to the friend only; Ably ignores it
+      to,
       ...(offer.restart && { restart: offer.restart }),
     });
   };
 
   const onOffer = async (message: SignalMessage): Promise<void> => {
-    const offer = offerFor(message, realtime.auth.clientId);
+    const offer = offerFor(message, channel.clientId());
     const from = message.clientId;
     if (!offer || !from) return;
     const key = `${from}:${offer.peerId}`;
@@ -225,7 +226,7 @@ export async function startHosting(
       existing.renegotiating = true;
       trace(`host: ICE restart ${offer.restart} requested`);
       try {
-        await answer(existing.pc, offer);
+        await answer(existing.pc, offer, from);
       } catch (error) {
         console.warn("P2P: failed to answer an ICE restart", error);
         trace(`host: ICE restart ${offer.restart} failed (${(error as Error).message})`);
@@ -286,7 +287,7 @@ export async function startHosting(
       }
     };
     try {
-      await answer(pc, offer);
+      await answer(pc, offer, from);
       // An offer that never connects would otherwise hold its slot forever
       setTimeout(() => {
         if (pc.connectionState === "new" || pc.connectionState === "connecting") dropPeer(key, pc);
@@ -297,7 +298,7 @@ export async function startHosting(
     }
   };
   const onDiag = (message: SignalMessage): void => {
-    const diag = diagFrom(message, realtime.auth.clientId);
+    const diag = diagFrom(message, channel.clientId());
     if (diag) events.onDiag(diag);
   };
   await channel.subscribe("webrtc_offer", onOffer);
@@ -313,6 +314,7 @@ export async function startHosting(
     }
     peers.clear();
     window.p2pAPI.closeAll();
+    channel.release();
   };
 }
 
@@ -335,7 +337,7 @@ export async function joinServer(
   onNotice: (code: DiagCode, detail?: string) => void = () => undefined,
 ): Promise<JoinedServer> {
   const { iceServers } = await window.p2pAPI.getIceServers();
-  const channel = getRealtime().channels.get(channelName(groupId));
+  const channel = await roomChannel(groupId);
   const peerId = crypto.randomUUID();
   const pc = new RTCPeerConnection({ iceServers });
   const owned = new Set<string>();
@@ -354,7 +356,7 @@ export async function joinServer(
   // An offer needs at least one data channel to carry an application section
   pc.createDataChannel(CONTROL_LABEL);
 
-  /** One offer/answer round over Ably: the first one (restart 0) or an ICE restart. */
+  /** One offer/answer round over the room's channel: the first one (restart 0) or an ICE restart. */
   const negotiate = async (restart: number, timeoutMs: number): Promise<void> => {
     await pc.setLocalDescription(await pc.createOffer({ iceRestart: restart > 0 }));
     await gatherIce(pc);
@@ -392,6 +394,7 @@ export async function joinServer(
   } catch (error) {
     pc.close();
     notice("tunnel_failed", error instanceof Error ? error.message : String(error));
+    channel.release();
     throw error;
   }
 
@@ -401,6 +404,7 @@ export async function joinServer(
   } catch (error) {
     pc.close();
     notice("tunnel_failed", error instanceof Error ? error.message : String(error));
+    channel.release();
     throw error;
   }
   notice("joined", String(port));
@@ -420,11 +424,13 @@ export async function joinServer(
     pc.onconnectionstatechange = null;
     closePeer(pc, owned);
     window.p2pAPI.closeAll();
+    channel.release();
   };
   const giveUp = (): void => {
     if (stopped) return;
-    stop();
+    // Before stop() releases the channel it goes out on
     notice("tunnel_closed", String(port));
+    stop();
     onDisconnected();
   };
 

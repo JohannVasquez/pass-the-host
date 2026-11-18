@@ -390,6 +390,8 @@ const p2pAPI = {
     ipcRenderer.invoke("p2p:list-members", groupId),
   setDisplayName: (name: string): Promise<void> => ipcRenderer.invoke("p2p:set-display-name", name),
   getAblyToken: (): Promise<TokenRequest> => ipcRenderer.invoke("p2p:ably-token"),
+  getRealtimeMode: (): Promise<"ably" | "do"> => ipcRenderer.invoke("p2p:realtime-mode"),
+  getRoomUrl: (groupId: string): Promise<string> => ipcRenderer.invoke("p2p:room-url", groupId),
   getTurnConfig: (): Promise<TurnConfig | null> => ipcRenderer.invoke("p2p:get-turn-config"),
   saveTurnConfig: (config: TurnConfig | null): Promise<void> =>
     ipcRenderer.invoke("p2p:save-turn-config", config),
